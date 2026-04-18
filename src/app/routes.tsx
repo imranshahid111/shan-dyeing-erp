@@ -2,26 +2,55 @@ import { createBrowserRouter } from "react-router";
 import Layout from "./components/Layout";
 import Dashboard from "./components/Dashboard";
 import GrayLotManagement from "./components/GrayLotManagement";
+import GrayLotForm from "./components/GrayLotForm";
+import CustomerForm from "./components/CustomerForm";
+import CustomerView from "./components/CustomerView";
 import DeliveryOrders from "./components/DeliveryOrders";
 import Billing from "./components/Billing";
 import GatePass from "./components/GatePass";
 import Customers from "./components/Customers";
 import Payments from "./components/Payments";
 import Reports from "./components/Reports";
+import LoginPage from "./components/LoginPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 export const router = createBrowserRouter([
   {
+    path: "/login",
+    Component: LoginPage,
+  },
+  {
     path: "/",
-    Component: Layout,
+    Component: ProtectedRoute,
     children: [
-      { index: true, Component: Dashboard },
-      { path: "gray-lots", Component: GrayLotManagement },
-      { path: "delivery-orders", Component: DeliveryOrders },
-      { path: "billing", Component: Billing },
-      { path: "gate-pass", Component: GatePass },
-      { path: "customers", Component: Customers },
-      { path: "payments", Component: Payments },
-      { path: "reports", Component: Reports },
+      {
+        Component: Layout,
+        children: [
+          { index: true, Component: Dashboard },
+          {
+            path: "gray-lots",
+            children: [
+              { index: true, Component: GrayLotManagement },
+              { path: "new", Component: GrayLotForm },
+              { path: "edit/:id", Component: GrayLotForm },
+            ],
+          },
+          { path: "delivery-orders", Component: DeliveryOrders },
+          { path: "billing", Component: Billing },
+          { path: "gate-pass", Component: GatePass },
+          {
+            path: "customers",
+            children: [
+              { index: true, Component: Customers },
+              { path: "new", Component: CustomerForm },
+              { path: "edit/:id", Component: CustomerForm },
+              { path: "view/:id", Component: CustomerView },
+            ],
+          },
+          { path: "payments", Component: Payments },
+          { path: "reports", Component: Reports },
+        ],
+      },
     ],
   },
 ]);

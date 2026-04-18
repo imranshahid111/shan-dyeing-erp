@@ -1,5 +1,5 @@
-import { Outlet, Link, useLocation } from 'react-router';
-import { LayoutDashboard, Package, Truck, FileText, ClipboardCheck, Users, CreditCard, BarChart3, Bell, Search, Menu } from 'lucide-react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router';
+import { LayoutDashboard, Package, Truck, FileText, ClipboardCheck, Users, CreditCard, BarChart3, Bell, Search, Menu, ArrowLeft, RefreshCw } from 'lucide-react';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -14,6 +14,7 @@ const navItems = [
 
 export default function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
@@ -36,7 +37,9 @@ export default function Layout() {
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = item.path === '/' 
+              ? location.pathname === '/' 
+              : location.pathname.startsWith(item.path);
             return (
               <Link
                 key={item.path}
@@ -77,7 +80,24 @@ export default function Layout() {
               <button className="lg:hidden p-2 hover:bg-gray-100 rounded-lg">
                 <Menu size={20} className="text-gray-600" />
               </button>
-              <div>
+              {/* Back & Reload Buttons */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => navigate(-1)}
+                  className="p-2.5 hover:bg-gray-100 rounded-xl transition-colors group"
+                  title="Go Back"
+                >
+                  <ArrowLeft size={20} className="text-gray-500 group-hover:text-blue-600 transition-colors" />
+                </button>
+                <button
+                  onClick={() => navigate(0)}
+                  className="p-2.5 hover:bg-gray-100 rounded-xl transition-colors group"
+                  title="Reload Page"
+                >
+                  <RefreshCw size={18} className="text-gray-500 group-hover:text-blue-600 transition-colors" />
+                </button>
+              </div>
+              <div className="border-l border-gray-200 pl-4">
                 <h2 className="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
                   {navItems.find((item) => item.path === location.pathname)?.label || 'Dashboard'}
                 </h2>
