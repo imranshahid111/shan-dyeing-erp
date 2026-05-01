@@ -1,9 +1,10 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import apiClient from '../services/apiClient';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   isSplashLoading: boolean;
-  login: (credentials: { email: string }) => Promise<void>;
+  login: (credentials: { email: string; password?: string }) => Promise<void>;
   logout: () => void;
 }
 
@@ -26,20 +27,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer);
   }, []);
 
-  const login = async (credentials: { email: string }) => {
-    // Simulate API call
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        setIsAuthenticated(true);
-        localStorage.setItem('erp_auth', 'true');
-        resolve();
-      }, 1000);
-    });
+  const login = async (credentials: { email: string; password?: string }) => {
+    try {
+      const response = await apiClient.post<any, any>('/auth/login', credentials);
+      const { token, user } = response;
+      localStorage.setItem('erp_auth', 'true');
+      localStorage.setItem('erp_token', token);
+      localStorage.setItem('erp_user', JSON.stringify(user));
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error("Login failed", error);
+      throw error;
+    }
   };
 
   const logout = () => {
     setIsAuthenticated(false);
     localStorage.removeItem('erp_auth');
+    localStorage.removeItem('erp_token');
+    localStorage.removeItem('erp_user');
   };
 
   return (

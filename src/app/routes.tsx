@@ -13,6 +13,8 @@ import Payments from "./components/Payments";
 import Reports from "./components/Reports";
 import LoginPage from "./components/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import CreateInvoice from "./components/CreateInvoice";
+import Staff from "./components/Staff";
 
 export const router = createBrowserRouter([
   {
@@ -36,7 +38,13 @@ export const router = createBrowserRouter([
             ],
           },
           { path: "delivery-orders", Component: DeliveryOrders },
-          { path: "billing", Component: Billing },
+          { 
+            path: "billing", 
+            children: [
+              { index: true, Component: Billing },
+              { path: "new", Component: CreateInvoice }
+            ]
+          },
           { path: "gate-pass", Component: GatePass },
           {
             path: "customers",
@@ -48,6 +56,7 @@ export const router = createBrowserRouter([
             ],
           },
           { path: "payments", Component: Payments },
+          { path: "staff", Component: Staff },
           { path: "reports", Component: Reports },
         ],
       },

@@ -1,11 +1,13 @@
 import { Package, Truck, FileText, DollarSign, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { useEffect, useMemo, useState } from 'react';
+import { dashboardService } from '../services/dashboardService';
 
 const stats = [
   { label: 'Total Gray Lots', value: '245', change: '+12%', trend: 'up', icon: Package, gradient: 'from-blue-500 to-blue-600' },
   { label: 'Active Delivery Orders', value: '38', change: '+8%', trend: 'up', icon: Truck, gradient: 'from-green-500 to-green-600' },
   { label: 'Pending Billing', value: '12', change: '-5%', trend: 'down', icon: FileText, gradient: 'from-orange-500 to-orange-600' },
-  { label: 'Outstanding Payments', value: '₹5.2L', change: '+3%', trend: 'up', icon: DollarSign, gradient: 'from-purple-500 to-purple-600' },
+  { label: 'Outstanding Payments', value: 'Rs 5.2L', change: '+3%', trend: 'up', icon: DollarSign, gradient: 'from-purple-500 to-purple-600' },
 ];
 
 const monthlyData = [
@@ -25,11 +27,45 @@ const customerData = [
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
 
 export default function Dashboard() {
+  const [summary, setSummary] = useState({
+    totalCustomers: 0,
+    pendingOrders: 0,
+    totalReceivables: 0,
+    todayPayments: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadSummary = async () => {
+      try {
+        setLoading(true);
+        const data = await dashboardService.getSummary();
+        setSummary(data);
+      } catch (error) {
+        console.error('Failed to load dashboard summary:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSummary();
+  }, []);
+
+  const liveStats = useMemo(
+    () => [
+      { label: 'Total Customers', value: loading ? '...' : `${summary.totalCustomers}`, change: 'Live', trend: 'up', icon: Package, gradient: 'from-blue-500 to-blue-600' },
+      { label: 'Active Delivery Orders', value: loading ? '...' : `${summary.pendingOrders}`, change: 'Live', trend: 'up', icon: Truck, gradient: 'from-green-500 to-green-600' },
+      { label: 'Today Payments', value: loading ? '...' : `Rs ${Math.round(summary.todayPayments).toLocaleString()}`, change: 'Live', trend: 'up', icon: FileText, gradient: 'from-orange-500 to-orange-600' },
+      { label: 'Outstanding Payments', value: loading ? '...' : `Rs ${Math.round(summary.totalReceivables).toLocaleString()}`, change: 'Live', trend: 'up', icon: DollarSign, gradient: 'from-purple-500 to-purple-600' },
+    ],
+    [loading, summary]
+  );
+
   return (
     <div className="space-y-6">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => {
+        {liveStats.map((stat) => {
           const Icon = stat.icon;
           const TrendIcon = stat.trend === 'up' ? ArrowUpRight : ArrowDownRight;
           return (
@@ -153,7 +189,7 @@ export default function Dashboard() {
           {[
             { action: 'New Gray Lot', detail: 'Lot #GL-2045 created for ABC Textiles', time: '2 hours ago', color: 'blue' },
             { action: 'DO Generated', detail: 'DO #DO-5623 - 250m Ready fabric', time: '4 hours ago', color: 'green' },
-            { action: 'Payment Received', detail: '₹45,000 from XYZ Industries', time: '5 hours ago', color: 'purple' },
+            { action: 'Payment Received', detail: 'Rs 45,000 from XYZ Industries', time: '5 hours ago', color: 'purple' },
             { action: 'Invoice Created', detail: 'INV-4521 for Global Fabrics', time: '1 day ago', color: 'orange' },
           ].map((activity, index) => (
             <div key={index} className="group flex items-start gap-4 p-4 rounded-xl bg-gradient-to-r from-gray-50 to-transparent hover:from-blue-50 hover:to-transparent transition-all duration-200 cursor-pointer border border-transparent hover:border-blue-100">

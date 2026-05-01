@@ -14,7 +14,7 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await login({ email });
+      await login({ email, password });
       navigate('/');
     } catch (error) {
       console.error(error);

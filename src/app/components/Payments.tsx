@@ -110,7 +110,7 @@ export default function Payments() {
                         <div className="flex-1">
                           <p className="text-sm font-medium">{inv.no}</p>
                           <p className="text-xs text-gray-500">
-                            Due: ₹{(inv.amount - inv.paid).toLocaleString()}
+                            Due: Rs {(inv.amount - inv.paid).toLocaleString()}
                           </p>
                         </div>
                       </label>
@@ -206,7 +206,7 @@ export default function Payments() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-gray-600">{payment.invoiceNo}</td>
                   <td className="px-6 py-4 whitespace-nowrap font-semibold text-green-600">
-                    ₹{payment.amount.toLocaleString()}
+                    Rs {payment.amount.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
@@ -224,11 +224,11 @@ export default function Payments() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg">
           <p className="text-sm opacity-90 mb-1">Total Received (This Month)</p>
-          <p className="text-3xl font-bold">₹75,000</p>
+          <p className="text-3xl font-bold">Rs 75,000</p>
         </div>
         <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white shadow-lg">
           <p className="text-sm opacity-90 mb-1">Total Outstanding</p>
-          <p className="text-3xl font-bold">₹90,500</p>
+          <p className="text-3xl font-bold">Rs 90,500</p>
         </div>
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
           <p className="text-sm opacity-90 mb-1">Total Transactions</p>

@@ -114,7 +114,7 @@ export default function Reports() {
               </div>
               <div className="text-right">
                 <p className="text-sm text-gray-500">Current Balance</p>
-                <p className="text-2xl font-bold text-red-600">₹22,000</p>
+                <p className="text-2xl font-bold text-red-600">Rs 22,000</p>
               </div>
             </div>
           </div>
@@ -146,13 +146,13 @@ export default function Reports() {
                     <td className="px-6 py-4 whitespace-nowrap text-gray-600">{entry.date}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-800">{entry.description}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-red-600">
-                      {entry.debit > 0 ? `₹${entry.debit.toLocaleString()}` : '-'}
+                      {entry.debit > 0 ? `Rs ${entry.debit.toLocaleString()}` : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-green-600">
-                      {entry.credit > 0 ? `₹${entry.credit.toLocaleString()}` : '-'}
+                      {entry.credit > 0 ? `Rs ${entry.credit.toLocaleString()}` : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right font-semibold text-gray-800">
-                      ₹{entry.balance.toLocaleString()}
+                      Rs {entry.balance.toLocaleString()}
                     </td>
                   </tr>
                 ))}
@@ -198,13 +198,13 @@ export default function Reports() {
                       {entry.customer}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
-                      ₹{entry.totalBilled.toLocaleString()}
+                      Rs {entry.totalBilled.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-green-600">
-                      ₹{entry.totalPaid.toLocaleString()}
+                      Rs {entry.totalPaid.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right font-semibold text-red-600">
-                      ₹{entry.outstanding.toLocaleString()}
+                      Rs {entry.outstanding.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
@@ -218,13 +218,13 @@ export default function Reports() {
                 <tr>
                   <td className="px-6 py-4 font-semibold text-gray-800">Total</td>
                   <td className="px-6 py-4 text-right font-semibold text-gray-800">
-                    ₹{outstandingData.reduce((sum, e) => sum + e.totalBilled, 0).toLocaleString()}
+                    Rs {outstandingData.reduce((sum, e) => sum + e.totalBilled, 0).toLocaleString()}
                   </td>
                   <td className="px-6 py-4 text-right font-semibold text-green-600">
-                    ₹{outstandingData.reduce((sum, e) => sum + e.totalPaid, 0).toLocaleString()}
+                    Rs {outstandingData.reduce((sum, e) => sum + e.totalPaid, 0).toLocaleString()}
                   </td>
                   <td className="px-6 py-4 text-right font-bold text-red-600">
-                    ₹{outstandingData.reduce((sum, e) => sum + e.outstanding, 0).toLocaleString()}
+                    Rs {outstandingData.reduce((sum, e) => sum + e.outstanding, 0).toLocaleString()}
                   </td>
                   <td></td>
                 </tr>

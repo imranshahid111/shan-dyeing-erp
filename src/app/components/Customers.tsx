@@ -1,51 +1,48 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Plus, Edit, Trash2, Search, Eye, Phone } from 'lucide-react';
+import { customerService } from '../services/customerService';
 
 interface Customer {
   id: string;
   name: string;
-  contactPerson: string;
   mobile: string;
-  email: string;
   address: string;
-  gstNo: string;
   outstanding: number;
+  customerCode: string;
 }
-
-const mockCustomers: Customer[] = [
-  {
-    id: '1',
-    name: 'ABC Textiles',
-    contactPerson: 'Rajesh Kumar',
-    mobile: '+91 98765 43210',
-    email: 'rajesh@abctextiles.com',
-    address: 'Mumbai, Maharashtra',
-    gstNo: '27AAAAA1234A1Z5',
-    outstanding: 52000,
-  },
-  {
-    id: '2',
-    name: 'XYZ Industries',
-    contactPerson: 'Priya Sharma',
-    mobile: '+91 98765 43211',
-    email: 'priya@xyzind.com',
-    address: 'Surat, Gujarat',
-    gstNo: '24BBBBB5678B2Y4',
-    outstanding: 38500,
-  },
-];
 
 export default function Customers() {
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const filteredCustomers = customers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.contactPerson.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    const loadCustomers = async () => {
+      try {
+        setLoading(true);
+        const response = await customerService.getCustomers(searchTerm, 1, 60);
+        const mapped = response.data.map((item) => ({
+          id: String(item.id),
+          name: item.name,
+          mobile: item.phone,
+          address: item.city || '-',
+          outstanding: Number(item.outstanding_amount || 0),
+          customerCode: item.customer_code,
+        }));
+        setCustomers(mapped);
+      } catch (error) {
+        console.error('Failed to load customers:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCustomers();
+  }, [searchTerm]);
+
+  const filteredCustomers = useMemo(() => customers, [customers]);
 
   return (
     <div className="space-y-6">
@@ -69,74 +66,89 @@ export default function Customers() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCustomers.map((customer) => (
-          <div
-            key={customer.id}
-            className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow group flex flex-col h-full"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div 
-                className="cursor-pointer flex-1"
-                onClick={() => navigate(`/customers/view/${customer.id}`)}
-              >
-                <h3 className="font-bold text-gray-800 group-hover:text-blue-600 transition-colors">{customer.name}</h3>
-                <p className="text-sm text-gray-500 mt-1">{customer.contactPerson}</p>
-              </div>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                  onClick={() => navigate(`/customers/edit/${customer.id}`)}
-                  className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Edit Customer"
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse whitespace-nowrap">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500">
+                <th className="px-6 py-4 font-semibold cursor-pointer hover:text-gray-700">Customer Code</th>
+                <th className="px-6 py-4 font-semibold cursor-pointer hover:text-gray-700">Company Name</th>
+                <th className="px-6 py-4 font-semibold">Contact Info</th>
+                <th className="px-6 py-4 font-semibold">City / Address</th>
+                <th className="px-6 py-4 font-semibold text-right cursor-pointer hover:text-gray-700">Outstanding</th>
+                <th className="px-6 py-4 font-semibold text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {loading && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
+                    Loading customers...
+                  </td>
+                </tr>
+              )}
+              {!loading && filteredCustomers.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    No customers found matching your search.
+                  </td>
+                </tr>
+              )}
+              {filteredCustomers.map((customer) => (
+                <tr 
+                  key={customer.id} 
+                  className="hover:bg-blue-50/40 transition-colors group cursor-pointer"
+                  onClick={() => navigate(`/customers/view/${customer.id}`)}
                 >
-                  <Edit size={16} className="text-blue-600" />
-                </button>
-                <button 
-                  className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Delete Customer"
-                >
-                  <Trash2 size={16} className="text-red-600" />
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-3 text-sm flex-1">
-              <div className="flex items-center gap-3 text-gray-600">
-                <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400">
-                  <Phone size={14} />
-                </div>
-                <span>{customer.mobile}</span>
-              </div>
-              <div className="flex items-center gap-3 text-gray-600">
-                <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400">
-                  <Eye size={14} className="opacity-0" /> {/* Spacer */}
-                  <span>📍</span>
-                </div>
-                <span className="line-clamp-1">{customer.address}</span>
-              </div>
-              <div className="flex items-center gap-3 text-gray-600">
-                <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400 font-bold text-[10px]">
-                  GST
-                </div>
-                <span className="uppercase text-xs font-medium">{customer.gstNo}</span>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-sm text-gray-500 font-medium">Outstanding Bal.</span>
-                <span className="font-bold text-red-600">₹{customer.outstanding.toLocaleString()}</span>
-              </div>
-              <button 
-                onClick={() => navigate(`/customers/view/${customer.id}`)}
-                className="w-full py-2.5 bg-gray-50 text-gray-700 rounded-xl hover:bg-blue-600 hover:text-white transition-all font-semibold flex items-center justify-center gap-2"
-              >
-                <Eye size={16} />
-                View Profile & Ledger
-              </button>
-            </div>
-          </div>
-        ))}
+                  <td className="px-6 py-4">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-700">
+                      {customer.customerCode}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 font-bold text-gray-800">
+                    {customer.name}
+                  </td>
+                  <td className="px-6 py-4 text-gray-600 text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <Phone size={14} className="text-gray-400" />
+                      {customer.mobile}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-gray-600 text-sm max-w-[200px] truncate">
+                    {customer.address}
+                  </td>
+                  <td className="px-6 py-4 font-bold text-red-600 text-right">
+                    Rs {customer.outstanding.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                      <button 
+                        onClick={() => navigate(`/customers/view/${customer.id}`)}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="View Ledger"
+                      >
+                        <Eye size={16} />
+                      </button>
+                      <button 
+                        onClick={() => navigate(`/customers/edit/${customer.id}`)}
+                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Edit Customer"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button 
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete Customer"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

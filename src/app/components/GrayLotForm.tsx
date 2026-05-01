@@ -1,13 +1,15 @@
 import { useState, useRef, KeyboardEvent, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { Save, X, PlusCircle } from 'lucide-react';
+import { grayLotService } from '../services/grayLotService';
+import { customerService, CustomerItem } from '../services/customerService';
 
 interface GrayLot {
   id: string;
   entryDate: string;
   partyName: string;
   processType: string;
-  billNo: string;
+  biltiNo: string;
   lotNo: string;
   quality: string;
   measurement: string;
@@ -23,7 +25,7 @@ const mockLots: GrayLot[] = [
     entryDate: '2026-04-15',
     partyName: 'ABC Textiles',
     processType: 'Dyeing',
-    billNo: 'B-1001',
+    biltiNo: 'B-1001',
     lotNo: 'GL-2045',
     quality: 'Cotton 60s',
     measurement: 'Meter',
@@ -36,7 +38,7 @@ const mockLots: GrayLot[] = [
     entryDate: '2026-04-16',
     partyName: 'XYZ Industries',
     processType: 'Redyeing',
-    billNo: 'B-1002',
+    biltiNo: 'B-1002',
     lotNo: 'GL-2046',
     quality: 'Polyester Blend',
     measurement: 'Yard',
@@ -55,13 +57,17 @@ export default function GrayLotForm() {
     entryDate: new Date().toISOString().split('T')[0],
     processType: 'Dyeing',
     measurement: 'Meter',
+    lotNo: `GL-${Date.now().toString().slice(-5)}`,
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [customers, setCustomers] = useState<CustomerItem[]>([]);
 
   // Refs for all form fields in order
   const entryDateRef = useRef<HTMLInputElement>(null);
   const partyNameRef = useRef<HTMLInputElement>(null);
   const processTypeRef = useRef<HTMLSelectElement>(null);
-  const billNoRef = useRef<HTMLInputElement>(null);
+  const biltiNoRef = useRef<HTMLInputElement>(null);
   const qualityRef = useRef<HTMLInputElement>(null);
   const measurementRef = useRef<HTMLSelectElement>(null);
   const thanRef = useRef<HTMLInputElement>(null);
@@ -72,7 +78,7 @@ export default function GrayLotForm() {
     entryDateRef,
     partyNameRef,
     processTypeRef,
-    billNoRef,
+    biltiNoRef,
     qualityRef,
     measurementRef,
     thanRef,
@@ -89,6 +95,18 @@ export default function GrayLotForm() {
     }
   }, [id, isEdit]);
 
+  useEffect(() => {
+    const loadCustomers = async () => {
+      try {
+        const response = await customerService.getCustomers('', 1, 1000);
+        setCustomers(response.data);
+      } catch (error) {
+        console.error('Failed to load customers', error);
+      }
+    };
+    loadCustomers();
+  }, []);
+
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>, fieldIndex: number) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -100,11 +118,47 @@ export default function GrayLotForm() {
     }
   };
 
-  const handleSubmit = () => {
-    // In a real app, you'd send formData to your API here
-    console.log('Submitting:', formData);
-    alert(isEdit ? 'Gray Lot updated successfully!' : 'New Gray Lot added successfully!');
-    navigate('/gray-lots');
+  const handleSubmit = async () => {
+    if (!formData.partyName || !formData.quality || !formData.entryDate || !formData.lotNo) {
+      setSubmitError('Party name, quality, entry date and lot no are required.');
+      return;
+    }
+
+    try {
+      setSubmitError('');
+      setIsSubmitting(true);
+
+      // #region agent log
+      fetch('http://127.0.0.1:7926/ingest/a2b94f05-6485-4bc6-91a5-e6d95c86d6e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'af45c8'},body:JSON.stringify({sessionId:'af45c8',runId:'initial',hypothesisId:'H4',location:'src/app/components/GrayLotForm.tsx:handleSubmit',message:'gray lot submit started',data:{hasParty:Boolean(formData.partyName),hasQuality:Boolean(formData.quality),lotNo:formData.lotNo},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+
+      await grayLotService.createGrayLot({
+        entryDate: formData.entryDate,
+        partyName: formData.partyName,
+        processType: formData.processType || 'Dyeing',
+        billNo: formData.biltiNo || '',
+        lotNo: formData.lotNo,
+        quality: formData.quality,
+        measurement: formData.measurement || 'Meter',
+        than: Number(formData.than || 0),
+        gazana: Number(formData.gazana || 0),
+        notes: formData.notes || '',
+      });
+
+      // #region agent log
+      fetch('http://127.0.0.1:7926/ingest/a2b94f05-6485-4bc6-91a5-e6d95c86d6e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'af45c8'},body:JSON.stringify({sessionId:'af45c8',runId:'initial',hypothesisId:'H5',location:'src/app/components/GrayLotForm.tsx:handleSubmit',message:'gray lot submit success',data:{lotNo:formData.lotNo},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+
+      alert(isEdit ? 'Gray Lot updated successfully!' : 'New Gray Lot added successfully!');
+      navigate('/gray-lots');
+    } catch (error) {
+      setSubmitError('Gray lot save failed. Please check backend connection.');
+      // #region agent log
+      fetch('http://127.0.0.1:7926/ingest/a2b94f05-6485-4bc6-91a5-e6d95c86d6e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'af45c8'},body:JSON.stringify({sessionId:'af45c8',runId:'initial',hypothesisId:'H5',location:'src/app/components/GrayLotForm.tsx:handleSubmit',message:'gray lot submit failed',data:{error:error instanceof Error ? error.message : 'unknown'},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -150,6 +204,7 @@ export default function GrayLotForm() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Party Name</label>
                 <input
                   ref={partyNameRef}
+                  list="party-list"
                   type="text"
                   placeholder="Search party..."
                   value={formData.partyName || ''}
@@ -157,6 +212,11 @@ export default function GrayLotForm() {
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                   onKeyDown={(e) => handleKeyDown(e, 1)}
                 />
+                <datalist id="party-list">
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.name} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Process Type</label>
@@ -172,13 +232,13 @@ export default function GrayLotForm() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Bill No</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Bilti No</label>
                 <input
-                  ref={billNoRef}
+                  ref={biltiNoRef}
                   type="text"
-                  placeholder="Enter bill number"
-                  value={formData.billNo || ''}
-                  onChange={(e) => setFormData({ ...formData, billNo: e.target.value })}
+                  placeholder="Enter bilti number"
+                  value={formData.biltiNo || ''}
+                  onChange={(e) => setFormData({ ...formData, biltiNo: e.target.value })}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                   onKeyDown={(e) => handleKeyDown(e, 3)}
                 />
@@ -194,6 +254,12 @@ export default function GrayLotForm() {
               </div>
             </div>
           </section>
+
+          {submitError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {submitError}
+            </div>
+          )}
 
           {/* Fabric Details Section */}
           <section>
@@ -278,10 +344,11 @@ export default function GrayLotForm() {
             </button>
             <button
               onClick={handleSubmit}
+              disabled={isSubmitting}
               className="flex items-center gap-2 px-10 py-3.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 font-semibold"
             >
               <Save size={20} />
-              {isEdit ? 'Save Changes' : 'Create Gray Lot'}
+              {isSubmitting ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Gray Lot'}
             </button>
           </div>
         </div>

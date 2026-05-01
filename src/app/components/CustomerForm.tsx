@@ -1,6 +1,7 @@
 import { useState, useRef, KeyboardEvent, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { Save, X, UserPlus } from 'lucide-react';
+import { customerService } from '../services/customerService';
 
 interface Customer {
   id: string;
@@ -49,6 +50,8 @@ export default function CustomerForm() {
     address: '',
     gstNo: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   // Refs for all form fields in order
   const nameRef = useRef<HTMLInputElement>(null);
@@ -87,10 +90,44 @@ export default function CustomerForm() {
     }
   };
 
-  const handleSubmit = () => {
-    console.log('Submitting Customer:', formData);
-    alert(isEdit ? 'Customer updated successfully!' : 'New Customer added successfully!');
-    navigate('/customers');
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.mobile) {
+      setSubmitError('Company name and mobile are required.');
+      return;
+    }
+
+    try {
+      setSubmitError('');
+      setIsSubmitting(true);
+
+      const customerCode = `CUST-${Date.now().toString().slice(-6)}`;
+
+      // #region agent log
+      // fetch('http://127.0.0.1:7926/ingest/a2b94f05-6485-4bc6-91a5-e6d95c86d6e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'af45c8'},body:JSON.stringify({sessionId:'af45c8',runId:'initial',hypothesisId:'H1',location:'src/app/components/CustomerForm.tsx:handleSubmit',message:'customer submit started',data:{isEdit,hasName:Boolean(formData.name),hasMobile:Boolean(formData.mobile)},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+
+      await customerService.createCustomer({
+        customerCode,
+        name: formData.name,
+        mobile: formData.mobile,
+        address: formData.address || '',
+        outstanding: formData.outstanding || 0,
+      });
+
+      // // #region agent log
+      // fetch('http://127.0.0.1:7926/ingest/a2b94f05-6485-4bc6-91a5-e6d95c86d6e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'af45c8'},body:JSON.stringify({sessionId:'af45c8',runId:'initial',hypothesisId:'H2',location:'src/app/components/CustomerForm.tsx:handleSubmit',message:'customer submit success',data:{customerCode},timestamp:Date.now()})}).catch(()=>{});
+      // // #endregion
+
+      alert(isEdit ? 'Customer updated successfully!' : 'New Customer added successfully!');
+      navigate('/customers');
+    } catch (error) {
+      setSubmitError('Customer save failed. Please check backend connection.');
+      // #region agent log
+      // fetch('http://127.0.0.1:7926/ingest/a2b94f05-6485-4bc6-91a5-e6d95c86d6e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'af45c8'},body:JSON.stringify({sessionId:'af45c8',runId:'initial',hypothesisId:'H3',location:'src/app/components/CustomerForm.tsx:handleSubmit',message:'customer submit failed',data:{error:error instanceof Error ? error.message : 'unknown'},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -160,6 +197,12 @@ export default function CustomerForm() {
             </div>
           </section>
 
+          {submitError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {submitError}
+            </div>
+          )}
+
           <section>
             <div className="flex items-center gap-2 mb-6 text-blue-600">
               <Save size={20} className="text-gray-400" />
@@ -215,10 +258,11 @@ export default function CustomerForm() {
             </button>
             <button
               onClick={handleSubmit}
+              disabled={isSubmitting}
               className="flex items-center gap-2 px-10 py-3.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 font-semibold"
             >
               <Save size={20} />
-              {isEdit ? 'Save Changes' : 'Create Customer'}
+              {isSubmitting ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Customer'}
             </button>
           </div>
         </div>

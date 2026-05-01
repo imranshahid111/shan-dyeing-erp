@@ -14,60 +14,35 @@ import {
   ArrowDownLeft,
   Calendar
 } from 'lucide-react';
+import { customerService } from '../services/customerService';
 
-interface Customer {
-  id: string;
-  name: string;
-  contactPerson: string;
-  mobile: string;
-  email: string;
-  address: string;
-  gstNo: string;
-  outstanding: number;
-}
 
-const mockCustomers: Customer[] = [
-  {
-    id: '1',
-    name: 'ABC Textiles',
-    contactPerson: 'Rajesh Kumar',
-    mobile: '+91 98765 43210',
-    email: 'rajesh@abctextiles.com',
-    address: 'Mumbai, Maharashtra',
-    gstNo: '27AAAAA1234A1Z5',
-    outstanding: 52000,
-  },
-];
-
-interface LedgerEntry {
-  id: string;
-  date: string;
-  type: 'Invoice' | 'Payment';
-  reference: string;
-  debit: number;
-  credit: number;
-  balance: number;
-}
-
-const mockLedger: LedgerEntry[] = [
-  { id: '1', date: '2026-04-01', type: 'Invoice', reference: 'INV-2026-001', debit: 60000, credit: 0, balance: 60000 },
-  { id: '2', date: '2026-04-05', type: 'Payment', reference: 'PYM-10045', debit: 0, credit: 20000, balance: 40000 },
-  { id: '3', date: '2026-04-10', type: 'Invoice', reference: 'INV-2026-045', debit: 12000, credit: 0, balance: 52000 },
-];
 
 export default function CustomerView() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'ledger' | 'history'>('overview');
-  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [customer, setCustomer] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // In a real app, fetch from API. Mocking for now:
-    const found = mockCustomers.find(c => c.id === id) || mockCustomers[0];
-    setCustomer(found);
+    if (!id) return;
+    const fetchCustomer = async () => {
+      try {
+        setLoading(true);
+        const data = await customerService.getCustomer(id);
+        setCustomer(data);
+      } catch (error) {
+        console.error("Failed to load customer", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCustomer();
   }, [id]);
 
-  if (!customer) return <div className="p-8 text-center">Loading customer details...</div>;
+  if (loading) return <div className="p-8 text-center">Loading customer details...</div>;
+  if (!customer) return <div className="p-8 text-center text-red-500">Customer not found</div>;
 
   return (
     <div className="space-y-6">
@@ -83,9 +58,7 @@ export default function CustomerView() {
           <div>
             <h2 className="text-2xl font-bold text-gray-800">{customer.name}</h2>
             <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
-              <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-md font-medium text-xs">Customer ID: {customer.id}</span>
-              <span>•</span>
-              <span>{customer.contactPerson}</span>
+              <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-md font-medium text-xs">Customer Code: {customer.customer_code}</span>
             </div>
           </div>
         </div>
@@ -109,10 +82,10 @@ export default function CustomerView() {
             <span className="text-sm font-medium text-gray-500">Total Outstanding</span>
             <Wallet className="text-red-500" size={20} />
           </div>
-          <p className="text-2xl font-bold text-gray-800">₹{customer.outstanding.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-gray-800">Rs {Number(customer.outstanding_amount || 0).toLocaleString()}</p>
           <div className="flex items-center gap-1 text-xs text-red-600 mt-2">
             <ArrowUpRight size={14} />
-            <span>12% from last month</span>
+            <span>Balance due</span>
           </div>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -120,9 +93,9 @@ export default function CustomerView() {
             <span className="text-sm font-medium text-gray-500">Total Billed</span>
             <ArrowUpRight className="text-blue-500" size={20} />
           </div>
-          <p className="text-2xl font-bold text-gray-800">₹7,52,000</p>
+          <p className="text-2xl font-bold text-gray-800">Rs {Number(customer.totalBilled || 0).toLocaleString()}</p>
           <div className="flex items-center gap-1 text-xs text-blue-600 mt-2 font-medium">
-            <span>24 Total Invoices</span>
+            <span>Aggregated Turnover</span>
           </div>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -130,9 +103,9 @@ export default function CustomerView() {
             <span className="text-sm font-medium text-gray-500">Total Paid</span>
             <ArrowDownLeft className="text-green-500" size={20} />
           </div>
-          <p className="text-2xl font-bold text-gray-800">₹7,00,000</p>
+          <p className="text-2xl font-bold text-gray-800">Rs {Number(customer.totalPaid || 0).toLocaleString()}</p>
           <div className="flex items-center gap-1 text-xs text-green-600 mt-2 font-medium">
-            <span>Last Payment: 5 days ago</span>
+            <span>Total Collections</span>
           </div>
         </div>
       </div>
@@ -193,11 +166,11 @@ export default function CustomerView() {
                     </div>
                     <div className="flex items-center justify-between py-3 border-b border-gray-50">
                       <span className="text-sm text-gray-500">GSTIN</span>
-                      <span className="text-sm font-medium text-gray-800 uppercase">{customer.gstNo}</span>
+                      <span className="text-sm font-medium text-gray-800 uppercase">{customer.customer_code}</span>
                     </div>
                     <div className="flex items-center justify-between py-3 border-b border-gray-50">
                       <span className="text-sm text-gray-500">Opening Balance</span>
-                      <span className="text-sm font-medium text-gray-800">₹0.00</span>
+                      <span className="text-sm font-medium text-gray-800">Rs 0.00</span>
                     </div>
                   </div>
                 </div>
@@ -207,7 +180,7 @@ export default function CustomerView() {
                     Address Information
                   </h4>
                   <div className="p-4 bg-gray-50 rounded-xl">
-                    <p className="text-sm text-gray-700 leading-relaxed">{customer.address}</p>
+                    <p className="text-sm text-gray-700 leading-relaxed">{customer.city || 'No address provided'}</p>
                   </div>
                 </div>
               </div>
@@ -224,7 +197,7 @@ export default function CustomerView() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Phone</p>
-                        <p className="text-sm font-medium text-gray-800">{customer.mobile}</p>
+                        <p className="text-sm font-medium text-gray-800">{customer.phone}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-blue-100 transition-colors group">
@@ -233,7 +206,7 @@ export default function CustomerView() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Email</p>
-                        <p className="text-sm font-medium text-gray-800">{customer.email}</p>
+                        <p className="text-sm font-medium text-gray-800">{'N/A'}</p>
                       </div>
                     </div>
                   </div>
@@ -242,8 +215,8 @@ export default function CustomerView() {
                   <h5 className="font-semibold mb-2">Customer Credit Limit</h5>
                   <p className="text-xs text-slate-400 mb-4">Set a maximum credit limit for this customer to manage risk.</p>
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-xl font-bold">₹5,00,000</span>
-                    <span className="text-xs text-slate-400">10% Used</span>
+                    <span className="text-xl font-bold">Rs {Number(customer.credit_limit || 0).toLocaleString()}</span>
+                    <span className="text-xs text-slate-400">Credit Limit</span>
                   </div>
                   <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
                     <div className="bg-blue-500 h-full w-[10%]"></div>
@@ -274,13 +247,13 @@ export default function CustomerView() {
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reference</th>
-                      <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Debit (₹)</th>
-                      <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Credit (₹)</th>
-                      <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Balance (₹)</th>
+                      <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Debit (Rs)</th>
+                      <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Credit (Rs)</th>
+                      <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Balance (Rs)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {mockLedger.map((entry) => (
+                    {(customer.ledger || []).map((entry: any) => (
                       <tr key={entry.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{entry.date}</td>
                         <td className="px-6 py-4 whitespace-nowrap">

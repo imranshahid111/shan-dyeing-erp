@@ -1,60 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-
-interface GrayLot {
-  id: string;
-  entryDate: string;
-  partyName: string;
-  processType: string;
-  billNo: string;
-  lotNo: string;
-  quality: string;
-  measurement: string;
-  than: number;
-  gazana: number;
-  notes: string;
-}
-
-const mockLots: GrayLot[] = [
-  {
-    id: '1',
-    entryDate: '2026-04-15',
-    partyName: 'ABC Textiles',
-    processType: 'Dyeing',
-    billNo: 'B-1001',
-    lotNo: 'GL-2045',
-    quality: 'Cotton 60s',
-    measurement: 'Meter',
-    than: 10,
-    gazana: 250,
-    notes: 'Premium quality batch',
-  },
-  {
-    id: '2',
-    entryDate: '2026-04-16',
-    partyName: 'XYZ Industries',
-    processType: 'Redyeing',
-    billNo: 'B-1002',
-    lotNo: 'GL-2046',
-    quality: 'Polyester Blend',
-    measurement: 'Yard',
-    than: 8,
-    gazana: 180,
-    notes: 'Reprocess - color correction',
-  },
-];
+import { grayLotService, GrayLotItem } from '../services/grayLotService';
 
 export default function GrayLotManagement() {
   const navigate = useNavigate();
-  const [lots, setLots] = useState<GrayLot[]>(mockLots);
+  const [lots, setLots] = useState<GrayLotItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const filteredLots = lots.filter(
-    (lot) =>
-      lot.lotNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lot.partyName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    const fetchLots = async () => {
+      try {
+        setLoading(true);
+        const response = await grayLotService.getGrayLots(searchTerm);
+        setLots(response.data);
+      } catch (error) {
+        console.error("Failed to load gray lots", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLots();
+  }, [searchTerm]);
 
   return (
     <div className="space-y-6">
@@ -96,34 +64,48 @@ export default function GrayLotManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredLots.map((lot) => (
-                <tr key={lot.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-800">{lot.lotNo}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.entryDate}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.partyName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 rounded-full text-xs ${lot.processType === 'Dyeing' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
-                      {lot.processType}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.quality}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.than}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.gazana}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => navigate(`/gray-lots/edit/${lot.id}`)}
-                        className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <Edit size={16} className="text-blue-600" />
-                      </button>
-                      <button className="p-2 hover:bg-red-50 rounded-lg transition-colors">
-                        <Trash2 size={16} className="text-red-600" />
-                      </button>
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                    Loading lots...
                   </td>
                 </tr>
-              ))}
+              ) : lots.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                    No lots found.
+                  </td>
+                </tr>
+              ) : (
+                lots.map((lot) => (
+                  <tr key={lot.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-800">{lot.lot_no}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.entry_date}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.party_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-3 py-1 rounded-full text-xs ${lot.process_type === 'Dyeing' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                        {lot.process_type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.quality}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.than}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.gazana}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => navigate(`/gray-lots/edit/${lot.id}`)}
+                          className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <Edit size={16} className="text-blue-600" />
+                        </button>
+                        <button className="p-2 hover:bg-red-50 rounded-lg transition-colors">
+                          <Trash2 size={16} className="text-red-600" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

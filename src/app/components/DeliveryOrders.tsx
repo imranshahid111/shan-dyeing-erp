@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2, Save } from 'lucide-react';
+import { deliveryOrderService } from '../services/deliveryOrderService';
+import { grayLotService, DeliveryLotOption } from '../services/grayLotService';
 
 interface ColorColumn {
   id: string;
@@ -9,106 +11,260 @@ interface ColorColumn {
 interface GridRow {
   id: string;
   rowNumber: number;
-  type: 'Gray' | 'Ready';
-  values: Record<string, number>;
+  values: Record<string, { gray: number; ready: number }>;
 }
 
-const mockLots = [
-  { lotNo: 'GL-2045', partyName: 'ABC Textiles', process: 'Dyeing', totalGray: 250, remaining: 250 },
-  { lotNo: 'GL-2046', partyName: 'XYZ Industries', process: 'Redyeing', totalGray: 180, remaining: 180 },
-  { lotNo: 'GL-2047', partyName: 'Global Fabrics', process: 'Dyeing', totalGray: 320, remaining: 320 },
-];
+type CellField = 'gray' | 'ready';
+
+
+const createRow = (rowNumber: number): GridRow => ({
+  id: `${Date.now()}-${rowNumber}-${Math.random()}`,
+  rowNumber,
+  values: {},
+});
 
 export default function DeliveryOrders() {
-  const [selectedLot, setSelectedLot] = useState<typeof mockLots[0] | null>(null);
-  const [colors, setColors] = useState<ColorColumn[]>([
-    { id: '1', name: 'Red' },
-    { id: '2', name: 'Blue' },
-  ]);
-  const [rows, setRows] = useState<GridRow[]>([
-    { id: '1', rowNumber: 1, type: 'Gray', values: {} },
-    { id: '2', rowNumber: 1, type: 'Ready', values: {} },
-  ]);
+  const [lots, setLots] = useState<DeliveryLotOption[]>([]);
+  const [selectedLot, setSelectedLot] = useState<DeliveryLotOption | null>(null);
 
-  const addColor = () => {
-    if (colors.length < 10) {
-      const newColor = { id: Date.now().toString(), name: `Color ${colors.length + 1}` };
-      setColors([...colors, newColor]);
-    }
+  const [colors, setColors] = useState<ColorColumn[]>(
+    Array.from({ length: 10 }, (_, index) => ({
+      id: `${index + 1}`,
+      name: '',
+    }))
+  );
+
+  const [rows, setRows] = useState<GridRow[]>(
+    Array.from({ length: 10 }, (_, index) => createRow(index))
+  );
+
+  const cellRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const pendingFocusRef = useRef<{
+    rowIndex: number;
+    colorIndex: number;
+    field: CellField;
+  } | null>(null);
+
+  const getCellKey = (rowIndex: number, colorIndex: number, field: CellField) => {
+    return `${rowIndex}-${colorIndex}-${field}`;
   };
 
-  const removeColor = (colorId: string) => {
-    setColors(colors.filter((c) => c.id !== colorId));
-    setRows(rows.map((row) => {
-      const newValues = { ...row.values };
-      delete newValues[colorId];
-      return { ...row, values: newValues };
-    }));
-  };
+  const focusCell = (rowIndex: number, colorIndex: number, field: CellField) => {
+    requestAnimationFrame(() => {
+      const key = getCellKey(rowIndex, colorIndex, field);
+      const input = cellRefs.current[key];
 
-  const addRowPair = () => {
-    const maxRowNumber = Math.max(...rows.map((r) => r.rowNumber), 0);
-    setRows([
-      ...rows,
-      { id: Date.now().toString(), rowNumber: maxRowNumber + 1, type: 'Gray', values: {} },
-      { id: (Date.now() + 1).toString(), rowNumber: maxRowNumber + 1, type: 'Ready', values: {} },
-    ]);
-  };
-
-  const updateCellValue = (rowId: string, colorId: string, value: string) => {
-    setRows(rows.map((row) => {
-      if (row.id === rowId) {
-        return {
-          ...row,
-          values: { ...row.values, [colorId]: parseFloat(value) || 0 },
-        };
+      if (input) {
+        input.focus();
+        input.select();
       }
-      return row;
-    }));
+    });
   };
+
+  useEffect(() => {
+    if (pendingFocusRef.current) {
+      const { rowIndex, colorIndex, field } = pendingFocusRef.current;
+      pendingFocusRef.current = null;
+      focusCell(rowIndex, colorIndex, field);
+    }
+  }, [rows.length]);
+
+  useEffect(() => {
+    const loadOriginalLots = async () => {
+      try {
+        const response = await grayLotService.getLotsWithBalance();
+        setLots(response);
+      } catch (error) {
+        console.error('Failed to load gray lots with balances:', error);
+      }
+    };
+    loadOriginalLots();
+  }, []);
 
   const updateColorName = (colorId: string, newName: string) => {
-    setColors(colors.map((c) => (c.id === colorId ? { ...c, name: newName } : c)));
+    setColors((prev) =>
+      prev.map((color) => (color.id === colorId ? { ...color, name: newName } : color))
+    );
   };
 
-  const calculateRowTotal = (rowId: string) => {
-    const row = rows.find((r) => r.id === rowId);
-    if (!row) return 0;
-    return Object.values(row.values).reduce((sum, val) => sum + (val || 0), 0);
+  const addRow = () => {
+    setRows((prev) => [...prev, createRow(prev.length)]);
   };
 
-  const calculateColumnTotal = (colorId: string) => {
-    return rows.reduce((sum, row) => sum + (row.values[colorId] || 0), 0);
+  const removeLastRow = () => {
+    setRows((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.slice(0, -1);
+    });
+  };
+
+  const addRowAndFocus = (rowIndex: number, colorIndex: number, field: CellField) => {
+    pendingFocusRef.current = { rowIndex, colorIndex, field };
+
+    setRows((prev) => {
+      if (rowIndex < prev.length) return prev;
+      return [...prev, createRow(prev.length)];
+    });
+  };
+
+  const updateCellValue = (
+    rowId: string,
+    colorId: string,
+    field: CellField,
+    value: string
+  ) => {
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== rowId) return row;
+
+        const currentColorValue = row.values[colorId] || { gray: 0, ready: 0 };
+
+        return {
+          ...row,
+          values: {
+            ...row.values,
+            [colorId]: {
+              ...currentColorValue,
+              [field]: parseFloat(value) || 0,
+            },
+          },
+        };
+      })
+    );
+  };
+
+  const handleCellKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    rowIndex: number,
+    colorIndex: number,
+    field: CellField
+  ) => {
+    let nextRowIndex = rowIndex;
+    let nextColorIndex = colorIndex;
+    let nextField: CellField = field;
+
+    const moveRight = () => {
+      if (field === 'gray') {
+        nextField = 'ready';
+      } else if (colorIndex < colors.length - 1) {
+        nextColorIndex = colorIndex + 1;
+        nextField = 'gray';
+      } else {
+        nextRowIndex = rowIndex + 1;
+        nextColorIndex = 0;
+        nextField = 'gray';
+      }
+    };
+
+    const moveLeft = () => {
+      if (field === 'ready') {
+        nextField = 'gray';
+      } else if (colorIndex > 0) {
+        nextColorIndex = colorIndex - 1;
+        nextField = 'ready';
+      } else if (rowIndex > 0) {
+        nextRowIndex = rowIndex - 1;
+        nextColorIndex = colors.length - 1;
+        nextField = 'ready';
+      }
+    };
+
+    if (e.key === 'ArrowDown' || e.key === 'Enter') {
+      e.preventDefault();
+      nextRowIndex = rowIndex + 1;
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      nextRowIndex = Math.max(rowIndex - 1, 0);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      moveRight();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      moveLeft();
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+
+      if (e.shiftKey) {
+        moveLeft();
+      } else {
+        moveRight();
+      }
+    } else {
+      return;
+    }
+
+    if (nextRowIndex >= rows.length) {
+      addRowAndFocus(nextRowIndex, nextColorIndex, nextField);
+      return;
+    }
+
+    focusCell(nextRowIndex, nextColorIndex, nextField);
+  };
+
+  const getCellValue = (row: GridRow, colorId: string, field: CellField) => {
+    return row.values[colorId]?.[field] || '';
+  };
+
+  const calculateColorTotal = (colorId: string, field: CellField) => {
+    return rows.reduce((sum, row) => sum + (row.values[colorId]?.[field] || 0), 0);
+  };
+
+  const calculateColorPercentage = (colorId: string) => {
+    const gray = calculateColorTotal(colorId, 'gray');
+    const ready = calculateColorTotal(colorId, 'ready');
+
+    if (!gray) return 0;
+    return Math.round((ready / gray) * 100);
   };
 
   const calculateTotalGray = () => {
-    return rows
-      .filter((r) => r.type === 'Gray')
-      .reduce((sum, row) => sum + Object.values(row.values).reduce((s, v) => s + (v || 0), 0), 0);
+    return colors.reduce((sum, color) => sum + calculateColorTotal(color.id, 'gray'), 0);
   };
 
   const calculateTotalReady = () => {
-    return rows
-      .filter((r) => r.type === 'Ready')
-      .reduce((sum, row) => sum + Object.values(row.values).reduce((s, v) => s + (v || 0), 0), 0);
+    return colors.reduce((sum, color) => sum + calculateColorTotal(color.id, 'ready'), 0);
   };
 
   const calculateShortage = () => {
     return calculateTotalGray() - calculateTotalReady();
   };
 
-  const rowPairs = rows.reduce((acc, row) => {
-    if (!acc[row.rowNumber]) {
-      acc[row.rowNumber] = [];
+  const [saving, setSaving] = useState(false);
+
+  const handleSaveDO = async () => {
+    if (!selectedLot) return;
+    
+    const readyAmount = calculateTotalReady();
+    if (readyAmount > selectedLot.remaining) {
+      alert("Ready gazana exceeds lot remaining quantity.");
+      return;
     }
-    acc[row.rowNumber].push(row);
-    return acc;
-  }, {} as Record<number, GridRow[]>);
+
+    try {
+      setSaving(true);
+      await deliveryOrderService.createDeliveryOrder({
+        gray_lot_id: selectedLot.id,
+        total_ready_gazana: readyAmount,
+        grid_data: { rows, colors }
+      });
+      
+      alert("Delivery order saved successfully!");
+      const response = await grayLotService.getLotsWithBalance();
+      setLots(response);
+      setSelectedLot(null);
+      setRows(Array.from({ length: 10 }, (_, index) => createRow(index)));
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to save Delivery Order.");
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT PANEL - Lot Selection */}
+        {/* LEFT PANEL - same old */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 sticky top-0">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Lot Selection</h3>
@@ -119,14 +275,15 @@ export default function DeliveryOrders() {
                 <select
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   onChange={(e) => {
-                    const lot = mockLots.find((l) => l.lotNo === e.target.value);
+                    const lot = lots.find((l) => String(l.id) === e.target.value);
                     setSelectedLot(lot || null);
                   }}
+                  value={selectedLot?.id || ''}
                 >
                   <option value="">Choose a lot...</option>
-                  {mockLots.map((lot) => (
-                    <option key={lot.lotNo} value={lot.lotNo}>
-                      {lot.lotNo}
+                  {lots.map((lot) => (
+                    <option key={lot.id} value={lot.id}>
+                      {lot.lotNo} ({lot.partyName})
                     </option>
                   ))}
                 </select>
@@ -136,19 +293,30 @@ export default function DeliveryOrders() {
                 <div className="bg-blue-50 rounded-xl p-4 space-y-3">
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Party Name</span>
-                    <span className="text-sm font-medium text-gray-800">{selectedLot.partyName}</span>
+                    <span className="text-sm font-medium text-gray-800">
+                      {selectedLot.partyName}
+                    </span>
                   </div>
+
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Process</span>
-                    <span className="text-sm font-medium text-gray-800">{selectedLot.process}</span>
+                    <span className="text-sm font-medium text-gray-800">
+                      {selectedLot.process}
+                    </span>
                   </div>
+
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Total Gray Qty</span>
-                    <span className="text-sm font-medium text-gray-800">{selectedLot.totalGray}</span>
+                    <span className="text-sm font-medium text-gray-800">
+                      {selectedLot.totalGray}
+                    </span>
                   </div>
+
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Remaining Qty</span>
-                    <span className="text-sm font-semibold text-blue-600">{selectedLot.remaining}</span>
+                    <span className="text-sm font-semibold text-blue-600">
+                      {selectedLot.remaining}
+                    </span>
                   </div>
                 </div>
               )}
@@ -157,19 +325,27 @@ export default function DeliveryOrders() {
                 <div className="bg-gray-50 rounded-xl p-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Total Gray</span>
-                    <span className="text-lg font-semibold text-gray-800">{calculateTotalGray()}</span>
+                    <span className="text-lg font-semibold text-gray-800">
+                      {calculateTotalGray()}
+                    </span>
                   </div>
                 </div>
+
                 <div className="bg-green-50 rounded-xl p-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Total Ready</span>
-                    <span className="text-lg font-semibold text-green-600">{calculateTotalReady()}</span>
+                    <span className="text-lg font-semibold text-green-600">
+                      {calculateTotalReady()}
+                    </span>
                   </div>
                 </div>
+
                 <div className="bg-red-50 rounded-xl p-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Shortage</span>
-                    <span className="text-lg font-semibold text-red-600">{calculateShortage()}</span>
+                    <span className="text-lg font-semibold text-red-600">
+                      {calculateShortage()}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -177,118 +353,223 @@ export default function DeliveryOrders() {
           </div>
         </div>
 
-        {/* RIGHT PANEL - Color Grid */}
+        {/* RIGHT PANEL - Delivery Order Information Excel style */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Color Entry Grid</h3>
+              <h3 className="text-lg font-semibold text-gray-800">
+                Delivery Order Information
+              </h3>
+
               <div className="flex items-center gap-2">
                 <button
-                  onClick={addColor}
-                  disabled={colors.length >= 10}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm disabled:bg-gray-300"
+                  onClick={addRow}
+                  className="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm"
                 >
-                  + Add Color
+                  <Plus size={16} />
+                  Add Row
                 </button>
+
                 <button
-                  onClick={addRowPair}
-                  className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors text-sm"
+                  onClick={removeLastRow}
+                  className="flex items-center gap-1 px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors text-sm"
                 >
-                  + Add Row
+                  <Trash2 size={16} />
+                  Remove Row
                 </button>
               </div>
             </div>
 
-            {/* Excel-like Grid */}
-            <div className="overflow-x-auto border border-gray-200 rounded-xl">
-              <table className="w-full border-collapse">
-                <thead className="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th className="border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 w-20">Row #</th>
-                    <th className="border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 w-24">Type</th>
-                    {colors.map((color) => (
-                      <th key={color.id} className="border border-gray-200 px-3 py-2 w-32">
-                        <div className="flex flex-col gap-1">
-                          <input
-                            type="text"
-                            value={color.name}
-                            onChange={(e) => updateColorName(color.id, e.target.value)}
-                            className="text-xs font-medium text-center bg-transparent focus:outline-none focus:bg-white px-1 py-1 rounded"
-                          />
-                          <button
-                            onClick={() => removeColor(color.id)}
-                            className="text-xs text-red-500 hover:text-red-700"
-                          >
-                            Remove
-                          </button>
-                        </div>
+            {/* Color Name Boxes */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 xl:grid-cols-10 gap-2 mb-3">
+              {colors.map((color, index) => (
+                <div key={color.id}>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Color {index + 1}
+                  </label>
+
+                  <input
+                    type="text"
+                    value={color.name}
+                    placeholder={`Color ${index + 1}`}
+                    onChange={(e) => updateColorName(color.id, e.target.value)}
+                    className="w-full h-8 px-2 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Excel style grid */}
+            <div className="overflow-x-auto border border-gray-300 rounded-xl">
+              <table className="min-w-[1250px] w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th
+                      rowSpan={2}
+                      className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 w-20"
+                    >
+                      Row No
+                    </th>
+
+                    {colors.map((color, index) => (
+                      <th
+                        key={color.id}
+                        colSpan={2}
+                        className="border border-gray-300 px-2 py-2 text-xs font-semibold text-gray-700 text-center"
+                      >
+                        {color.name || `Color ${index + 1}`}
                       </th>
                     ))}
-                    <th className="border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 w-24">Total</th>
+                  </tr>
+
+                  <tr className="bg-gray-50">
+                    {colors.map((color) => (
+                      <React.Fragment key={color.id}>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-600 text-center">
+                          GRAY
+                        </th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-600 text-center">
+                          READY
+                        </th>
+                      </React.Fragment>
+                    ))}
                   </tr>
                 </thead>
+
                 <tbody>
-                  {Object.entries(rowPairs).map(([rowNumber, pairRows]) => (
-                    pairRows.map((row, idx) => (
-                      <tr
-                        key={row.id}
-                        className={row.type === 'Gray' ? 'bg-blue-50' : 'bg-green-50'}
-                      >
-                        {idx === 0 && (
+                  {rows.map((row, rowIndex) => (
+                    <tr key={row.id}>
+                      <td className="border border-gray-300 px-2 py-1 text-center text-sm font-medium bg-gray-50">
+                        {row.rowNumber}
+                      </td>
+
+                      {colors.map((color, colorIndex) => (
+                        <React.Fragment key={color.id}>
                           <td
-                            rowSpan={2}
-                            className="border border-gray-200 px-3 py-2 text-center font-medium text-gray-700"
+                            className={`border border-gray-300 p-0 ${
+                              colorIndex % 2 === 0 ? 'bg-yellow-50' : 'bg-green-50'
+                            }`}
                           >
-                            {rowNumber}
-                          </td>
-                        )}
-                        <td className="border border-gray-200 px-3 py-2 text-center text-sm font-medium">
-                          {row.type}
-                        </td>
-                        {colors.map((color) => (
-                          <td key={color.id} className="border border-gray-200 p-0">
                             <input
+                              ref={(el) => {
+                                cellRefs.current[getCellKey(rowIndex, colorIndex, 'gray')] = el;
+                              }}
                               type="number"
                               min="0"
                               step="0.01"
-                              value={row.values[color.id] || ''}
-                              onChange={(e) => updateCellValue(row.id, color.id, e.target.value)}
-                              className="w-full px-2 py-2 text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-transparent"
+                              value={getCellValue(row, color.id, 'gray')}
+                              onChange={(e) =>
+                                updateCellValue(row.id, color.id, 'gray', e.target.value)
+                              }
+                              onKeyDown={(e) =>
+                                handleCellKeyDown(e, rowIndex, colorIndex, 'gray')
+                              }
                               placeholder="0"
+                              className="w-full h-8 px-2 text-center text-xs bg-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                           </td>
-                        ))}
-                        <td className="border border-gray-200 px-3 py-2 text-center font-semibold text-sm">
-                          {calculateRowTotal(row.id)}
-                        </td>
-                      </tr>
-                    ))
+
+                          <td
+                            className={`border border-gray-300 p-0 ${
+                              colorIndex % 2 === 0 ? 'bg-yellow-50' : 'bg-green-50'
+                            }`}
+                          >
+                            <input
+                              ref={(el) => {
+                                cellRefs.current[getCellKey(rowIndex, colorIndex, 'ready')] = el;
+                              }}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={getCellValue(row, color.id, 'ready')}
+                              onChange={(e) =>
+                                updateCellValue(row.id, color.id, 'ready', e.target.value)
+                              }
+                              onKeyDown={(e) =>
+                                handleCellKeyDown(e, rowIndex, colorIndex, 'ready')
+                              }
+                              placeholder="0"
+                              className="w-full h-8 px-2 text-center text-xs bg-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </td>
+                        </React.Fragment>
+                      ))}
+                    </tr>
                   ))}
-                  {/* Totals Row */}
+                </tbody>
+
+                <tfoot>
                   <tr className="bg-gray-100 font-semibold">
-                    <td colSpan={2} className="border border-gray-200 px-3 py-2 text-center text-sm">
+                    <td className="border border-gray-300 px-2 py-2 text-center text-xs">
                       Total
                     </td>
-                    {colors.map((color) => (
-                      <td key={color.id} className="border border-gray-200 px-3 py-2 text-center text-sm">
-                        {calculateColumnTotal(color.id)}
-                      </td>
+
+                    {colors.map((color, index) => (
+                      <React.Fragment key={color.id}>
+                        <td
+                          className={`border border-gray-300 px-2 py-2 text-center text-xs ${
+                            index % 2 === 0 ? 'bg-yellow-100' : 'bg-green-100'
+                          }`}
+                        >
+                          {calculateColorTotal(color.id, 'gray')}
+                        </td>
+
+                        <td
+                          className={`border border-gray-300 px-2 py-2 text-center text-xs ${
+                            index % 2 === 0 ? 'bg-yellow-100' : 'bg-green-100'
+                          }`}
+                        >
+                          {calculateColorTotal(color.id, 'ready')}
+                        </td>
+                      </React.Fragment>
                     ))}
-                    <td className="border border-gray-200 px-3 py-2 text-center">
-                      {calculateTotalGray() + calculateTotalReady()}
-                    </td>
                   </tr>
-                </tbody>
+
+                  <tr className="bg-gray-50 font-semibold">
+                    <td className="border border-gray-300 px-2 py-2 text-center text-xs">
+                      %
+                    </td>
+
+                    {colors.map((color, index) => (
+                      <React.Fragment key={color.id}>
+                        <td
+                          className={`border border-gray-300 px-2 py-2 text-center text-xs ${
+                            index % 2 === 0 ? 'bg-yellow-50' : 'bg-green-50'
+                          }`}
+                        >
+                          {calculateColorTotal(color.id, 'gray')}
+                        </td>
+
+                        <td
+                          className={`border border-gray-300 px-2 py-2 text-center text-xs ${
+                            index % 2 === 0 ? 'bg-yellow-50' : 'bg-green-50'
+                          }`}
+                        >
+                          {calculateColorPercentage(color.id)}%
+                        </td>
+                      </React.Fragment>
+                    ))}
+                  </tr>
+                </tfoot>
               </table>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex items-center gap-3 mt-6">
-              <button className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors">
+              <button 
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!selectedLot || calculateTotalReady() > (selectedLot.remaining || 0) || saving}
+                onClick={handleSaveDO}
+              >
                 <Save size={18} />
-                Save DO
+                {saving ? 'Saving...' : 'Save DO'}
               </button>
-              <button className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors">
+              {selectedLot && calculateTotalReady() > selectedLot.remaining && (
+                <span className="text-red-500 font-medium text-sm">
+                  Ready Gazana cannot exceed remaining Gray Lot Gazana ({selectedLot.remaining})
+                </span>
+              )}
+
+              <button className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors ml-auto">
                 Print DO
               </button>
             </div>
