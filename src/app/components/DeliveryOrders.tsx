@@ -234,9 +234,9 @@ export default function DeliveryOrders() {
   const handleSaveDO = async () => {
     if (!selectedLot) return;
     
-    const readyAmount = calculateTotalReady();
-    if (readyAmount > selectedLot.remaining) {
-      alert("Ready gazana exceeds lot remaining quantity.");
+    const grayAmount = calculateTotalGray();
+    if (grayAmount > selectedLot.remaining) {
+      alert("Gray gazana exceeds lot remaining quantity.");
       return;
     }
 
@@ -244,7 +244,7 @@ export default function DeliveryOrders() {
       setSaving(true);
       await deliveryOrderService.createDeliveryOrder({
         gray_lot_id: selectedLot.id,
-        total_ready_gazana: readyAmount,
+        total_gray_gazana: grayAmount,
         grid_data: { rows, colors }
       });
       
@@ -557,15 +557,15 @@ export default function DeliveryOrders() {
             <div className="flex items-center gap-3 mt-6">
               <button 
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!selectedLot || calculateTotalReady() > (selectedLot.remaining || 0) || saving}
+                disabled={!selectedLot || calculateTotalGray() > (selectedLot.remaining || 0) || saving}
                 onClick={handleSaveDO}
               >
                 <Save size={18} />
                 {saving ? 'Saving...' : 'Save DO'}
               </button>
-              {selectedLot && calculateTotalReady() > selectedLot.remaining && (
+              {selectedLot && calculateTotalGray() > selectedLot.remaining && (
                 <span className="text-red-500 font-medium text-sm">
-                  Ready Gazana cannot exceed remaining Gray Lot Gazana ({selectedLot.remaining})
+                  Total Gray cannot exceed remaining Gray Lot Gazana ({selectedLot.remaining})
                 </span>
               )}
 

@@ -15,6 +15,7 @@ import LoginPage from "./components/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CreateInvoice from "./components/CreateInvoice";
 import Staff from "./components/Staff";
+import CustomerInvoices from "./components/CustomerInvoices";
 
 export const router = createBrowserRouter([
   {
@@ -42,7 +43,8 @@ export const router = createBrowserRouter([
             path: "billing", 
             children: [
               { index: true, Component: Billing },
-              { path: "new", Component: CreateInvoice }
+              { path: "new", Component: CreateInvoice },
+              { path: "customer/:id", Component: CustomerInvoices }
             ]
           },
           { path: "gate-pass", Component: GatePass },

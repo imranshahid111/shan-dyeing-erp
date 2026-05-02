@@ -1,20 +1,27 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { FileText, Plus, Eye, Wallet, MoreVertical, X, Download, Printer, Calendar, DollarSign, CreditCard, Hash, FileEdit, Search } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router';
+import { Eye, Wallet, MoreVertical, X, Calendar, DollarSign, ArrowLeft, Filter } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
 import { organizationService, Organization } from '../services/organizationService';
+import { customerService, CustomerItem } from '../services/customerService';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import { PDFInvoice } from './PDFInvoice';
 
-export default function Billing() {
+export default function CustomerInvoices() {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  
   const [invoices, setInvoices] = useState<DeliveryOrderItem[]>([]);
+  const [customer, setCustomer] = useState<CustomerItem | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  
   const [selectedInvoice, setSelectedInvoice] = useState<DeliveryOrderItem | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<DeliveryOrderItem | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [org, setOrg] = useState<Organization | null>(null);
-  const [search, setSearch] = useState('');
 
   // Payment Form State
   const [paymentAmount, setPaymentAmount] = useState('0');
@@ -24,11 +31,22 @@ export default function Billing() {
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const fetchCustomerData = async () => {
+    try {
+      if (id) {
+        const res = await customerService.getCustomer(id);
+        setCustomer(res);
+      }
+    } catch (error) {
+      console.error("Failed to load customer", error);
+    }
+  };
+
   const fetchInvoices = async () => {
     try {
       setLoading(true);
       const [invRes, orgRes] = await Promise.all([
-        deliveryOrderService.getDeliveryOrders('billed', 1, 100, undefined, undefined, undefined, search),
+        deliveryOrderService.getDeliveryOrders('billed', 1, 100, id, startDate || undefined, endDate || undefined),
         organizationService.getOrganization()
       ]);
       setInvoices(invRes.data);
@@ -41,11 +59,12 @@ export default function Billing() {
   };
 
   useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      fetchInvoices();
-    }, 300);
-    return () => clearTimeout(delayDebounceFn);
-  }, [search]);
+    fetchCustomerData();
+  }, [id]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [id, startDate, endDate]);
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,31 +94,55 @@ export default function Billing() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Invoices & Billing</h2>
-          <p className="text-sm text-gray-500 mt-1">Manage all sales invoices and track payments</p>
-        </div>
+      {/* Header */}
+      <div className="flex items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <button
-          onClick={() => navigate('/billing/new')}
-          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20 font-semibold"
+          onClick={() => navigate('/billing')}
+          className="p-3 bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-colors"
         >
-          <Plus size={20} />
-          Create New Invoice
+          <ArrowLeft size={20} />
         </button>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">
+            {customer ? `${customer.name}'s Invoices` : 'Customer Invoices'}
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">View and filter billing history for this customer</p>
+        </div>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center">
-        <div className="relative w-full max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search by customer name or DO number..."
-            className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-700 font-medium transition-all"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-end gap-4">
+        <div className="flex-1">
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Start Date</label>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="date"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-700 font-medium transition-all"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
         </div>
+        <div className="flex-1">
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">End Date</label>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="date"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-700 font-medium transition-all"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
+        </div>
+        <button 
+          onClick={() => { setStartDate(''); setEndDate(''); }}
+          className="px-6 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors font-semibold flex items-center gap-2"
+        >
+          <Filter size={18} />
+          Clear Filters
+        </button>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -108,7 +151,7 @@ export default function Billing() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase tracking-wider text-gray-500 font-black">
                 <th className="px-6 py-4">Invoice No</th>
-                <th className="px-6 py-4">Customer</th>
+                <th className="px-6 py-4">Date</th>
                 <th className="px-6 py-4 text-right">Gazana</th>
                 <th className="px-6 py-4 text-right">Total (Rs)</th>
                 <th className="px-6 py-4 text-right text-blue-600">Paid (Rs)</th>
@@ -124,19 +167,19 @@ export default function Billing() {
                   </td>
                 </tr>
               )}
+              {!loading && invoices.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                    No invoices found for the selected dates.
+                  </td>
+                </tr>
+              )}
               {invoices.map((inv) => {
                 const due = Math.max(Number(inv.total_amount) - Number(inv.paid_amount || 0), 0);
                 return (
                   <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 font-bold text-gray-900 font-mono">#{inv.order_no}</td>
-                    <td className="px-6 py-4">
-                      <button 
-                        onClick={() => navigate(`/billing/customer/${inv.customer_id}`)}
-                        className="text-blue-600 hover:text-blue-800 hover:underline font-semibold text-left"
-                      >
-                        {inv.customer?.name}
-                      </button>
-                    </td>
+                    <td className="px-6 py-4 text-gray-800 font-semibold">{inv.order_date?.split('T')[0]}</td>
                     <td className="px-6 py-4 text-right">{inv.total_gray_gazana} GZ</td>
                     <td className="px-6 py-4 text-right font-bold">{Number(inv.total_amount).toLocaleString()}</td>
                     <td className="px-6 py-4 text-right font-bold text-green-600">{Number(inv.paid_amount || 0).toLocaleString()}</td>

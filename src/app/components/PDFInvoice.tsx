@@ -200,7 +200,7 @@ export const PDFInvoice = ({ inv, org }: { inv: DeliveryOrderItem, org: Organiza
           <View style={styles.tableRow}>
             <Text style={styles.col1}>Dyeing & Processing Services</Text>
             <Text style={styles.col2}>{inv.gray_lot?.lot_no}</Text>
-            <Text style={styles.col3}>{inv.total_ready_gazana}</Text>
+            <Text style={styles.col3}>{inv.total_gray_gazana}</Text>
             <Text style={styles.col4}>{totalAmount.toLocaleString()}</Text>
           </View>
           <View style={styles.tableRow}><Text style={styles.col1}/></View>

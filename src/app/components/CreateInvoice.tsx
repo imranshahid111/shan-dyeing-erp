@@ -28,7 +28,7 @@ export default function CreateInvoice() {
     fetchDOs();
   }, []);
 
-  const readyGazana = selectedDO ? Number(selectedDO.total_ready_gazana || 0) : 0;
+  const readyGazana = selectedDO ? Number(selectedDO.total_gray_gazana || 0) : 0;
   const grossAmount = readyGazana * rate;
   const discountAmount =
     discountType === 'percentage' ? (grossAmount * discountValue) / 100 : discountValue;
@@ -77,8 +77,8 @@ export default function CreateInvoice() {
               <p className="font-medium text-gray-800">{selectedDO.customer?.name}</p>
             </div>
             <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">Ready Gazana</p>
-              <p className="font-medium text-gray-800">{selectedDO.total_ready_gazana}</p>
+              <p className="text-xs text-gray-500 mb-1">Gray Gazana</p>
+              <p className="font-medium text-gray-800">{selectedDO.total_gray_gazana}</p>
             </div>
           </div>
         )}

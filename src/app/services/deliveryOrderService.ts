@@ -16,7 +16,7 @@ export interface DeliveryOrderItem {
   gray_lot?: {
     lot_no: string;
   };
-  total_ready_gazana: string | number;
+  total_gray_gazana: string | number;
 }
 
 export interface DeliveryOrdersResponse {
@@ -28,14 +28,14 @@ export interface DeliveryOrdersResponse {
 
 export interface CreateDeliveryOrderPayload {
   gray_lot_id: number;
-  total_ready_gazana: number;
+  total_gray_gazana: number;
   grid_data: any;
 }
 
 export const deliveryOrderService = {
-  getDeliveryOrders: (status = "", page = 1, pageSize = 50) => {
+  getDeliveryOrders: (status = "", page = 1, pageSize = 50, customer_id?: string | number, startDate?: string, endDate?: string, search?: string) => {
     return apiClient.get<unknown, DeliveryOrdersResponse>('/delivery-orders', {
-      params: { status, page, pageSize },
+      params: { status, page, pageSize, customer_id, startDate, endDate, search },
     });
   },
   createDeliveryOrder: (payload: CreateDeliveryOrderPayload) => {

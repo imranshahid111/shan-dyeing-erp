@@ -11,7 +11,7 @@ module.exports = (sequelize, DataTypes) =>
       status: { type: DataTypes.STRING(30), allowNull: false, defaultValue: "pending" },
       total_amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
       paid_amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
-      total_ready_gazana: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
+      total_gray_gazana: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
       grid_data: { type: DataTypes.JSON, allowNull: true },
     },
     {

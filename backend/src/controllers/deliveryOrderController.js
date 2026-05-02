@@ -1,21 +1,40 @@
 const { DeliveryOrder, Customer, GrayLot, Payment, sequelize } = require("../models");
+const { Op } = require("sequelize");
 
 exports.getDeliveryOrders = async (req, res, next) => {
   try {
     const status = String(req.query.status || "");
     const page = Math.max(Number(req.query.page || 1), 1);
     const pageSize = Math.min(Math.max(Number(req.query.pageSize || 20), 1), 100);
+    const { customer_id, startDate, endDate, search } = req.query;
 
-    const where = status ? { status } : undefined;
+    const where = {};
+    if (status) where.status = status;
+    if (customer_id) where.customer_id = customer_id;
+    if (startDate && endDate) {
+      where.order_date = { [Op.between]: [startDate, endDate] };
+    } else if (startDate) {
+      where.order_date = { [Op.gte]: startDate };
+    } else if (endDate) {
+      where.order_date = { [Op.lte]: endDate };
+    }
+    
+    if (search) {
+      where[Op.or] = [
+        { order_no: { [Op.like]: `%${search}%` } },
+        { '$Customer.name$': { [Op.like]: `%${search}%` } }
+      ];
+    }
 
     const { count, rows } = await DeliveryOrder.findAndCountAll({
       where,
+      subQuery: false,
       include: [
         { model: Customer, attributes: ["id", "name", "customer_code"] },
         { model: GrayLot, attributes: ["lot_no"] }
       ],
       order: [["order_date", "DESC"], ["id", "DESC"]],
-      attributes: ["id", "order_no", "customer_id", "gray_lot_id", "order_date", "status", "total_amount", "paid_amount", "total_ready_gazana"],
+      attributes: ["id", "order_no", "customer_id", "gray_lot_id", "order_date", "status", "total_amount", "paid_amount", "total_gray_gazana"],
       limit: pageSize,
       offset: (page - 1) * pageSize,
     });
@@ -28,18 +47,18 @@ exports.getDeliveryOrders = async (req, res, next) => {
 
 exports.createDeliveryOrder = async (req, res, next) => {
   try {
-    const { gray_lot_id, total_ready_gazana, grid_data } = req.body;
+    const { gray_lot_id, total_gray_gazana, grid_data } = req.body;
     
     const lot = await GrayLot.findByPk(gray_lot_id);
     if (!lot) return res.status(404).json({ message: "Gray lot not found" });
 
     const orders = await DeliveryOrder.findAll({ where: { gray_lot_id } });
-    const delivered = orders.reduce((sum, o) => sum + Number(o.total_ready_gazana || 0), 0);
+    const delivered = orders.reduce((sum, o) => sum + Number(o.total_gray_gazana || 0), 0);
     const balance = Number(lot.gazana || 0) - delivered;
-    const readyQty = Number(total_ready_gazana || 0);
+    const grayQty = Number(total_gray_gazana || 0);
 
-    if (readyQty > balance) {
-      return res.status(400).json({ message: `Qty (${readyQty}) exceeds remaining gazana (${balance})` });
+    if (grayQty > balance) {
+      return res.status(400).json({ message: `Qty (${grayQty}) exceeds remaining gazana (${balance})` });
     }
 
     let customer = await Customer.findOne({ where: { name: lot.party_name } });
@@ -50,7 +69,7 @@ exports.createDeliveryOrder = async (req, res, next) => {
       gray_lot_id,
       order_date: new Date().toISOString().split('T')[0],
       total_amount: 0,
-      total_ready_gazana: readyQty,
+      total_gray_gazana: grayQty,
       grid_data: grid_data || {},
       status: "completed"
     });
