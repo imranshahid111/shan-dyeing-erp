@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { createHashRouter } from "react-router";
 import Layout from "./components/Layout";
 import Dashboard from "./components/Dashboard";
 import GrayLotManagement from "./components/GrayLotManagement";
@@ -17,7 +17,7 @@ import CreateInvoice from "./components/CreateInvoice";
 import Staff from "./components/Staff";
 import CustomerInvoices from "./components/CustomerInvoices";
 
-export const router = createBrowserRouter([
+export const router = createHashRouter([
   {
     path: "/login",
     Component: LoginPage,

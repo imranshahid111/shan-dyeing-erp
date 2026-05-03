@@ -34,7 +34,7 @@ export default function LoginPage() {
         
         {/* Left Side: Branding/Visuals */}
         <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-blue-600 to-purple-700 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?q=80&w=1887&auto=format&fit=crop')] mix-blend-overlay opacity-20 bg-cover bg-center"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/20"></div>
           
           <div className="relative z-10">
             <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-8 border border-white/20">

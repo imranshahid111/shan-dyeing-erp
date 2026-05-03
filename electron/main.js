@@ -10,6 +10,7 @@ const isDev = !app.isPackaged;
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
+     icon: path.join(__dirname, "../build/favicon.icns"), // for dev
     height: 800,
     webPreferences: {
       contextIsolation: true,
@@ -22,7 +23,9 @@ function createWindow() {
     win.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 
-  win.webContents.openDevTools();
+  if (isDev) {
+    win.webContents.openDevTools();
+  }
 }
 
 app.whenReady().then(createWindow);
