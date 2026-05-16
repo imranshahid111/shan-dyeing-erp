@@ -7,6 +7,14 @@ async function bootstrap() {
   
   await sequelize.authenticate();
   await sequelize.sync();
+  
+  // Initialize Background Services
+  try {
+    require("./services/backupService");
+    console.log("Database backup service started");
+  } catch (err) {
+    console.error("Failed to start backup service:", err.message);
+  }
 
   const server = app.listen(env.port, "0.0.0.0", () => {
     const address = server.address();

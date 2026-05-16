@@ -6,6 +6,7 @@ import { organizationService, Organization } from '../services/organizationServi
 import { customerService, CustomerItem } from '../services/customerService';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import { PDFInvoice } from './PDFInvoice';
+import { PDFStatement } from './PDFStatement';
 
 export default function Billing() {
   const navigate = useNavigate();
@@ -16,6 +17,10 @@ export default function Billing() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [org, setOrg] = useState<Organization | null>(null);
   const [search, setSearch] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // all, paid, unpaid, partial
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   // Customer Selection State
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
@@ -66,7 +71,7 @@ export default function Billing() {
     }
     try {
       setLoading(true);
-      const invRes = await deliveryOrderService.getDeliveryOrders('billed', 1, 100, selectedCustomer.id, undefined, undefined, search);
+      const invRes = await deliveryOrderService.getDeliveryOrders('billed', 1, 100, selectedCustomer.id, startDate, endDate, search);
       setInvoices(invRes.data);
     } catch (error) {
       console.error("Failed to load invoices", error);
@@ -77,7 +82,7 @@ export default function Billing() {
 
   useEffect(() => {
     fetchInvoices();
-  }, [selectedCustomer, search]);
+  }, [selectedCustomer, search, startDate, endDate]);
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,6 +114,36 @@ export default function Billing() {
     setSelectedCustomer(customer);
     setCustomerSearch(customer.name);
     setCustomers([]);
+    setSelectedIds([]);
+  };
+
+  const getPaymentStatus = (inv: DeliveryOrderItem) => {
+    const total = Number(inv.total_amount);
+    const paid = Number(inv.paid_amount || 0);
+    if (paid <= 0) return 'unpaid';
+    if (paid >= total) return 'paid';
+    return 'partial';
+  };
+
+  const filteredInvoices = invoices.filter(inv => {
+    if (statusFilter === 'all') return true;
+    return getPaymentStatus(inv) === statusFilter;
+  });
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredInvoices.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredInvoices.map(inv => inv.id));
+    }
+  };
+
+  const toggleSelectOne = (id: number) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(i => i !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
   };
 
   return (
@@ -171,22 +206,100 @@ export default function Billing() {
            )}
         </div>
 
-        {/* Invoice Search */}
+        {/* Filters */}
         {selectedCustomer && (
-          <div className="flex-1 bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                placeholder="Filter by DO number..."
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-700 font-medium transition-all"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+          <div className="flex flex-wrap gap-4 items-end">
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Start Date</label>
+              <input 
+                type="date" 
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 outline-none text-sm font-bold text-gray-700" 
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
               />
             </div>
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">End Date</label>
+              <input 
+                type="date" 
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 outline-none text-sm font-bold text-gray-700" 
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+            <div className="flex-1 min-w-[150px]">
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</label>
+              <select 
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 outline-none text-sm font-bold text-gray-700 bg-white"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Invoices</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="partial">Partial Paid</option>
+                <option value="paid">Fully Paid</option>
+              </select>
+            </div>
+            <button 
+              onClick={() => { setStartDate(''); setEndDate(''); setStatusFilter('all'); setSearch(''); }}
+              className="p-2.5 hover:bg-gray-100 text-gray-500 rounded-xl transition-colors"
+              title="Reset Filters"
+            >
+              <X size={20} />
+            </button>
           </div>
         )}
       </div>
+
+      {selectedIds.length > 0 && (
+        <div className="bg-blue-600 text-white p-4 rounded-2xl flex items-center justify-between shadow-lg animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-4">
+            <span className="font-black text-sm uppercase tracking-widest">{selectedIds.length} Invoices Selected</span>
+            <div className="h-4 w-px bg-white/20" />
+            <p className="text-xs font-bold">Total: Rs {filteredInvoices.filter(i => selectedIds.includes(i.id)).reduce((sum, i) => sum + Number(i.total_amount), 0).toLocaleString()}</p>
+          </div>
+          <div className="flex gap-2">
+             <button 
+               onClick={() => {
+                 const selectedInvoices = filteredInvoices.filter(i => selectedIds.includes(i.id));
+                 alert(`Preparing statement for ${selectedIds.length} invoices...`);
+               }}
+               className="hidden"
+             >
+               Share Selected
+             </button>
+             
+             {selectedCustomer && org && (
+               <PDFDownloadLink
+                 document={
+                   <PDFStatement 
+                     invoices={filteredInvoices.filter(i => selectedIds.includes(i.id))} 
+                     customer={selectedCustomer} 
+                     org={org}
+                     dateRange={startDate && endDate ? `${startDate} to ${endDate}` : ""}
+                   />
+                 }
+                 fileName={`Statement-${selectedCustomer.name}-${new Date().toISOString().split('T')[0]}.pdf`}
+                 className="px-4 py-2 bg-white text-blue-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-50 transition-colors flex items-center gap-2"
+               >
+                 {({ loading }) => (
+                   <>
+                     <Download size={14} />
+                     {loading ? 'Generating...' : 'Download Statement'}
+                   </>
+                 )}
+               </PDFDownloadLink>
+             )}
+
+             <button 
+               onClick={() => setSelectedIds([])}
+               className="px-4 py-2 bg-blue-700 text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-blue-800 transition-colors"
+             >
+               Clear Selection
+             </button>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[400px] flex flex-col">
         {!selectedCustomer ? (
@@ -202,12 +315,21 @@ export default function Billing() {
             <table className="w-full text-left border-collapse whitespace-nowrap">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase tracking-wider text-gray-500 font-black">
+                  <th className="px-6 py-4 w-10">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedIds.length === filteredInvoices.length && filteredInvoices.length > 0}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
                   <th className="px-6 py-4">Invoice No</th>
                   <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4 text-right">Gazana</th>
                   <th className="px-6 py-4 text-right">Total (Rs)</th>
-                  <th className="px-6 py-4 text-right text-blue-600">Paid (Rs)</th>
-                  <th className="px-6 py-4 text-right text-orange-600">Due (Rs)</th>
+                  <th className="px-6 py-4 text-right">Paid (Rs)</th>
+                  <th className="px-6 py-4 text-right">Due (Rs)</th>
                   <th className="px-6 py-4 text-center">Actions</th>
                 </tr>
               </thead>
@@ -230,16 +352,36 @@ export default function Billing() {
                     </td>
                   </tr>
                 )}
-                {invoices.map((inv) => {
+                {filteredInvoices.map((inv) => {
                   const due = Math.max(Number(inv.total_amount) - Number(inv.paid_amount || 0), 0);
+                  const status = getPaymentStatus(inv);
+                  const isSelected = selectedIds.includes(inv.id);
+                  
                   return (
-                    <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={inv.id} className={`hover:bg-gray-50 transition-colors ${isSelected ? 'bg-blue-50/50' : ''}`}>
+                      <td className="px-6 py-4">
+                        <input 
+                          type="checkbox" 
+                          checked={isSelected}
+                          onChange={() => toggleSelectOne(inv.id)}
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
                       <td className="px-6 py-4 font-bold text-gray-900 font-mono">#{inv.order_no}</td>
                       <td className="px-6 py-4 text-gray-500">{new Date(inv.order_date).toLocaleDateString()}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                          status === 'paid' ? 'bg-green-100 text-green-700' :
+                          status === 'partial' ? 'bg-orange-100 text-orange-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {status}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-right">{inv.total_gray_gazana} GZ</td>
-                      <td className="px-6 py-4 text-right font-bold">{Number(inv.total_amount).toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right font-bold text-green-600">{Number(inv.paid_amount || 0).toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right font-bold text-orange-600">{due.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-right font-bold text-gray-900">{Number(inv.total_amount).toLocaleString()}</td>
+                      <td className="px-6 py-4 text-right font-bold text-gray-600">{Number(inv.paid_amount || 0).toLocaleString()}</td>
+                      <td className={`px-6 py-4 text-right font-bold ${status === 'paid' ? 'text-gray-300' : 'text-orange-600'}`}>{due.toLocaleString()}</td>
                       <td className="px-6 py-4 text-center relative">
                         <button 
                           onClick={() => setActiveDropdown(activeDropdown === String(inv.id) ? null : String(inv.id))}
