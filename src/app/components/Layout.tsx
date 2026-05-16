@@ -7,6 +7,8 @@ const navItems = [
   { path: '/gray-lots', label: 'Gray Lot Management', icon: Package },
   { path: '/delivery-orders', label: 'Delivery Orders', icon: Truck },
   { path: '/billing', label: 'Billing / Invoices', icon: FileText },
+  { path: '/payments', label: 'Payments & Receipts', icon: CreditCard },
+  { path: '/qualities', label: 'Fabric Qualities', icon: ClipboardCheck },
   { path: '/gate-pass', label: 'Gate Pass', icon: ClipboardCheck },
   { path: '/customers', label: 'Customers', icon: Users },
   { path: '/staff', label: 'Staff Management', icon: Users },

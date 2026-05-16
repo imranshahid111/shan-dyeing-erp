@@ -4,6 +4,7 @@ module.exports = (sequelize, DataTypes) =>
     {
       id: { type: DataTypes.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true },
       order_no: { type: DataTypes.STRING(60), allowNull: false, unique: true },
+      invoice_no: { type: DataTypes.STRING(60), allowNull: true, unique: true },
       customer_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
       gray_lot_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
       order_date: { type: DataTypes.DATEONLY, allowNull: false },
@@ -12,6 +13,9 @@ module.exports = (sequelize, DataTypes) =>
       total_amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
       paid_amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
       total_gray_gazana: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
+      total_ready_gazana: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
+      rate: { type: DataTypes.DECIMAL(12, 2), allowNull: true },
+      rate_unit: { type: DataTypes.STRING(20), allowNull: true },
       grid_data: { type: DataTypes.JSON, allowNull: true },
     },
     {

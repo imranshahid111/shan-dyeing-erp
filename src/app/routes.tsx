@@ -6,6 +6,7 @@ import GrayLotForm from "./components/GrayLotForm";
 import CustomerForm from "./components/CustomerForm";
 import CustomerView from "./components/CustomerView";
 import DeliveryOrders from "./components/DeliveryOrders";
+import CreateDeliveryOrder from "./components/CreateDeliveryOrder";
 import Billing from "./components/Billing";
 import GatePass from "./components/GatePass";
 import Customers from "./components/Customers";
@@ -16,6 +17,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import CreateInvoice from "./components/CreateInvoice";
 import Staff from "./components/Staff";
 import CustomerInvoices from "./components/CustomerInvoices";
+import ViewDeliveryOrder from "./components/ViewDeliveryOrder";
+import Qualities from "./components/Qualities";
 
 export const router = createHashRouter([
   {
@@ -38,7 +41,14 @@ export const router = createHashRouter([
               { path: "edit/:id", Component: GrayLotForm },
             ],
           },
-          { path: "delivery-orders", Component: DeliveryOrders },
+          {
+            path: "delivery-orders",
+            children: [
+              { index: true, Component: DeliveryOrders },
+              { path: "new", Component: CreateDeliveryOrder },
+              { path: ":id", Component: ViewDeliveryOrder },
+            ],
+          },
           { 
             path: "billing", 
             children: [
@@ -58,6 +68,7 @@ export const router = createHashRouter([
             ],
           },
           { path: "payments", Component: Payments },
+          { path: "qualities", Component: Qualities },
           { path: "staff", Component: Staff },
           { path: "reports", Component: Reports },
         ],

@@ -1,5 +1,6 @@
 const { Op } = require("sequelize");
-const { Customer, DeliveryOrder, Payment } = require("../models");
+const { Customer, DeliveryOrder, Payment, sequelize } = require("../models");
+const { getNextSequence } = require("../utils/numberGenerator");
 
 exports.getCustomers = async (req, res, next) => {
   try {
@@ -34,7 +35,7 @@ exports.getCustomers = async (req, res, next) => {
 exports.createCustomer = async (req, res, next) => {
   try {
     const payload = {
-      customer_code: String(req.body.customerCode || "").trim(),
+      customer_code: req.body.customerCode ? String(req.body.customerCode).trim() : await getNextSequence(Customer, 'customer_code', 'CUST-'),
       name: String(req.body.name || "").trim(),
       phone: String(req.body.mobile || "").trim(),
       city: String(req.body.address || "").trim() || null,
@@ -123,6 +124,80 @@ exports.getCustomerById = async (req, res, next) => {
       ledger: ledgerWithBalance.reverse() // Newest first for UI table
     });
   } catch (error) {
+    return next(error);
+  }
+};
+
+exports.addBulkPayment = async (req, res, next) => {
+  const t = await sequelize.transaction();
+  try {
+    const customerId = req.params.id;
+    const { amount, paymentDate, method, reference, notes, selectedInvoiceIds } = req.body;
+    let remainingAmount = Number(amount || 0);
+
+    // Find invoices for this customer that are billed and not fully paid
+    const where = {
+      customer_id: customerId,
+      status: "billed",
+      paid_amount: { [Op.lt]: sequelize.col("total_amount") },
+    };
+    
+    // If specific invoices were selected, filter by them
+    if (selectedInvoiceIds && selectedInvoiceIds.length > 0) {
+      where.id = { [Op.in]: selectedInvoiceIds };
+    }
+
+    const invoices = await DeliveryOrder.findAll({
+      where,
+      order: [["order_date", "ASC"], ["id", "ASC"]],
+      transaction: t,
+    });
+
+    for (const inv of invoices) {
+      if (remainingAmount <= 0) break;
+
+      const total = Number(inv.total_amount);
+      const paid = Number(inv.paid_amount);
+      const due = Math.max(total - paid, 0);
+      
+      const allocation = Math.min(remainingAmount, due);
+
+      if (allocation > 0) {
+        // 1. Create Payment Log
+        await Payment.create({
+          delivery_order_id: inv.id,
+          payment_date: paymentDate,
+          amount: allocation,
+          mode: method || "cash",
+          reference_no: reference,
+          notes: notes,
+        }, { transaction: t });
+
+        // 2. Update Delivery Order
+        await inv.increment("paid_amount", {
+          by: allocation,
+          transaction: t,
+        });
+
+        remainingAmount -= allocation;
+      }
+    }
+
+    // 3. Update Customer Ledger (Decrement by full amount received)
+    await Customer.decrement("outstanding_amount", {
+      by: Number(amount),
+      where: { id: customerId },
+      transaction: t,
+    });
+
+    await t.commit();
+    return res.json({ 
+      success: true, 
+      message: "Bulk payment processed successfully", 
+      unallocatedAmount: remainingAmount 
+    });
+  } catch (error) {
+    await t.rollback();
     return next(error);
   }
 };

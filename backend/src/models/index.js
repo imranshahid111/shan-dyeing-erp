@@ -25,4 +25,5 @@ module.exports = {
   Payment,
   GrayLot,
   Organization,
+  Quality: require("./quality")(sequelize, DataTypes),
 };

@@ -102,9 +102,7 @@ export default function CustomerForm() {
 
       const customerCode = `CUST-${Date.now().toString().slice(-6)}`;
 
-      // #region agent log
-      // fetch('http://127.0.0.1:7926/ingest/a2b94f05-6485-4bc6-91a5-e6d95c86d6e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'af45c8'},body:JSON.stringify({sessionId:'af45c8',runId:'initial',hypothesisId:'H1',location:'src/app/components/CustomerForm.tsx:handleSubmit',message:'customer submit started',data:{isEdit,hasName:Boolean(formData.name),hasMobile:Boolean(formData.mobile)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
+   
 
       await customerService.createCustomer({
         customerCode,
@@ -114,17 +112,13 @@ export default function CustomerForm() {
         outstanding: formData.outstanding || 0,
       });
 
-      // // #region agent log
-      // fetch('http://127.0.0.1:7926/ingest/a2b94f05-6485-4bc6-91a5-e6d95c86d6e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'af45c8'},body:JSON.stringify({sessionId:'af45c8',runId:'initial',hypothesisId:'H2',location:'src/app/components/CustomerForm.tsx:handleSubmit',message:'customer submit success',data:{customerCode},timestamp:Date.now()})}).catch(()=>{});
-      // // #endregion
+    
 
       alert(isEdit ? 'Customer updated successfully!' : 'New Customer added successfully!');
       navigate('/customers');
     } catch (error) {
       setSubmitError('Customer save failed. Please check backend connection.');
-      // #region agent log
-      // fetch('http://127.0.0.1:7926/ingest/a2b94f05-6485-4bc6-91a5-e6d95c86d6e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'af45c8'},body:JSON.stringify({sessionId:'af45c8',runId:'initial',hypothesisId:'H3',location:'src/app/components/CustomerForm.tsx:handleSubmit',message:'customer submit failed',data:{error:error instanceof Error ? error.message : 'unknown'},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
+  
     } finally {
       setIsSubmitting(false);
     }

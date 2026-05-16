@@ -1,17 +1,22 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 import { FileText, Printer, Download, ArrowLeft } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
 
 export default function CreateInvoice() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [dos, setDos] = useState<DeliveryOrderItem[]>([]);
   const [selectedDO, setSelectedDO] = useState<DeliveryOrderItem | null>(null);
   const [rate, setRate] = useState(0);
+  const [rateInput, setRateInput] = useState('0');
   const [discountType, setDiscountType] = useState<'flat' | 'percentage'>('percentage');
   const [discountValue, setDiscountValue] = useState(0);
+  const [discountInput, setDiscountInput] = useState('0');
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rateUnit, setRateUnit] = useState<'meter' | 'yard'>('meter');
+
 
   useEffect(() => {
     const fetchDOs = async () => {
@@ -19,6 +24,13 @@ export default function CreateInvoice() {
         setLoading(true);
         const response = await deliveryOrderService.getDeliveryOrders('completed', 1, 100);
         setDos(response.data);
+        
+        // Handle pre-selected DO from navigation state
+        const preSelectedId = location.state?.preSelectedDoId;
+        if (preSelectedId) {
+          const found = response.data.find((d: DeliveryOrderItem) => d.id === preSelectedId);
+          if (found) setSelectedDO(found);
+        }
       } catch (error) {
         console.error("Failed to fetch DOs", error);
       } finally {
@@ -28,8 +40,13 @@ export default function CreateInvoice() {
     fetchDOs();
   }, []);
 
-  const readyGazana = selectedDO ? Number(selectedDO.total_gray_gazana || 0) : 0;
-  const grossAmount = readyGazana * rate;
+  const meterQuantity = selectedDO ? Number(selectedDO.total_ready_gazana || 0) : 0;
+  const grayMeterQuantity = selectedDO ? Number(selectedDO.total_gray_gazana || 0) : 0;
+  const yardQuantity = meterQuantity / 0.9144;
+  
+  const effectiveQuantity = rateUnit === 'meter' ? meterQuantity : yardQuantity;
+  const grossAmount = effectiveQuantity * rate;
+
   const discountAmount =
     discountType === 'percentage' ? (grossAmount * discountValue) / 100 : discountValue;
   const netAmount = grossAmount - discountAmount;
@@ -77,8 +94,16 @@ export default function CreateInvoice() {
               <p className="font-medium text-gray-800">{selectedDO.customer?.name}</p>
             </div>
             <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">Gray Gazana</p>
-              <p className="font-medium text-gray-800">{selectedDO.total_gray_gazana}</p>
+              <p className="text-xs text-gray-500 mb-1">Gray Mtr</p>
+              <p className="font-medium text-gray-800">{grayMeterQuantity.toFixed(2)}m</p>
+            </div>
+            <div className="bg-blue-50 rounded-xl p-4">
+              <p className="text-xs text-gray-500 mb-1">Ready Mtr</p>
+              <p className="font-bold text-blue-600">{meterQuantity.toFixed(2)}m</p>
+            </div>
+            <div className="bg-blue-50 rounded-xl p-4">
+              <p className="text-xs text-gray-500 mb-1">Ready Yds (Gaz)</p>
+              <p className="font-bold text-blue-600">{yardQuantity.toFixed(2)}y</p>
             </div>
           </div>
         )}
@@ -90,17 +115,47 @@ export default function CreateInvoice() {
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Pricing</h3>
 
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-gray-600 mb-2">Rate per Gaz/Meter (Rs)</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={rate}
-                onChange={(e) => setRate(parseFloat(e.target.value) || 0)}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="0.00"
-              />
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <label className="block text-sm text-gray-600 mb-2">Apply Rate On</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRateUnit('meter')}
+                    className={`flex-1 py-2 px-4 rounded-xl border-2 transition-all font-bold ${rateUnit === 'meter' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                  >
+                    Per Meter
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRateUnit('yard')}
+                    className={`flex-1 py-2 px-4 rounded-xl border-2 transition-all font-bold ${rateUnit === 'yard' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                  >
+                    Per Yard (Gaz)
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm text-gray-600 mb-2">Rate (Rs)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={rateInput}
+                  onChange={(e) => {
+                    setRateInput(e.target.value);
+                    setRate(parseFloat(e.target.value) || 0);
+                  }}
+                  onBlur={() => {
+                    if (rateInput === '' || isNaN(parseFloat(rateInput))) {
+                      setRateInput('0');
+                      setRate(0);
+                    }
+                  }}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                  placeholder="0.00"
+                />
+              </div>
             </div>
 
             <div className="bg-blue-50 rounded-xl p-4">
@@ -138,8 +193,17 @@ export default function CreateInvoice() {
                 type="number"
                 min="0"
                 step="0.01"
-                value={discountValue}
-                onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
+                value={discountInput}
+                onChange={(e) => {
+                  setDiscountInput(e.target.value);
+                  setDiscountValue(parseFloat(e.target.value) || 0);
+                }}
+                onBlur={() => {
+                  if (discountInput === '' || isNaN(parseFloat(discountInput))) {
+                    setDiscountInput('0');
+                    setDiscountValue(0);
+                  }
+                }}
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 mt-3"
                 placeholder={discountType === 'percentage' ? '0%' : 'Rs 0.00'}
               />
@@ -167,7 +231,7 @@ export default function CreateInvoice() {
                 if (!selectedDO || isSubmitting) return;
                 try {
                   setIsSubmitting(true);
-                  await deliveryOrderService.generateInvoice(selectedDO.id, netAmount);
+                  await deliveryOrderService.generateInvoice(selectedDO.id, netAmount, rate, rateUnit);
                   alert("Invoice generated and customer ledger updated!");
                   navigate('/billing');
                 } catch (err) {

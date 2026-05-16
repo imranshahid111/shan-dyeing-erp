@@ -85,10 +85,11 @@ const styles = StyleSheet.create({
     padding: 8,
     minHeight: 30,
   },
-  col1: { width: '40%' },
-  col2: { width: '20%', textAlign: 'center' },
-  col3: { width: '20%', textAlign: 'right' },
+  col1: { width: '30%' },
+  col2: { width: '15%', textAlign: 'center' },
+  col3: { width: '15%', textAlign: 'center' },
   col4: { width: '20%', textAlign: 'right' },
+  col5: { width: '20%', textAlign: 'right' },
   summaryArea: {
     marginTop: 30,
     flexDirection: 'row',
@@ -194,14 +195,16 @@ export const PDFInvoice = ({ inv, org }: { inv: DeliveryOrderItem, org: Organiza
           <View style={styles.tableHeader}>
             <Text style={styles.col1}>Description</Text>
             <Text style={styles.col2}>Lot #</Text>
-            <Text style={styles.col3}>Quantity (Gz)</Text>
-            <Text style={styles.col4}>Amount</Text>
+            <Text style={styles.col3}>Qty (Gz)</Text>
+            <Text style={styles.col4}>Rate</Text>
+            <Text style={styles.col5}>Amount</Text>
           </View>
           <View style={styles.tableRow}>
             <Text style={styles.col1}>Dyeing & Processing Services</Text>
             <Text style={styles.col2}>{inv.gray_lot?.lot_no}</Text>
-            <Text style={styles.col3}>{inv.total_gray_gazana}</Text>
-            <Text style={styles.col4}>{totalAmount.toLocaleString()}</Text>
+            <Text style={styles.col3}>{inv.total_ready_gazana}</Text>
+            <Text style={styles.col4}>{inv.rate} / {inv.rate_unit === 'yard' ? 'Gaz' : 'Mtr'}</Text>
+            <Text style={styles.col5}>{totalAmount.toLocaleString()}</Text>
           </View>
           <View style={styles.tableRow}><Text style={styles.col1}/></View>
           <View style={styles.tableRow}><Text style={styles.col1}/></View>

@@ -1,20 +1,27 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { FileText, Plus, Eye, Wallet, MoreVertical, X, Download, Printer, Calendar, DollarSign, CreditCard, Hash, FileEdit, Search } from 'lucide-react';
+import { FileText, Plus, Eye, Wallet, MoreVertical, X, Download, Printer, Calendar, DollarSign, CreditCard, Hash, FileEdit, Search, User, Loader2, AlertCircle, Trash2 } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
 import { organizationService, Organization } from '../services/organizationService';
+import { customerService, CustomerItem } from '../services/customerService';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import { PDFInvoice } from './PDFInvoice';
 
 export default function Billing() {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<DeliveryOrderItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<DeliveryOrderItem | null>(null);
   const [paymentInvoice, setPaymentInvoice] = useState<DeliveryOrderItem | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [org, setOrg] = useState<Organization | null>(null);
   const [search, setSearch] = useState('');
+
+  // Customer Selection State
+  const [customers, setCustomers] = useState<CustomerItem[]>([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerItem | null>(null);
 
   // Payment Form State
   const [paymentAmount, setPaymentAmount] = useState('0');
@@ -24,28 +31,53 @@ export default function Billing() {
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Fetch Organization details once
+  useEffect(() => {
+    organizationService.getOrganization().then(setOrg).catch(console.error);
+  }, []);
+
+  // Fetch customers for the dropdown
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      if (!customerSearch || selectedCustomer) return;
+      try {
+        setLoadingCustomers(true);
+        const res = await customerService.getCustomers(customerSearch);
+        setCustomers(res.data);
+      } catch (error) {
+        console.error("Failed to fetch customers", error);
+      } finally {
+        setLoadingCustomers(false);
+      }
+    };
+
+    const delayDebounceFn = setTimeout(() => {
+      fetchCustomers();
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [customerSearch, selectedCustomer]);
+
+  // Fetch invoices when customer is selected or search changes
   const fetchInvoices = async () => {
+    if (!selectedCustomer) {
+      setInvoices([]);
+      return;
+    }
     try {
       setLoading(true);
-      const [invRes, orgRes] = await Promise.all([
-        deliveryOrderService.getDeliveryOrders('billed', 1, 100, undefined, undefined, undefined, search),
-        organizationService.getOrganization()
-      ]);
+      const invRes = await deliveryOrderService.getDeliveryOrders('billed', 1, 100, selectedCustomer.id, undefined, undefined, search);
       setInvoices(invRes.data);
-      setOrg(orgRes);
     } catch (error) {
-      console.error("Failed to load data", error);
+      console.error("Failed to load invoices", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      fetchInvoices();
-    }, 300);
-    return () => clearTimeout(delayDebounceFn);
-  }, [search]);
+    fetchInvoices();
+  }, [selectedCustomer, search]);
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +105,12 @@ export default function Billing() {
     }
   };
 
+  const handleCustomerSelect = (customer: CustomerItem) => {
+    setSelectedCustomer(customer);
+    setCustomerSearch(customer.name);
+    setCustomers([]);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -89,92 +127,171 @@ export default function Billing() {
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center">
-        <div className="relative w-full max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search by customer name or DO number..."
-            className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-700 font-medium transition-all"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <div className="flex flex-col md:flex-row gap-4">
+        {/* Customer Searchable Dropdown */}
+        <div className="flex-1 relative">
+           <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+              <div className="relative w-full">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  placeholder="Select customer to view invoices..."
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-700 font-medium transition-all"
+                  value={customerSearch}
+                  onChange={(e) => {
+                    setCustomerSearch(e.target.value);
+                    if (selectedCustomer) setSelectedCustomer(null);
+                  }}
+                />
+                {loadingCustomers && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Loader2 className="animate-spin text-blue-600" size={18} />
+                  </div>
+                )}
+              </div>
+           </div>
+           
+           {customerSearch && !selectedCustomer && customers.length > 0 && (
+             <div className="absolute top-full left-0 w-full bg-white border border-gray-100 rounded-xl mt-2 shadow-2xl z-20 max-h-60 overflow-y-auto">
+               {customers.map(c => (
+                 <button
+                   key={c.id}
+                   type="button"
+                   onClick={() => handleCustomerSelect(c)}
+                   className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-50 last:border-0 transition-colors font-semibold text-gray-700 flex justify-between items-center"
+                 >
+                   <div>
+                     <p>{c.name}</p>
+                     <p className="text-[10px] text-gray-400 uppercase tracking-widest">{c.customer_code}</p>
+                   </div>
+                   <p className="text-xs font-bold text-blue-600">Rs {Number(c.outstanding_amount).toLocaleString()}</p>
+                 </button>
+               ))}
+             </div>
+           )}
         </div>
+
+        {/* Invoice Search */}
+        {selectedCustomer && (
+          <div className="flex-1 bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Filter by DO number..."
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-700 font-medium transition-all"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse whitespace-nowrap">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase tracking-wider text-gray-500 font-black">
-                <th className="px-6 py-4">Invoice No</th>
-                <th className="px-6 py-4">Customer</th>
-                <th className="px-6 py-4 text-right">Gazana</th>
-                <th className="px-6 py-4 text-right">Total (Rs)</th>
-                <th className="px-6 py-4 text-right text-blue-600">Paid (Rs)</th>
-                <th className="px-6 py-4 text-right text-orange-600">Due (Rs)</th>
-                <th className="px-6 py-4 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 font-medium text-sm">
-              {loading && (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
-                    Loading invoices...
-                  </td>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[400px] flex flex-col">
+        {!selectedCustomer ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-12">
+            <div className="p-6 bg-gray-50 rounded-full mb-4">
+              <User size={48} className="opacity-20" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">No Customer Selected</h3>
+            <p className="text-sm font-medium">Please select a customer from the dropdown above to view their invoices.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse whitespace-nowrap">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase tracking-wider text-gray-500 font-black">
+                  <th className="px-6 py-4">Invoice No</th>
+                  <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4 text-right">Gazana</th>
+                  <th className="px-6 py-4 text-right">Total (Rs)</th>
+                  <th className="px-6 py-4 text-right text-blue-600">Paid (Rs)</th>
+                  <th className="px-6 py-4 text-right text-orange-600">Due (Rs)</th>
+                  <th className="px-6 py-4 text-center">Actions</th>
                 </tr>
-              )}
-              {invoices.map((inv) => {
-                const due = Math.max(Number(inv.total_amount) - Number(inv.paid_amount || 0), 0);
-                return (
-                  <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-bold text-gray-900 font-mono">#{inv.order_no}</td>
-                    <td className="px-6 py-4">
-                      <button 
-                        onClick={() => navigate(`/billing/customer/${inv.customer_id}`)}
-                        className="text-blue-600 hover:text-blue-800 hover:underline font-semibold text-left"
-                      >
-                        {inv.customer?.name}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 text-right">{inv.total_gray_gazana} GZ</td>
-                    <td className="px-6 py-4 text-right font-bold">{Number(inv.total_amount).toLocaleString()}</td>
-                    <td className="px-6 py-4 text-right font-bold text-green-600">{Number(inv.paid_amount || 0).toLocaleString()}</td>
-                    <td className="px-6 py-4 text-right font-bold text-orange-600">{due.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-center relative">
-                      <button 
-                        onClick={() => setActiveDropdown(activeDropdown === String(inv.id) ? null : String(inv.id))}
-                        className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
-                      >
-                        <MoreVertical size={18} />
-                      </button>
-                      {activeDropdown === String(inv.id) && (
-                        <div className="absolute right-6 top-10 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-10">
-                          <button 
-                            onClick={() => { setSelectedInvoice(inv); setActiveDropdown(null); }}
-                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors font-semibold"
-                          >
-                            <Eye size={16} /> View Invoice
-                          </button>
-                          <button 
-                            onClick={() => { 
-                              setPaymentInvoice(inv); 
-                              setPaymentAmount('0');
-                              setActiveDropdown(null); 
-                            }}
-                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors font-semibold"
-                          >
-                            <Wallet size={16} /> Add Payment
-                          </button>
-                        </div>
-                      )}
+              </thead>
+              <tbody className="divide-y divide-gray-100 font-medium text-sm">
+                {loading && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="animate-spin text-blue-600" size={24} />
+                        <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Loading customer invoices...</p>
+                      </div>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                )}
+                {!loading && invoices.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
+                      <AlertCircle className="mx-auto mb-2 opacity-20" size={48} />
+                      <p className="font-bold uppercase tracking-widest text-[10px]">No invoices found for this customer</p>
+                    </td>
+                  </tr>
+                )}
+                {invoices.map((inv) => {
+                  const due = Math.max(Number(inv.total_amount) - Number(inv.paid_amount || 0), 0);
+                  return (
+                    <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 font-bold text-gray-900 font-mono">#{inv.order_no}</td>
+                      <td className="px-6 py-4 text-gray-500">{new Date(inv.order_date).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 text-right">{inv.total_gray_gazana} GZ</td>
+                      <td className="px-6 py-4 text-right font-bold">{Number(inv.total_amount).toLocaleString()}</td>
+                      <td className="px-6 py-4 text-right font-bold text-green-600">{Number(inv.paid_amount || 0).toLocaleString()}</td>
+                      <td className="px-6 py-4 text-right font-bold text-orange-600">{due.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-center relative">
+                        <button 
+                          onClick={() => setActiveDropdown(activeDropdown === String(inv.id) ? null : String(inv.id))}
+                          className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+                        {activeDropdown === String(inv.id) && (
+                          <div className="absolute right-6 top-10 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-10">
+                            <button 
+                              onClick={() => { setSelectedInvoice(inv); setActiveDropdown(null); }}
+                              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors font-semibold"
+                            >
+                              <Eye size={16} /> View Invoice
+                            </button>
+                            <button 
+                              onClick={() => { 
+                                setPaymentInvoice(inv); 
+                                setPaymentAmount('0');
+                                setActiveDropdown(null); 
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors font-semibold"
+                            >
+                              <Wallet size={16} /> Add Payment
+                            </button>
+                            <button 
+                              onClick={async () => {
+                                if (window.confirm("Are you sure you want to delete this invoice? This will revert the order to completed status and delete all associated payments.")) {
+                                  try {
+                                    await deliveryOrderService.deleteInvoice(inv.id);
+                                    alert("Invoice deleted successfully!");
+                                    fetchInvoices();
+                                  } catch (error) {
+                                    alert("Failed to delete invoice");
+                                  }
+                                }
+                                setActiveDropdown(null);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors font-semibold"
+                            >
+                              <Trash2 size={16} /> Delete Invoice
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Invoice Viewer Modal */}

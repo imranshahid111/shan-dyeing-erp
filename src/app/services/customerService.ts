@@ -35,6 +35,9 @@ export const customerService = {
     return apiClient.post<unknown, CustomerItem>('/customers', payload);
   },
   getCustomer: (id: string) => {
-    return apiClient.get<unknown, CustomerItem>(`/customers/${id}`);
+    return apiClient.get<unknown, any>(`/customers/${id}`);
+  },
+  addBulkPayment: (id: number | string, payload: any) => {
+    return apiClient.post<unknown, any>(`/customers/${id}/bulk-payment`, payload);
   },
 };

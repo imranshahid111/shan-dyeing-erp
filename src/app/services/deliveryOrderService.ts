@@ -3,6 +3,7 @@ import apiClient from './apiClient';
 export interface DeliveryOrderItem {
   id: number;
   order_no: string;
+  invoice_no?: string;
   customer_id: number;
   order_date: string;
   status: string;
@@ -17,6 +18,9 @@ export interface DeliveryOrderItem {
     lot_no: string;
   };
   total_gray_gazana: string | number;
+  total_ready_gazana: string | number;
+  rate?: number;
+  rate_unit?: string;
 }
 
 export interface DeliveryOrdersResponse {
@@ -29,6 +33,7 @@ export interface DeliveryOrdersResponse {
 export interface CreateDeliveryOrderPayload {
   gray_lot_id: number;
   total_gray_gazana: number;
+  total_ready_gazana: number;
   grid_data: any;
 }
 
@@ -38,13 +43,22 @@ export const deliveryOrderService = {
       params: { status, page, pageSize, customer_id, startDate, endDate, search },
     });
   },
+  getDeliveryOrderById: (id: string | number) => {
+    return apiClient.get<unknown, DeliveryOrderItem & { grid_data: any }>(`/delivery-orders/${id}`);
+  },
   createDeliveryOrder: (payload: CreateDeliveryOrderPayload) => {
     return apiClient.post('/delivery-orders', payload);
   },
-  generateInvoice: (id: number, netAmount: number) => {
-    return apiClient.put(`/delivery-orders/${id}/invoice`, { netAmount });
+  generateInvoice: (id: number, netAmount: number, rate: number, rateUnit: string) => {
+    return apiClient.put(`/delivery-orders/${id}/invoice`, { netAmount, rate, rateUnit });
   },
   addPayment: (id: number, payload: any) => {
     return apiClient.post(`/delivery-orders/${id}/payment`, payload);
+  },
+  deleteInvoice: (id: number) => {
+    return apiClient.delete(`/delivery-orders/${id}/invoice`);
+  },
+  deleteDeliveryOrder: (id: number) => {
+    return apiClient.delete(`/delivery-orders/${id}`);
   }
 };

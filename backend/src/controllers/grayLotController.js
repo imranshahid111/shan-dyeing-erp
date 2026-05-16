@@ -1,5 +1,6 @@
 const { Op } = require("sequelize");
 const { GrayLot, DeliveryOrder } = require("../models");
+const { getNextSequence } = require("../utils/numberGenerator");
 
 exports.createGrayLot = async (req, res, next) => {
   try {
@@ -8,7 +9,7 @@ exports.createGrayLot = async (req, res, next) => {
       party_name: String(req.body.partyName || "").trim(),
       process_type: String(req.body.processType || "").trim(),
       bill_no: String(req.body.billNo || "").trim() || null,
-      lot_no: String(req.body.lotNo || "").trim(),
+      lot_no: req.body.lotNo ? String(req.body.lotNo).trim() : await getNextSequence(GrayLot, 'lot_no', 'LOT-'),
       quality: String(req.body.quality || "").trim(),
       measurement: String(req.body.measurement || "").trim(),
       than: Number(req.body.than || 0),
@@ -62,14 +63,14 @@ exports.getLotsWithBalance = async (req, res, next) => {
       include: [
         {
           model: DeliveryOrder,
-          attributes: ['total_ready_gazana'],
+          attributes: ['total_gray_gazana'],
         }
       ],
       order: [["id", "DESC"]]
     });
 
     const results = lots.map((lot) => {
-      const delivered = lot.delivery_orders ? lot.delivery_orders.reduce((sum, order) => sum + Number(order.total_ready_gazana || 0), 0) : 0;
+      const delivered = lot.delivery_orders ? lot.delivery_orders.reduce((sum, order) => sum + Number(order.total_gray_gazana || 0), 0) : 0;
       const gazana = Number(lot.gazana || 0);
       return {
         id: lot.id,
@@ -82,6 +83,38 @@ exports.getLotsWithBalance = async (req, res, next) => {
     });
 
     return res.json(results);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.deleteGrayLot = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if any DOs exist for this lot
+    const linkedOrders = await DeliveryOrder.count({ where: { gray_lot_id: id } });
+    if (linkedOrders > 0) {
+      return res.status(400).json({ 
+        message: "Cannot delete Lot because it has linked Delivery Orders. Delete those first." 
+      });
+    }
+
+    const deleted = await GrayLot.destroy({ where: { id } });
+    if (!deleted) {
+      return res.status(404).json({ message: "Lot not found" });
+    }
+    
+    return res.json({ success: true, message: "Gray Lot deleted successfully" });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.getNextLotNumber = async (req, res, next) => {
+  try {
+    const nextNo = await getNextSequence(GrayLot, 'lot_no', 'LOT-');
+    return res.json({ nextLotNo: nextNo });
   } catch (error) {
     return next(error);
   }

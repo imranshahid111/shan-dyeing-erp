@@ -24,6 +24,19 @@ export default function GrayLotManagement() {
     fetchLots();
   }, [searchTerm]);
 
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this Gray Lot?")) return;
+    
+    try {
+      await grayLotService.deleteGrayLot(id);
+      setLots(prev => prev.filter(lot => lot.id !== id));
+      alert("Gray Lot deleted successfully!");
+    } catch (error: any) {
+      alert(error.response?.data?.message || "Failed to delete gray lot");
+      console.error("Delete error", error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Actions */}
@@ -98,7 +111,10 @@ export default function GrayLotManagement() {
                         >
                           <Edit size={16} className="text-blue-600" />
                         </button>
-                        <button className="p-2 hover:bg-red-50 rounded-lg transition-colors">
+                        <button 
+                          onClick={() => handleDelete(lot.id)}
+                          className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                        >
                           <Trash2 size={16} className="text-red-600" />
                         </button>
                       </div>

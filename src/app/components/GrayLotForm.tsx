@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { Save, X, PlusCircle } from 'lucide-react';
 import { grayLotService } from '../services/grayLotService';
 import { customerService, CustomerItem } from '../services/customerService';
+import { qualityService, QualityItem } from '../services/qualityService';
 
 interface GrayLot {
   id: string;
@@ -57,11 +58,12 @@ export default function GrayLotForm() {
     entryDate: new Date().toISOString().split('T')[0],
     processType: 'Dyeing',
     measurement: 'Meter',
-    lotNo: `GL-${Date.now().toString().slice(-5)}`,
+    lotNo: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
+  const [qualities, setQualities] = useState<QualityItem[]>([]);
 
   // Refs for all form fields in order
   const entryDateRef = useRef<HTMLInputElement>(null);
@@ -96,16 +98,34 @@ export default function GrayLotForm() {
   }, [id, isEdit]);
 
   useEffect(() => {
-    const loadCustomers = async () => {
+    const loadInitialData = async () => {
       try {
-        const response = await customerService.getCustomers('', 1, 1000);
-        setCustomers(response.data);
+        const [custRes, qualRes] = await Promise.all([
+          customerService.getCustomers('', 1, 1000),
+          qualityService.getQualities()
+        ]);
+        setCustomers(custRes.data);
+        setQualities(qualRes as any);
       } catch (error) {
-        console.error('Failed to load customers', error);
+        console.error('Failed to load initial data', error);
       }
     };
-    loadCustomers();
+    loadInitialData();
   }, []);
+
+  useEffect(() => {
+    if (!isEdit) {
+      const fetchNextLot = async () => {
+        try {
+          const res = await grayLotService.getNextLotNumber();
+          setFormData(prev => ({ ...prev, lotNo: res.nextLotNo }));
+        } catch (error) {
+          console.error("Failed to fetch next lot number", error);
+        }
+      };
+      fetchNextLot();
+    }
+  }, [isEdit]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>, fieldIndex: number) => {
     if (e.key === 'Enter') {
@@ -119,8 +139,8 @@ export default function GrayLotForm() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.partyName || !formData.quality || !formData.entryDate || !formData.lotNo) {
-      setSubmitError('Party name, quality, entry date and lot no are required.');
+    if (!formData.partyName || !formData.quality || !formData.entryDate) {
+      setSubmitError('Party name, quality and entry date are required.');
       return;
     }
 
@@ -128,9 +148,7 @@ export default function GrayLotForm() {
       setSubmitError('');
       setIsSubmitting(true);
 
-      // #region agent log
-      fetch('http://127.0.0.1:7926/ingest/a2b94f05-6485-4bc6-91a5-e6d95c86d6e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'af45c8'},body:JSON.stringify({sessionId:'af45c8',runId:'initial',hypothesisId:'H4',location:'src/app/components/GrayLotForm.tsx:handleSubmit',message:'gray lot submit started',data:{hasParty:Boolean(formData.partyName),hasQuality:Boolean(formData.quality),lotNo:formData.lotNo},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
+   
 
       await grayLotService.createGrayLot({
         entryDate: formData.entryDate,
@@ -145,17 +163,12 @@ export default function GrayLotForm() {
         notes: formData.notes || '',
       });
 
-      // #region agent log
-      fetch('http://127.0.0.1:7926/ingest/a2b94f05-6485-4bc6-91a5-e6d95c86d6e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'af45c8'},body:JSON.stringify({sessionId:'af45c8',runId:'initial',hypothesisId:'H5',location:'src/app/components/GrayLotForm.tsx:handleSubmit',message:'gray lot submit success',data:{lotNo:formData.lotNo},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
 
       alert(isEdit ? 'Gray Lot updated successfully!' : 'New Gray Lot added successfully!');
       navigate('/gray-lots');
     } catch (error) {
       setSubmitError('Gray lot save failed. Please check backend connection.');
-      // #region agent log
-      fetch('http://127.0.0.1:7926/ingest/a2b94f05-6485-4bc6-91a5-e6d95c86d6e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'af45c8'},body:JSON.stringify({sessionId:'af45c8',runId:'initial',hypothesisId:'H5',location:'src/app/components/GrayLotForm.tsx:handleSubmit',message:'gray lot submit failed',data:{error:error instanceof Error ? error.message : 'unknown'},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
+   
     } finally {
       setIsSubmitting(false);
     }
@@ -247,10 +260,11 @@ export default function GrayLotForm() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Lot No</label>
                 <input
                   type="text"
-                  value={formData.lotNo || 'Auto-generated'}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed"
+                  value={formData.lotNo || 'Fetching...'}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 font-bold cursor-not-allowed"
                   disabled
                 />
+                <p className="text-[10px] text-blue-500 mt-1 italic font-bold uppercase tracking-wider">Sequential Auto-Generated</p>
               </div>
             </div>
           </section>
@@ -270,15 +284,19 @@ export default function GrayLotForm() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Quality Name</label>
-                <input
+                <select
                   ref={qualityRef}
-                  type="text"
-                  placeholder="e.g., Cotton 60s"
+                  required
                   value={formData.quality || ''}
                   onChange={(e) => setFormData({ ...formData, quality: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem_1.25rem] bg-[right_0.75rem_center] bg-no-repeat"
                   onKeyDown={(e) => handleKeyDown(e, 4)}
-                />
+                >
+                  <option value="">Select Quality</option>
+                  {qualities.map((q) => (
+                    <option key={q.id} value={q.name}>{q.name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Measurement</label>

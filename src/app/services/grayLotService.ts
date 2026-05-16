@@ -52,7 +52,13 @@ export const grayLotService = {
   getLotsWithBalance: () => {
     return apiClient.get<unknown, DeliveryLotOption[]>('/gray-lots/balances');
   },
+  getNextLotNumber: () => {
+    return apiClient.get<unknown, { nextLotNo: string }>('/gray-lots/next-number');
+  },
   createGrayLot: (payload: CreateGrayLotPayload) => {
     return apiClient.post('/gray-lots', payload);
+  },
+  deleteGrayLot: (id: number) => {
+    return apiClient.delete(`/gray-lots/${id}`);
   },
 };
