@@ -7,6 +7,8 @@ const DeliveryOrder = require("./deliveryOrder")(sequelize, DataTypes);
 const Payment = require("./payment")(sequelize, DataTypes);
 const GrayLot = require("./grayLot")(sequelize, DataTypes);
 const Organization = require("./organization")(sequelize, DataTypes);
+const Quality = require("./quality")(sequelize, DataTypes);
+const ActivityLog = require("./activityLog")(sequelize, DataTypes);
 
 Customer.hasMany(DeliveryOrder, { foreignKey: "customer_id" });
 DeliveryOrder.belongsTo(Customer, { foreignKey: "customer_id" });
@@ -25,5 +27,6 @@ module.exports = {
   Payment,
   GrayLot,
   Organization,
-  Quality: require("./quality")(sequelize, DataTypes),
+  ActivityLog,
+  Quality,
 };

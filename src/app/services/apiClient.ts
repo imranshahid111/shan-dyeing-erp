@@ -31,6 +31,12 @@ apiClient.interceptors.request.use((config: any) => {
   if (typeof config.__retryCount !== 'number') {
     config.__retryCount = 0;
   }
+  
+  const token = localStorage.getItem('erp_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  
   return config;
 });
 

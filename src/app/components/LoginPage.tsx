@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Package, Mail, Lock, ArrowRight, Github, Chrome } from 'lucide-react';
+import { Package, Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -17,7 +18,6 @@ export default function LoginPage() {
       await login({ email, password });
       navigate('/');
     } catch (error) {
-      console.error(error);
       alert('Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
@@ -25,101 +25,253 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 overflow-hidden relative">
-      {/* Dynamic Background Elements */}
-      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[120px]"></div>
-      <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-600/10 rounded-full blur-[120px]"></div>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '1.5rem', position: 'relative', overflow: 'hidden',
+      fontFamily: 'Inter, sans-serif',
+    }}>
+      {/* Background blobs */}
+      <div style={{
+        position: 'absolute', top: '-15%', right: '-10%',
+        width: '45%', height: '50%',
+        background: 'radial-gradient(circle, rgba(59,130,246,0.12), transparent 70%)',
+        borderRadius: '50%', pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', bottom: '-15%', left: '-10%',
+        width: '45%', height: '50%',
+        background: 'radial-gradient(circle, rgba(139,92,246,0.10), transparent 70%)',
+        borderRadius: '50%', pointerEvents: 'none',
+      }} />
 
-      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 bg-white/5 backdrop-blur-2xl rounded-[32px] border border-white/10 shadow-2xl overflow-hidden relative z-10">
+      {/* Card */}
+      <div style={{
+        width: '100%', maxWidth: '900px',
+        display: 'grid', gridTemplateColumns: '1fr 1fr',
+        background: 'rgba(255,255,255,0.04)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: '24px',
+        overflow: 'hidden',
+        boxShadow: '0 32px 64px rgba(0,0,0,0.3)',
+        position: 'relative', zIndex: 10,
+        animation: 'dialogIn 0.4s ease both',
+      }}>
         
-        {/* Left Side: Branding/Visuals */}
-        <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-blue-600 to-purple-700 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/20"></div>
-          
-          <div className="relative z-10">
-            <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-8 border border-white/20">
-              <Package className="text-white" size={24} />
+        {/* Left Branding Panel */}
+        <div style={{
+          background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+          padding: '3rem 2.5rem',
+          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          {/* Overlay shine */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%, rgba(0,0,0,0.1) 100%)',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Top content */}
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{
+              width: '3rem', height: '3rem', marginBottom: '2rem',
+              background: 'rgba(255,255,255,0.2)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255,255,255,0.25)',
+              borderRadius: '14px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Package size={22} color="white" />
             </div>
-            <h2 className="text-4xl font-bold text-white leading-tight">
-              Manage your textile <br />
-              factory with precision.
+            <h2 style={{
+              fontSize: '2rem', fontWeight: 800, color: 'white',
+              lineHeight: 1.25, letterSpacing: '-0.02em', margin: 0,
+            }}>
+              Manage your<br />textile factory<br />with precision.
             </h2>
-            <p className="text-blue-100/70 mt-4 text-lg max-w-sm">
+            <p style={{
+              color: 'rgba(255,255,255,0.65)',
+              marginTop: '1rem', fontSize: '0.9375rem', lineHeight: 1.6, margin: '1rem 0 0',
+            }}>
               The complete ERP solution for modern dyeing and printing industries.
             </p>
           </div>
 
-       
+          {/* Feature bullets */}
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+            {['Gray lot & delivery order tracking', 'Billing, invoicing & payments', 'Customer ledger management'].map(f => (
+              <div key={f} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                <div style={{
+                  width: '18px', height: '18px', borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.25)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                    <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <span style={{ fontSize: '0.8125rem', color: 'rgba(255,255,255,0.75)', fontWeight: 500 }}>{f}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Right Side: Login Form */}
-        <div className="p-8 lg:p-16 flex flex-col justify-center bg-white/5">
-          <div className="mb-10 lg:hidden">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center mb-4">
-              <Package className="text-white" size={20} />
-            </div>
+        {/* Right: Login Form */}
+        <div style={{
+          padding: '3rem 2.5rem',
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          background: 'rgba(255,255,255,0.03)',
+        }}>
+          <div style={{ marginBottom: '2rem' }}>
+            <h3 style={{
+              fontSize: '1.625rem', fontWeight: 800, color: 'white',
+              letterSpacing: '-0.02em', margin: '0 0 0.375rem',
+            }}>Welcome back</h3>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem', margin: 0 }}>
+              Sign in to your ERP dashboard
+            </p>
           </div>
 
-          <div className="mb-10">
-            <h3 className="text-3xl font-bold text-white mb-2">Welcome Back</h3>
-            <p className="text-slate-400">Please enter your details to sign in to your dashboard.</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300 ml-1">Work Email</label>
-              <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
+            {/* Email */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>
+                Work Email
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={16} style={{
+                  position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)',
+                  color: 'rgba(255,255,255,0.3)', pointerEvents: 'none',
+                }} />
                 <input
                   type="email"
                   required
                   placeholder="name@company.com"
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={e => setEmail(e.target.value)}
+                  style={{
+                    width: '100%', padding: '0.75rem 0.875rem 0.75rem 2.625rem',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1.5px solid rgba(255,255,255,0.1)',
+                    borderRadius: '12px', color: 'white',
+                    fontSize: '0.875rem', fontFamily: 'inherit', fontWeight: 500,
+                    outline: 'none', boxSizing: 'border-box',
+                    transition: 'border-color 0.15s, box-shadow 0.15s',
+                  }}
+                  onFocus={e => {
+                    e.currentTarget.style.borderColor = 'rgba(99,179,237,0.6)';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.15)';
+                  }}
+                  onBlur={e => {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between px-1">
-                <label className="text-sm font-medium text-slate-300">Password</label>
-                <a href="#" className="text-xs font-semibold text-blue-500 hover:text-blue-400 transition-colors">Forgot Password?</a>
+            {/* Password */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)' }}>
+                  Password
+                </label>
+                <a href="#" style={{ fontSize: '0.75rem', color: 'rgba(99,179,237,0.8)', fontWeight: 600, textDecoration: 'none' }}>
+                  Forgot password?
+                </a>
               </div>
-              <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={18} />
+              <div style={{ position: 'relative' }}>
+                <Lock size={16} style={{
+                  position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)',
+                  color: 'rgba(255,255,255,0.3)', pointerEvents: 'none',
+                }} />
                 <input
-                  type="password"
+                  type={showPass ? 'text' : 'password'}
                   required
                   placeholder="••••••••"
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={e => setPassword(e.target.value)}
+                  style={{
+                    width: '100%', padding: '0.75rem 2.875rem 0.75rem 2.625rem',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1.5px solid rgba(255,255,255,0.1)',
+                    borderRadius: '12px', color: 'white',
+                    fontSize: '0.875rem', fontFamily: 'inherit', fontWeight: 500,
+                    outline: 'none', boxSizing: 'border-box',
+                    transition: 'border-color 0.15s, box-shadow 0.15s',
+                  }}
+                  onFocus={e => {
+                    e.currentTarget.style.borderColor = 'rgba(99,179,237,0.6)';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.15)';
+                  }}
+                  onBlur={e => {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  style={{
+                    position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'rgba(255,255,255,0.3)', padding: 0, display: 'flex',
+                  }}
+                >
+                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 px-1">
-              <input type="checkbox" id="remember" className="w-4 h-4 rounded border-white/10 bg-white/5 text-blue-600 focus:ring-offset-slate-900" />
-              <label htmlFor="remember" className="text-sm text-slate-400 cursor-pointer select-none">Remember for 30 days</label>
-            </div>
-
+            {/* Submit */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-2xl py-4 font-bold text-lg shadow-xl shadow-blue-500/20 transition-all flex items-center justify-center gap-2 group"
+              style={{
+                width: '100%', padding: '0.875rem',
+                background: isLoading ? 'rgba(37,99,235,0.5)' : '#2563eb',
+                color: 'white', border: 'none', borderRadius: '12px',
+                fontSize: '0.9375rem', fontWeight: 700,
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                fontFamily: 'inherit',
+                boxShadow: isLoading ? 'none' : '0 4px 16px rgba(37,99,235,0.4)',
+                transition: 'all 0.2s',
+                marginTop: '0.25rem',
+              }}
             >
               {isLoading ? (
-                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <>
+                  <div style={{
+                    width: '18px', height: '18px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTopColor: 'white',
+                    borderRadius: '50%',
+                    animation: 'spin 0.6s linear infinite',
+                  }} />
+                  Signing in...
+                </>
               ) : (
                 <>
                   Sign In
-                  <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight size={18} />
                 </>
               )}
             </button>
           </form>
 
+          {/* Footer */}
+          <p style={{
+            marginTop: '2rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.2)',
+            textAlign: 'center', lineHeight: 1.5,
+          }}>
+            Shan Dyeing ERP &mdash; Enterprise Resource Planning
+          </p>
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 const routes = require("./routes");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
+const authMiddleware = require("./middleware/authMiddleware");
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use(
   })
 );
 
+app.use(authMiddleware);
 app.use("/api", routes);
 
 app.use(notFound);

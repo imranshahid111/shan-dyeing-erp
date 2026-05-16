@@ -216,7 +216,7 @@ export default function Payments() {
       {/* Payment Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[85vh] mt-3 shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">

@@ -1,6 +1,7 @@
 const { Op } = require("sequelize");
 const { Customer, DeliveryOrder, Payment, sequelize } = require("../models");
 const { getNextSequence } = require("../utils/numberGenerator");
+const { logActivity } = require("../utils/logger");
 
 exports.getCustomers = async (req, res, next) => {
   try {
@@ -48,6 +49,7 @@ exports.createCustomer = async (req, res, next) => {
     }
 
     const created = await Customer.create(payload);
+    await logActivity("Customers", `Created Customer: ${payload.name}`, `Code: ${payload.customer_code}`, req);
     return res.status(201).json(created);
   } catch (error) {
     res.status(500).json({error})
@@ -191,6 +193,7 @@ exports.addBulkPayment = async (req, res, next) => {
     });
 
     await t.commit();
+    await logActivity("Payments", `Bulk Payment Received`, `Customer ID: ${customerId}, Total Amount: ${amount}`, req);
     return res.json({ 
       success: true, 
       message: "Bulk payment processed successfully", 

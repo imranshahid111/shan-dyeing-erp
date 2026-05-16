@@ -19,6 +19,7 @@ import Staff from "./components/Staff";
 import CustomerInvoices from "./components/CustomerInvoices";
 import ViewDeliveryOrder from "./components/ViewDeliveryOrder";
 import Qualities from "./components/Qualities";
+import ActivityLogs from "./components/ActivityLogs";
 
 export const router = createHashRouter([
   {
@@ -69,6 +70,7 @@ export const router = createHashRouter([
           },
           { path: "payments", Component: Payments },
           { path: "qualities", Component: Qualities },
+          { path: "activity-logs", Component: ActivityLogs },
           { path: "staff", Component: Staff },
           { path: "reports", Component: Reports },
         ],

@@ -17,7 +17,7 @@ exports.login = async (req, res, next) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { id: user.id, email: user.email, role: user.role, full_name: user.full_name },
       process.env.JWT_SECRET || "erp_secret_key",
       { expiresIn: "24h" }
     );

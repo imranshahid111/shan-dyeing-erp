@@ -1,18 +1,30 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { LayoutDashboard, Package, Truck, FileText, ClipboardCheck, Users, CreditCard, BarChart3, Bell, Search, Menu, ArrowLeft, RefreshCw, LogOut } from 'lucide-react';
+import { 
+  LayoutDashboard, Package, Truck, FileText, ClipboardCheck, Users, 
+  CreditCard, BarChart3, Bell, Search, ArrowLeft, RefreshCw, 
+  LogOut, History, Wallet, ChevronRight
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/gray-lots', label: 'Gray Lot Management', icon: Package },
-  { path: '/delivery-orders', label: 'Delivery Orders', icon: Truck },
-  { path: '/billing', label: 'Billing / Invoices', icon: FileText },
-  { path: '/payments', label: 'Payments & Receipts', icon: CreditCard },
-  { path: '/qualities', label: 'Fabric Qualities', icon: ClipboardCheck },
-  { path: '/gate-pass', label: 'Gate Pass', icon: ClipboardCheck },
-  { path: '/customers', label: 'Customers', icon: Users },
-  { path: '/staff', label: 'Staff Management', icon: Users },
-  { path: '/reports', label: 'Reports', icon: BarChart3 },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
+  { path: '/gray-lots', label: 'Gray Lots', icon: Package, section: 'operations' },
+  { path: '/delivery-orders', label: 'Delivery Orders', icon: Truck, section: 'operations' },
+  { path: '/billing', label: 'Billing / Invoices', icon: FileText, section: 'operations' },
+  { path: '/payments', label: 'Payments & Ledger', icon: Wallet, section: 'operations' },
+  { path: '/customers', label: 'Customers', icon: Users, section: 'management' },
+  { path: '/qualities', label: 'Fabric Qualities', icon: ClipboardCheck, section: 'management' },
+  { path: '/gate-pass', label: 'Gate Pass', icon: ClipboardCheck, section: 'management' },
+  { path: '/staff', label: 'Staff', icon: Users, section: 'management' },
+  { path: '/activity-logs', label: 'Activity Logs', icon: History, section: 'system' },
+  { path: '/reports', label: 'Reports', icon: BarChart3, section: 'system' },
+];
+
+const sections = [
+  { key: 'main',       label: null },
+  { key: 'operations', label: 'Operations' },
+  { key: 'management', label: 'Management' },
+  { key: 'system',     label: 'System' },
 ];
 
 export default function Layout() {
@@ -20,158 +32,352 @@ export default function Layout() {
   const navigate = useNavigate();
   const { logout } = useAuth();
 
-  // Handle user data safely
-  let userData = { name: "Admin User", email: "admin@textile.com" };
+  let userData = { name: 'Admin User', email: 'admin@textile.com' };
   try {
     const saved = localStorage.getItem('erp_user');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed && parsed.name) {
-        userData = parsed;
-      }
+      if (parsed?.name) userData = parsed;
     }
-  } catch (e) {
-    console.error("User parsing failed");
-  }
+  } catch { /* silent */ }
 
   const handleLogout = () => {
-    if (window.confirm("Are you sure you want to logout?")) {
+    if (window.confirm('Are you sure you want to logout?')) {
       logout();
       navigate('/login');
     }
   };
 
+  const currentLabel = navItems.find(
+    (item) => item.path === '/' 
+      ? location.pathname === '/'
+      : location.pathname.startsWith(item.path)
+  )?.label ?? 'Overview';
+
+  const initials = userData.name.substring(0, 2).toUpperCase();
+
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
-      {/* Sidebar */}
-      <aside className="w-72 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col shadow-2xl relative">
-        {/* Logo Section */}
-        <div className="p-6 border-b border-slate-700/50">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-              <Package className="text-white" size={22} />
+    <div style={{ display: 'flex', height: '100vh', background: 'var(--gray-50)' }}>
+      
+      {/* ── Sidebar ── */}
+      <aside style={{
+        width: 'var(--sidebar-width)',
+        background: 'linear-gradient(180deg, var(--sidebar-bg-from) 0%, var(--sidebar-bg-to) 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        flexShrink: 0,
+        boxShadow: '4px 0 24px rgba(0,0,0,0.12)',
+        zIndex: 20,
+        position: 'relative',
+      }}>
+
+        {/* Subtle top accent line */}
+        {/* <div style={{
+          height: '2px',
+          background: 'linear-gradient(90deg, var(--brand-500), var(--accent-500))',
+          flexShrink: 0,
+        }} /> */}
+
+        {/* Logo */}
+        <div style={{
+          padding: '1.25rem 1.25rem 1rem',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{
+              width: '2.25rem', height: '2.25rem',
+              background: 'linear-gradient(135deg, var(--brand-500) 0%, var(--accent-500) 100%)',
+              borderRadius: '10px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(59,130,246,0.35)',
+              flexShrink: 0,
+            }}>
+              <Package size={16} color="white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-white tracking-tight text-nowrap">SHAN DYEING</h1>
-              <p className="text-[10px] text-blue-400 font-bold tracking-[0.2em] uppercase">Enterprise ERP</p>
+              <p style={{
+                fontSize: '0.9375rem', fontWeight: 800, color: 'white',
+                letterSpacing: '-0.01em', lineHeight: 1.2,
+              }}>Shan Dyeing</p>
+              <p style={{
+                fontSize: '0.6rem', fontWeight: 700, color: 'var(--brand-400)',
+                letterSpacing: '0.12em', textTransform: 'uppercase',
+              }}>Enterprise ERP</p>
             </div>
           </div>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = item.path === '/' 
-              ? location.pathname === '/' 
-              : location.pathname.startsWith(item.path);
+        {/* Nav */}
+        <nav className="sidebar-scroll" style={{
+          flex: 1, overflowY: 'auto', padding: '0.75rem 0.75rem',
+        }}>
+          {sections.map(({ key, label }) => {
+            const items = navItems.filter(i => i.section === key);
+            if (!items.length) return null;
             return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`group flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 ${
-                  isActive
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/50'
-                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
-                }`}
-              >
-                <Icon size={20} className={isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'} />
-                <span className="text-sm font-bold tracking-wide">{item.label}</span>
-              </Link>
+              <div key={key} style={{ marginBottom: '0.25rem' }}>
+                {label && (
+                  <p style={{
+                    fontSize: '0.5625rem', fontWeight: 700,
+                    color: 'rgba(255,255,255,0.25)',
+                    textTransform: 'uppercase', letterSpacing: '0.1em',
+                    padding: '0.75rem 0.75rem 0.375rem',
+                  }}>{label}</p>
+                )}
+                {items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = item.path === '/'
+                    ? location.pathname === '/'
+                    : location.pathname.startsWith(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`nav-item ${isActive ? 'active' : ''}`}
+                    >
+                      <Icon size={17} style={{ flexShrink: 0 }} />
+                      <span style={{ flex: 1 }}>{item.label}</span>
+                      {isActive && <ChevronRight size={13} style={{ opacity: 0.5 }} />}
+                    </Link>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
 
-        {/* User Profile & Logout */}
-        <div className="p-4 border-t border-slate-700/50 bg-slate-900/50">
-          <div className="flex items-center justify-between gap-3 p-2">
-            <div className="flex items-center gap-3 overflow-hidden">
-              <div className="shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center border border-white/10 shadow-inner text-white font-black uppercase text-xs">
-                {userData.name.substring(0, 2)}
-              </div>
-              <div className="overflow-hidden">
-                <p className="text-sm font-bold text-white truncate">{userData.name}</p>
-                <p className="text-[10px] text-slate-500 truncate font-medium">{userData.email}</p>
-              </div>
+        {/* User footer */}
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          padding: '0.875rem',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <div style={{
+              width: '2.25rem', height: '2.25rem', flexShrink: 0,
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.08))',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '10px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '0.6875rem', fontWeight: 800, color: 'white',
+            }}>{initials}</div>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <p style={{
+                fontSize: '0.8125rem', fontWeight: 700, color: 'white',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>{userData.name}</p>
+              <p style={{
+                fontSize: '0.6875rem', color: 'rgba(255,255,255,0.35)',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>{userData.email}</p>
             </div>
-            <button 
+            <button
               onClick={handleLogout}
-              className="p-2.5 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all duration-200 shadow-sm shadow-red-500/20 shrink-0"
-              title="Logout Account"
+              title="Logout"
+              style={{
+                flexShrink: 0, width: '1.875rem', height: '1.875rem',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(239,68,68,0.1)',
+                border: 'none', borderRadius: '8px', cursor: 'pointer',
+                color: 'rgba(252,165,165,0.9)',
+                transition: 'all var(--transition-fast)',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,0.25)';
+                (e.currentTarget as HTMLButtonElement).style.color = '#fca5a5';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,0.1)';
+                (e.currentTarget as HTMLButtonElement).style.color = 'rgba(252,165,165,0.9)';
+              }}
             >
-              <LogOut size={18} />
+              <LogOut size={15} />
             </button>
           </div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* ── Main Content ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+        
         {/* Header */}
-        <header className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 px-8 py-4 shadow-sm z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button className="lg:hidden p-2 hover:bg-gray-100 rounded-lg">
-                <Menu size={20} className="text-gray-600" />
+        <header style={{
+          background: 'rgba(255,255,255,0.98)',
+          borderBottom: '1px solid var(--gray-150)',
+          padding: '0 1.75rem',
+          height: '60px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexShrink: 0,
+          position: 'relative',
+          zIndex: 10,
+          boxShadow: '0 1px 0 rgba(0,0,0,0.05)',
+        }}>
+
+          {/* Left: nav controls + page title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {/* Nav buttons */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '2px',
+              background: 'var(--gray-50)', border: '1px solid var(--gray-150)',
+              borderRadius: '10px', padding: '3px',
+            }}>
+              <button
+                onClick={() => navigate(-1)}
+                title="Go Back"
+                style={{
+                  width: '1.75rem', height: '1.75rem', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  background: 'transparent', border: 'none', borderRadius: '7px',
+                  cursor: 'pointer', color: 'var(--gray-500)',
+                  transition: 'all var(--transition-fast)',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'white';
+                  (e.currentTarget as HTMLButtonElement).style.color = 'var(--brand-600)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                  (e.currentTarget as HTMLButtonElement).style.color = 'var(--gray-500)';
+                }}
+              >
+                <ArrowLeft size={15} />
               </button>
-              {/* Back & Reload Buttons */}
-              <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
-                <button
-                  onClick={() => navigate(-1)}
-                  className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all group"
-                  title="Go Back"
-                >
-                  <ArrowLeft size={18} className="text-gray-500 group-hover:text-blue-600 transition-colors" />
-                </button>
-                <button
-                  onClick={() => navigate(0)}
-                  className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all group"
-                  title="Reload Page"
-                >
-                  <RefreshCw size={16} className="text-gray-500 group-hover:text-blue-600 transition-colors" />
-                </button>
-              </div>
-              <div className="border-l-2 border-slate-100 pl-4">
-                <h2 className="text-xl font-black bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent uppercase tracking-tight">
-                  {navItems.find((item) => item.path === location.pathname)?.label || 'Overview'}
-                </h2>
-                <p className="text-[10px] text-gray-400 mt-0.5 font-black uppercase tracking-widest leading-none">Welcome back, {userData.name.split(' ')[0]}</p>
-              </div>
+              <button
+                onClick={() => navigate(0)}
+                title="Reload"
+                style={{
+                  width: '1.75rem', height: '1.75rem', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  background: 'transparent', border: 'none', borderRadius: '7px',
+                  cursor: 'pointer', color: 'var(--gray-500)',
+                  transition: 'all var(--transition-fast)',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'white';
+                  (e.currentTarget as HTMLButtonElement).style.color = 'var(--brand-600)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                  (e.currentTarget as HTMLButtonElement).style.color = 'var(--gray-500)';
+                }}
+              >
+                <RefreshCw size={14} />
+              </button>
             </div>
-            
-            <div className="flex items-center gap-6">
-              <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-gray-50 border border-gray-100 rounded-2xl w-64 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-                <Search size={16} className="text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Global Search..."
-                  className="bg-transparent border-none outline-none text-xs font-bold w-full"
-                />
+
+            {/* Divider */}
+            <div style={{ width: '1px', height: '1.25rem', background: 'var(--gray-200)' }} />
+
+            {/* Page title */}
+            <div>
+              <h1 style={{
+                fontSize: '0.9375rem', fontWeight: 800, color: 'var(--gray-900)',
+                letterSpacing: '-0.01em', margin: 0,
+              }}>{currentLabel}</h1>
+              <p style={{
+                fontSize: '0.6875rem', color: 'var(--gray-400)',
+                fontWeight: 600, letterSpacing: '0.04em',
+                textTransform: 'uppercase', marginTop: '1px',
+              }}>
+                Welcome back, {userData.name.split(' ')[0]}
+              </p>
+            </div>
+          </div>
+
+          {/* Right: search + user */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+            {/* Search */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              background: 'var(--gray-50)', border: '1.5px solid var(--gray-150)',
+              borderRadius: '10px', padding: '0.375rem 0.75rem',
+              width: '13rem',
+              transition: 'all var(--transition-fast)',
+            }}
+              onFocusCapture={e => {
+                e.currentTarget.style.borderColor = 'var(--brand-400)';
+                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.1)';
+              }}
+              onBlurCapture={e => {
+                e.currentTarget.style.borderColor = 'var(--gray-150)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <Search size={14} style={{ color: 'var(--gray-400)', flexShrink: 0 }} />
+              <input
+                type="text"
+                placeholder="Search..."
+                style={{
+                  background: 'transparent', border: 'none', outline: 'none',
+                  fontSize: '0.8125rem', fontWeight: 500, color: 'var(--gray-700)',
+                  width: '100%', fontFamily: 'inherit',
+                }}
+              />
+            </div>
+
+            {/* Bell */}
+            <button
+              style={{
+                width: '2.125rem', height: '2.125rem', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                background: 'var(--gray-50)', border: '1.5px solid var(--gray-150)',
+                borderRadius: '10px', cursor: 'pointer', position: 'relative',
+                color: 'var(--gray-500)', transition: 'all var(--transition-fast)',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'white';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--gray-200)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'var(--gray-50)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--gray-150)';
+              }}
+            >
+              <Bell size={16} />
+              <span style={{
+                position: 'absolute', top: '6px', right: '6px',
+                width: '6px', height: '6px',
+                background: 'var(--brand-500)', borderRadius: '50%',
+                border: '1.5px solid white',
+              }} />
+            </button>
+
+            {/* Divider */}
+            <div style={{ width: '1px', height: '1.5rem', background: 'var(--gray-200)' }} />
+
+            {/* User badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{
+                  fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-800)', lineHeight: 1.2,
+                }}>{userData.name}</p>
+                <p style={{
+                  fontSize: '0.625rem', color: 'var(--gray-400)',
+                  fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em',
+                }}>
+                  {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </p>
               </div>
-              
-              <div className="flex items-center gap-2">
-                <button className="relative p-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-2xl transition-all border border-gray-100">
-                  <Bell size={20} />
-                  <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-blue-600 rounded-full border-2 border-white"></span>
-                </button>
-                
-                <div className="flex items-center gap-3 pl-3 border-l border-gray-200">
-                   <div className="text-right hidden xl:block">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                      <p className="text-xs font-bold text-blue-600">Active Shift</p>
-                   </div>
-                   <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center shadow-lg border border-white/10">
-                    <span className="text-xs font-black text-white">{userData.name.substring(0,2).toUpperCase()}</span>
-                  </div>
-                </div>
-              </div>
+              <div style={{
+                width: '2.125rem', height: '2.125rem',
+                background: 'linear-gradient(135deg, var(--gray-800), var(--gray-900))',
+                borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '0.6875rem', fontWeight: 800, color: 'white',
+                boxShadow: 'var(--shadow-md)',
+              }}>{initials}</div>
             </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto p-8 custom-scrollbar">
-          <Outlet />
+        <main
+          className="sidebar-scroll"
+          style={{ flex: 1, overflowY: 'auto', padding: 'var(--page-padding)' }}
+        >
+          <div className="page-enter">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

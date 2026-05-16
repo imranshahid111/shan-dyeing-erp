@@ -220,35 +220,86 @@ export default function CustomerInvoices() {
         </div>
       </div>
 
-      {/* Invoice Viewer Modal */}
+      {/* Invoice Viewer Modal — full-screen, header always visible */}
       {selectedInvoice && org && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-5xl h-[90vh] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50">
-               <div>
-                  <h3 className="text-xl font-bold text-gray-900 uppercase tracking-tight">System Invoice Ledger</h3>
-                  <p className="text-sm text-gray-500 font-semibold uppercase tracking-widest text-[10px] mt-1">High fidelity document preview</p>
-               </div>
-               <div className="flex items-center gap-3">
-                  <PDFDownloadLink
-                    document={<PDFInvoice inv={selectedInvoice} org={org} />}
-                    fileName={`Invoice-${selectedInvoice.order_no}.pdf`}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-bold shadow-lg shadow-blue-500/20"
-                  >
-                    {({ loading }) => (loading ? 'Preparing...' : 'Download PDF')}
-                  </PDFDownloadLink>
-                  <button 
-                    onClick={() => setSelectedInvoice(null)}
-                    className="p-2.5 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors"
-                  >
-                    <X size={20} />
-                  </button>
-               </div>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15,23,42,0.7)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '1rem',
+            animation: 'overlayIn 150ms ease both',
+          }}
+          onClick={() => setSelectedInvoice(null)}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '20px',
+              width: '100%',
+              maxWidth: '900px',
+              margin: '0 auto',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.3)',
+              animation: 'dialogIn 180ms ease both',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Sticky header — always on top */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '1rem 1.5rem',
+              borderBottom: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              flexShrink: 0,
+            }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Invoice Preview</h3>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Order #{selectedInvoice.order_no}</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <PDFDownloadLink
+                  document={<PDFInvoice inv={selectedInvoice} org={org} />}
+                  fileName={`Invoice-${selectedInvoice.order_no}.pdf`}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                    padding: '0.5rem 1.25rem',
+                    background: '#2563eb', color: 'white',
+                    borderRadius: '10px', fontWeight: 700,
+                    fontSize: '0.875rem', textDecoration: 'none',
+                    boxShadow: '0 4px 12px rgba(37,99,235,0.3)',
+                  }}
+                >
+                  {({ loading }) => (loading ? 'Preparing...' : '⬇ Download PDF')}
+                </PDFDownloadLink>
+                <button
+                  onClick={() => setSelectedInvoice(null)}
+                  style={{
+                    width: '2.25rem', height: '2.25rem',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: '#f1f5f9', border: 'none',
+                    borderRadius: '10px', cursor: 'pointer',
+                    color: '#475569', fontSize: '1.25rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
-            <div className="flex-1 bg-gray-100 p-4 overflow-hidden">
-               <PDFViewer width="100%" height="100%" className="rounded-xl border border-gray-200 shadow-inner" showToolbar={false}>
-                  <PDFInvoice inv={selectedInvoice} org={org} />
-               </PDFViewer>
+            {/* PDF Viewer */}
+            <div style={{ flex: 1, background: '#e2e8f0', padding: '1rem', overflow: 'hidden' }}>
+              <PDFViewer width="100%" height="100%" showToolbar={false}
+                style={{ borderRadius: '10px', border: '1px solid #cbd5e1' }}
+              >
+                <PDFInvoice inv={selectedInvoice} org={org} />
+              </PDFViewer>
             </div>
           </div>
         </div>
@@ -256,7 +307,7 @@ export default function CustomerInvoices() {
 
       {/* Payment Modal */}
       {paymentInvoice && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300 border border-gray-100">
             <div className="bg-slate-900 p-8 text-white relative">
               <button onClick={() => setPaymentInvoice(null)} className="absolute right-6 top-6 p-2 hover:bg-white/20 rounded-xl transition-colors">

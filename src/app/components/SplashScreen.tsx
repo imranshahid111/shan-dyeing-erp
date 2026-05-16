@@ -2,57 +2,95 @@ import { Package } from 'lucide-react';
 
 export default function SplashScreen() {
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900 overflow-hidden">
-      {/* Background Decorative Gradients */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px] animate-pulse"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-[120px] animate-pulse delay-700"></div>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      overflow: 'hidden', fontFamily: 'Inter, sans-serif',
+    }}>
+      {/* Background glows */}
+      <div style={{
+        position: 'absolute', top: '-15%', left: '-10%',
+        width: '45%', height: '50%',
+        background: 'radial-gradient(circle, rgba(59,130,246,0.15), transparent 70%)',
+        borderRadius: '50%', pointerEvents: 'none',
+        animation: 'pulse 2.5s ease-in-out infinite',
+      }} />
+      <div style={{
+        position: 'absolute', bottom: '-15%', right: '-10%',
+        width: '45%', height: '50%',
+        background: 'radial-gradient(circle, rgba(139,92,246,0.12), transparent 70%)',
+        borderRadius: '50%', pointerEvents: 'none',
+        animation: 'pulse 2.5s ease-in-out infinite 0.8s',
+      }} />
 
-      <div className="relative flex flex-col items-center">
-        {/* Animated Logo Container */}
-        <div className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl blur-2xl opacity-50 animate-pulse group-hover:opacity-100 transition-opacity"></div>
-          <div className="relative w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-2xl animate-bounce">
-            <Package className="text-white" size={48} />
+      <div style={{
+        position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.75rem',
+        animation: 'fadeIn 0.6s ease both',
+      }}>
+        {/* Logo */}
+        <div style={{ position: 'relative' }}>
+          <div style={{
+            position: 'absolute', inset: '-8px',
+            background: 'linear-gradient(135deg, rgba(59,130,246,0.3), rgba(139,92,246,0.3))',
+            borderRadius: '28px', filter: 'blur(16px)',
+            animation: 'pulseGlow 2s ease-in-out infinite',
+          }} />
+          <div style={{
+            position: 'relative',
+            width: '80px', height: '80px',
+            background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+            borderRadius: '24px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 16px 40px rgba(59,130,246,0.35)',
+          }}>
+            <Package size={38} color="white" />
           </div>
         </div>
 
         {/* Branding */}
-        <div className="mt-8 text-center space-y-2">
-          <h1 className="text-3xl font-black text-white tracking-widest animate-fade-in">
-            SHAN DYEING <span className="text-blue-500">ERP</span>
+        <div style={{ textAlign: 'center' }}>
+          <h1 style={{
+            fontSize: '1.875rem', fontWeight: 800, color: 'white',
+            letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0,
+          }}>
+            SHAN DYEING <span style={{ color: '#60a5fa' }}>ERP</span>
           </h1>
-          <p className="text-slate-400 text-sm font-medium tracking-[0.3em] uppercase opacity-70">
+          <p style={{
+            fontSize: '0.6875rem', fontWeight: 600,
+            color: 'rgba(255,255,255,0.35)',
+            letterSpacing: '0.28em', textTransform: 'uppercase',
+            marginTop: '0.5rem',
+          }}>
             Smart Textile Solutions
           </p>
         </div>
 
-        {/* Dynamic Loading Bar */}
-        <div className="mt-12 w-48 h-1 bg-slate-800 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-progress-fill"></div>
+        {/* Progress bar */}
+        <div style={{
+          width: '160px', height: '3px',
+          background: 'rgba(255,255,255,0.08)',
+          borderRadius: '100px', overflow: 'hidden',
+        }}>
+          <div style={{
+            height: '100%',
+            background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)',
+            borderRadius: '100px',
+            animation: 'progressBar 3s ease-out forwards',
+          }} />
         </div>
 
-        {/* Status Text */}
-        <p className="mt-4 text-xs font-medium text-slate-500 animate-pulse">
+        {/* Status */}
+        <p style={{
+          fontSize: '0.75rem', fontWeight: 500,
+          color: 'rgba(255,255,255,0.3)',
+          letterSpacing: '0.05em',
+          animation: 'pulse 2s ease-in-out infinite',
+          margin: '-0.75rem 0 0',
+        }}>
           Initializing secure environment...
         </p>
       </div>
-
-      <style>{`
-        @keyframes progress-fill {
-          0% { width: 0%; transform: translateX(-100%); }
-          100% { width: 100%; transform: translateX(0%); }
-        }
-        .animate-progress-fill {
-          animation: progress-fill 3s ease-out forwards;
-        }
-        @keyframes fade-in {
-          0% { opacity: 0; transform: translateY(10px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-          animation: fade-in 1s ease-out forwards;
-        }
-      `}</style>
     </div>
   );
 }

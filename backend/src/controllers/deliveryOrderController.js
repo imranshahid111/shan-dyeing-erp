@@ -1,6 +1,7 @@
 const { DeliveryOrder, Customer, GrayLot, Payment, sequelize } = require("../models");
 const { Op } = require("sequelize");
 const { getNextSequence } = require("../utils/numberGenerator");
+const { logActivity } = require("../utils/logger");
 
 exports.getDeliveryOrders = async (req, res, next) => {
   try {
@@ -138,6 +139,7 @@ exports.generateInvoice = async (req, res, next) => {
     }, { transaction: t });
 
     await t.commit();
+    await logActivity("Invoices", `Generated Invoice #${nextInvNo}`, `Total Amount: ${netAmount}`, req);
     return res.json(deliveryOrder);
   } catch (err) {
     await t.rollback();
@@ -185,6 +187,7 @@ exports.deleteInvoice = async (req, res, next) => {
     }, { transaction: t });
 
     await t.commit();
+    await logActivity("Invoices", `Deleted Invoice #${deliveryOrder.invoice_no}`, `Reverted order ${deliveryOrder.order_no} to completed`, req);
     return res.json({ success: true, message: "Invoice deleted successfully" });
   } catch (err) {
     await t.rollback();
@@ -230,6 +233,7 @@ exports.addPayment = async (req, res, next) => {
     });
 
     await t.commit();
+    await logActivity("Payments", `Received Payment for DO #${deliveryOrder.order_no}`, `Amount: ${payAmount}, Method: ${method}`, req);
     return res.json({ success: true, message: "Payment added successfully" });
   } catch (err) {
     await t.rollback();
@@ -277,6 +281,7 @@ exports.deleteOrder = async (req, res, next) => {
     await deliveryOrder.destroy({ transaction: t });
 
     await t.commit();
+    await logActivity("Delivery Orders", `Deleted Order #${deliveryOrder.order_no}`, `Order removed from system`, req);
     return res.json({ success: true, message: "Delivery Order deleted successfully" });
   } catch (err) {
     await t.rollback();

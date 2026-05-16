@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus, Edit, Trash2, Search, Eye, Phone } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Eye, Phone, Users } from 'lucide-react';
 import { customerService } from '../services/customerService';
 
 interface Customer {
@@ -27,7 +27,7 @@ export default function Customers() {
           id: String(item.id),
           name: item.name,
           mobile: item.phone,
-          address: item.city || '-',
+          address: item.city || '—',
           outstanding: Number(item.outstanding_amount || 0),
           customerCode: item.customer_code,
         }));
@@ -38,116 +38,131 @@ export default function Customers() {
         setLoading(false);
       }
     };
-
     loadCustomers();
   }, [searchTerm]);
 
   const filteredCustomers = useMemo(() => customers, [customers]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search customers..."
-            className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--section-gap)' }}>
+      
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-header-left">
+          <h2>Customers</h2>
+          <p>{customers.length} registered customers</p>
         </div>
-        <button
-          onClick={() => navigate('/customers/new')}
-          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20 font-semibold"
-        >
-          <Plus size={20} />
+        <button className="btn btn-primary" onClick={() => navigate('/customers/new')}>
+          <Plus size={16} />
           Add Customer
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse whitespace-nowrap">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500">
-                <th className="px-6 py-4 font-semibold cursor-pointer hover:text-gray-700">Customer Code</th>
-                <th className="px-6 py-4 font-semibold cursor-pointer hover:text-gray-700">Company Name</th>
-                <th className="px-6 py-4 font-semibold">Contact Info</th>
-                <th className="px-6 py-4 font-semibold">City / Address</th>
-                <th className="px-6 py-4 font-semibold text-right cursor-pointer hover:text-gray-700">Outstanding</th>
-                <th className="px-6 py-4 font-semibold text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading && (
+      {/* Card */}
+      <div className="card">
+        {/* Toolbar */}
+        <div className="card-header">
+          <div className="search-bar" style={{ maxWidth: '22rem' }}>
+            <Search className="search-bar-icon" size={16} />
+            <input
+              type="text"
+              placeholder="Search customers..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <span className="badge badge-gray">{filteredCustomers.length} Records</span>
+        </div>
+
+        {/* Table */}
+        <div style={{ overflowX: 'auto' }}>
+          {loading ? (
+            <div className="loading-state">
+              <div className="loading-spinner" />
+              <p>Loading customers...</p>
+            </div>
+          ) : filteredCustomers.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon"><Users size={26} /></div>
+              <p className="empty-state-title">No Customers Found</p>
+              <p className="empty-state-desc">Add your first customer to start managing accounts and invoices.</p>
+              <button className="btn btn-primary" style={{ marginTop: '1.25rem' }} onClick={() => navigate('/customers/new')}>
+                <Plus size={15} /> Add Customer
+              </button>
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
-                    Loading customers...
-                  </td>
+                  <th>Code</th>
+                  <th>Company Name</th>
+                  <th>Contact</th>
+                  <th>City / Address</th>
+                  <th style={{ textAlign: 'right' }}>Outstanding</th>
+                  <th style={{ textAlign: 'center' }}>Actions</th>
                 </tr>
-              )}
-              {!loading && filteredCustomers.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                    No customers found matching your search.
-                  </td>
-                </tr>
-              )}
-              {filteredCustomers.map((customer) => (
-                <tr 
-                  key={customer.id} 
-                  className="hover:bg-blue-50/40 transition-colors group cursor-pointer"
-                  onClick={() => navigate(`/customers/view/${customer.id}`)}
-                >
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-700">
-                      {customer.customerCode}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 font-bold text-gray-800">
-                    {customer.name}
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 text-sm">
-                    <div className="flex items-center gap-1.5">
-                      <Phone size={14} className="text-gray-400" />
-                      {customer.mobile}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 text-sm max-w-[200px] truncate">
-                    {customer.address}
-                  </td>
-                  <td className="px-6 py-4 font-bold text-red-600 text-right">
-                    Rs {customer.outstanding.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                      <button 
-                        onClick={() => navigate(`/customers/view/${customer.id}`)}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="View Ledger"
-                      >
-                        <Eye size={16} />
-                      </button>
-                      <button 
-                        onClick={() => navigate(`/customers/edit/${customer.id}`)}
-                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        title="Edit Customer"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button 
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete Customer"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredCustomers.map(customer => (
+                  <tr
+                    key={customer.id}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/customers/view/${customer.id}`)}
+                  >
+                    <td>
+                      <span className="badge badge-gray">{customer.customerCode}</span>
+                    </td>
+                    <td>
+                      <span style={{ fontWeight: 700, color: 'var(--gray-900)' }}>
+                        {customer.name}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: 'var(--gray-600)', fontSize: '0.8125rem' }}>
+                        <Phone size={13} style={{ color: 'var(--gray-400)' }} />
+                        {customer.mobile}
+                      </div>
+                    </td>
+                    <td style={{ color: 'var(--gray-500)', fontSize: '0.8125rem', maxWidth: '180px' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                        {customer.address}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <span style={{
+                        fontWeight: 700,
+                        color: customer.outstanding > 0 ? '#b91c1c' : 'var(--success)',
+                        fontSize: '0.875rem',
+                      }}>
+                        Rs {customer.outstanding.toLocaleString()}
+                      </span>
+                    </td>
+                    <td onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
+                        <button
+                          className="icon-btn primary"
+                          title="View Ledger"
+                          onClick={() => navigate(`/customers/view/${customer.id}`)}
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <button
+                          className="icon-btn primary"
+                          title="Edit Customer"
+                          onClick={() => navigate(`/customers/edit/${customer.id}`)}
+                        >
+                          <Edit size={15} />
+                        </button>
+                        <button className="icon-btn danger" title="Delete Customer">
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

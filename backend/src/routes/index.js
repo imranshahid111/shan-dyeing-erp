@@ -10,6 +10,7 @@ const userController = require("../controllers/userController");
 const organizationController = require("../controllers/organizationController");
 const paymentController = require("../controllers/paymentController");
 const qualityController = require("../controllers/qualityController");
+const activityLogController = require("../controllers/activityLogController")
 
 const router = express.Router();
 
@@ -19,6 +20,8 @@ router.get("/qualities", qualityController.getQualities);
 router.post("/qualities", qualityController.createQuality);
 router.put("/qualities/:id", qualityController.updateQuality);
 router.delete("/qualities/:id", qualityController.deleteQuality);
+
+router.get("/activity-logs", activityLogController.getActivityLogs);
 
 router.get("/customers", customerController.getCustomers);
 router.get("/customers/:id", customerController.getCustomerById);
@@ -43,6 +46,12 @@ router.post("/gray-lots", grayLotController.createGrayLot);
 router.delete("/gray-lots/:id", grayLotController.deleteGrayLot);
 
 router.get("/dashboard/summary", dashboardController.getDashboardSummary);
+router.get("/dashboard/charts", dashboardController.getChartsData);
+router.get("/dashboard/activity", dashboardController.getRecentActivity);
+
+router.get("/reports/ledger", dashboardController.getLedgerReport);
+router.get("/reports/outstanding", dashboardController.getOutstandingReport);
+router.get("/reports/stock", dashboardController.getStockReport);
 
 router.post("/auth/login", authController.login);
 

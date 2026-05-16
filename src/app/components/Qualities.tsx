@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Edit2, Search, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, Loader2, AlertCircle, X, Tag } from 'lucide-react';
 import { qualityService, QualityItem } from '../services/qualityService';
 
 export default function Qualities() {
@@ -17,20 +17,23 @@ export default function Qualities() {
       const res = await qualityService.getQualities();
       setQualities(res as any);
     } catch (error) {
-      console.error("Failed to fetch qualities", error);
+      console.error('Failed to fetch qualities', error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchQualities();
-  }, []);
+  useEffect(() => { fetchQualities(); }, []);
+
+  const openModal = (id?: number, name?: string) => {
+    setEditingId(id ?? null);
+    setQualityName(name ?? '');
+    setShowModal(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!qualityName.trim() || isSubmitting) return;
-
     try {
       setIsSubmitting(true);
       if (editingId) {
@@ -43,140 +46,147 @@ export default function Qualities() {
       setEditingId(null);
       fetchQualities();
     } catch (error: any) {
-      alert(error.response?.data?.message || "Operation failed");
+      alert(error.response?.data?.message || 'Operation failed');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this quality?")) return;
+    if (!window.confirm('Are you sure you want to delete this quality?')) return;
     try {
       await qualityService.deleteQuality(id);
       fetchQualities();
     } catch (error) {
-      alert("Failed to delete quality");
+      alert('Failed to delete quality');
     }
   };
 
-  const filteredQualities = qualities.filter(q => 
+  const filteredQualities = qualities.filter(q =>
     q.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 uppercase tracking-tight">Fabric Qualities</h2>
-          <p className="text-sm text-gray-500 font-medium mt-1">Manage standard qualities for gray lots</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--section-gap)' }}>
+
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-header-left">
+          <h2>Fabric Qualities</h2>
+          <p>Manage standard quality types for gray lots</p>
         </div>
-        <button
-          onClick={() => {
-            setEditingId(null);
-            setQualityName('');
-            setShowModal(true);
-          }}
-          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-bold shadow-lg shadow-blue-500/20"
-        >
-          <Plus size={20} />
-          Add New Quality
+        <button className="btn btn-primary" onClick={() => openModal()}>
+          <Plus size={16} />
+          Add Quality
         </button>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden min-h-[400px] flex flex-col">
-        <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+      {/* Card */}
+      <div className="card" style={{ minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
+        {/* Toolbar */}
+        <div className="card-header">
+          <div className="search-bar" style={{ maxWidth: '18rem' }}>
+            <Search className="search-bar-icon" size={16} />
             <input
               type="text"
               placeholder="Search qualities..."
-              className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{filteredQualities.length} Total Records</p>
+          <span className="badge badge-gray">{filteredQualities.length} Records</span>
         </div>
 
-        <div className="flex-1">
+        {/* Content */}
+        <div style={{ flex: 1, padding: '1.25rem' }}>
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-24 text-gray-400 gap-3">
-              <Loader2 className="animate-spin" size={32} />
-              <p className="text-xs font-black uppercase tracking-widest leading-none">Fetching qualities...</p>
+            <div className="loading-state">
+              <div className="loading-spinner" />
+              <p>Fetching qualities...</p>
             </div>
-          ) : filteredQualities.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-              {filteredQualities.map((q) => (
-                <div key={q.id} className="group p-4 rounded-2xl border border-gray-100 bg-white hover:border-blue-200 hover:shadow-md transition-all flex items-center justify-between">
-                  <span className="font-bold text-gray-800">{q.name}</span>
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => {
-                        setEditingId(q.id);
-                        setQualityName(q.name);
-                        setShowModal(true);
-                      }}
-                      className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
-                    >
-                      <Edit2 size={16} />
+          ) : filteredQualities.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon"><Tag size={26} /></div>
+              <p className="empty-state-title">No Qualities Found</p>
+              <p className="empty-state-desc">Add fabric quality types to use when creating gray lots.</p>
+              <button className="btn btn-primary" style={{ marginTop: '1.25rem' }} onClick={() => openModal()}>
+                <Plus size={15} /> Add Quality
+              </button>
+            </div>
+          ) : (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gap: '0.75rem',
+            }}>
+              {filteredQualities.map(q => (
+                <div
+                  key={q.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '0.875rem 1rem',
+                    background: 'var(--gray-25)',
+                    border: '1.5px solid var(--gray-150)',
+                    borderRadius: 'var(--radius-md)',
+                    transition: 'all var(--transition-fast)',
+                    cursor: 'default',
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = 'var(--brand-300)';
+                    (e.currentTarget as HTMLElement).style.background = 'var(--brand-50)';
+                    (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm)';
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = 'var(--gray-150)';
+                    (e.currentTarget as HTMLElement).style.background = 'var(--gray-25)';
+                    (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+                  }}
+                >
+                  <span style={{ fontWeight: 600, color: 'var(--gray-800)', fontSize: '0.875rem' }}>{q.name}</span>
+                  <div style={{ display: 'flex', gap: '0.125rem' }}>
+                    <button className="icon-btn primary" onClick={() => openModal(q.id, q.name)} title="Edit">
+                      <Edit2 size={14} />
                     </button>
-                    <button
-                      onClick={() => handleDelete(q.id)}
-                      className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={16} />
+                    <button className="icon-btn danger" onClick={() => handleDelete(q.id)} title="Delete">
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-24 text-gray-400">
-              <AlertCircle size={48} className="opacity-10 mb-4" />
-              <p className="text-xs font-black uppercase tracking-widest">No qualities found</p>
-            </div>
           )}
         </div>
       </div>
 
+      {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-6 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-              <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">
-                {editingId ? 'Edit Quality' : 'Add New Quality'}
-              </h3>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-200 rounded-xl transition-colors">
-                <Trash2 size={20} className="rotate-45" />
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-dialog" style={{ maxWidth: '22rem' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{editingId ? 'Edit Quality' : 'Add New Quality'}</h3>
+              <button className="modal-close-btn" onClick={() => setShowModal(false)}>
+                <X size={16} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              <div>
-                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Quality Name</label>
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body">
+                <label className="form-label">Quality Name</label>
                 <input
                   type="text"
                   autoFocus
                   required
+                  className="input-field"
                   placeholder="e.g. Cotton Latha, Wash n Wear"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:outline-none font-bold text-gray-800"
                   value={qualityName}
-                  onChange={(e) => setQualityName(e.target.value)}
+                  onChange={e => setQualityName(e.target.value)}
                 />
               </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-black tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50"
-                >
-                  {isSubmitting ? 'SAVING...' : (editingId ? 'UPDATE QUALITY' : 'CREATE QUALITY')}
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
+                  Cancel
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-6 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-black tracking-widest hover:bg-gray-200 transition-all"
-                >
-                  CANCEL
+                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving...' : editingId ? 'Update Quality' : 'Create Quality'}
                 </button>
               </div>
             </form>

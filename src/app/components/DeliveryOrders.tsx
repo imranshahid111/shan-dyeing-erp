@@ -3,16 +3,15 @@ import { useNavigate } from 'react-router';
 import { Plus, Search, Eye, Package, FileText, CalendarDays, Hash, Trash2 } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
 
-const statusColors: Record<string, { bg: string; text: string; label: string }> = {
-  completed: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Pending Invoice' },
-  billed:    { bg: 'bg-blue-100',   text: 'text-blue-700',   label: 'Invoiced' },
-  paid:      { bg: 'bg-green-100',  text: 'text-green-700',  label: 'Paid' },
-  cancelled: { bg: 'bg-red-100',    text: 'text-red-700',    label: 'Cancelled' },
+const statusConfig: Record<string, { badge: string; label: string }> = {
+  completed: { badge: 'badge-yellow', label: 'Pending Invoice' },
+  billed:    { badge: 'badge-blue',   label: 'Invoiced' },
+  paid:      { badge: 'badge-green',  label: 'Paid' },
+  cancelled: { badge: 'badge-red',    label: 'Cancelled' },
 };
 
 export default function DeliveryOrders() {
   const navigate = useNavigate();
-
   const [orders, setOrders] = useState<DeliveryOrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -20,16 +19,13 @@ export default function DeliveryOrders() {
   const [total, setTotal] = useState(0);
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this Delivery Order? This will also remove associated payments and adjust customer balance.")) return;
-    
+    if (!window.confirm('Are you sure? This will also remove associated payments and adjust customer balance.')) return;
     try {
       await deliveryOrderService.deleteDeliveryOrder(id);
       setOrders(prev => prev.filter(o => o.id !== id));
       setTotal(prev => prev - 1);
-      alert("Delivery Order deleted successfully!");
     } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to delete order");
-      console.error(err);
+      alert(err.response?.data?.message || 'Failed to delete order');
     }
   };
 
@@ -37,13 +33,7 @@ export default function DeliveryOrders() {
     try {
       setLoading(true);
       const res = await deliveryOrderService.getDeliveryOrders(
-        statusFilter,
-        1,
-        100,
-        undefined,
-        undefined,
-        undefined,
-        search
+        statusFilter, 1, 100, undefined, undefined, undefined, search
       );
       setOrders(res.data);
       setTotal(res.total);
@@ -54,186 +44,134 @@ export default function DeliveryOrders() {
     }
   };
 
-  useEffect(() => {
-    loadOrders();
-  }, [statusFilter, search]);
-
-  const filteredOrders = orders;
+  useEffect(() => { loadOrders(); }, [statusFilter, search]);
 
   return (
-    <div className="space-y-6">
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Delivery Orders</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Total {total} order{total !== 1 ? 's' : ''} found
-          </p>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--section-gap)' }}>
 
-        <button
-          id="btn-add-do"
-          onClick={() => navigate('/delivery-orders/new')}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 active:scale-95 transition-all text-sm font-semibold shadow-md shadow-blue-200"
-        >
-          <Plus size={18} />
-          Add DO
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-header-left">
+          <h2>Delivery Orders</h2>
+          <p>{total} order{total !== 1 ? 's' : ''} found</p>
+        </div>
+        <button className="btn btn-primary" id="btn-add-do" onClick={() => navigate('/delivery-orders/new')}>
+          <Plus size={16} />
+          Add Delivery Order
         </button>
       </div>
 
-      {/* ── Filters ── */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by order no, customer..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          />
+      {/* Card */}
+      <div className="card">
+        {/* Toolbar */}
+        <div className="card-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+            <div className="search-bar" style={{ maxWidth: '20rem' }}>
+              <Search className="search-bar-icon" size={16} />
+              <input
+                type="text"
+                placeholder="Search by order no, customer..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            <select
+              className="select-field"
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              style={{ minWidth: '11rem' }}
+            >
+              <option value="">All Statuses</option>
+              <option value="completed">Pending Invoice</option>
+              <option value="billed">Invoiced</option>
+              <option value="paid">Paid</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <span className="badge badge-gray">{total} Records</span>
         </div>
 
-        <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className="px-4 py-2.5 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-[160px]"
-        >
-          <option value="">All Statuses</option>
-          <option value="completed">Pending Invoice</option>
-          <option value="billed">Invoiced</option>
-          <option value="paid">Paid</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-      </div>
-
-      {/* ── Table ── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-            <p className="text-sm text-gray-500">Loading orders...</p>
-          </div>
-        ) : filteredOrders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-4 text-gray-400">
-            <Package size={48} strokeWidth={1.2} />
-            <p className="text-base font-medium">No Data</p>
-            <button
-              onClick={() => navigate('/delivery-orders/new')}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm font-medium"
-            >
-              <Plus size={16} />
-              Create DO
-            </button>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+        {/* Table */}
+        <div style={{ overflowX: 'auto' }}>
+          {loading ? (
+            <div className="loading-state">
+              <div className="loading-spinner" />
+              <p>Loading delivery orders...</p>
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon"><Package size={26} /></div>
+              <p className="empty-state-title">No Delivery Orders</p>
+              <p className="empty-state-desc">No orders match the selected filters. Create a new delivery order to get started.</p>
+              <button className="btn btn-primary" style={{ marginTop: '1.25rem' }} onClick={() => navigate('/delivery-orders/new')}>
+                <Plus size={15} /> Create Delivery Order
+              </button>
+            </div>
+          ) : (
+            <table className="data-table">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    <div className="flex items-center gap-1.5"><Hash size={13} /> Order No</div>
-                  </th>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    <div className="flex items-center gap-1.5"><FileText size={13} /> Lot No</div>
-                  </th>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Customer
-                  </th>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    <div className="flex items-center gap-1.5"><CalendarDays size={13} /> Date</div>
-                  </th>
-                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Gray
-                  </th>
-                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Ready
-                  </th>
-                  <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Action
-                  </th>
+                <tr>
+                  <th><div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Hash size={12} />Order No</div></th>
+                  <th><div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><FileText size={12} />Lot No</div></th>
+                  <th>Customer</th>
+                  <th><div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><CalendarDays size={12} />Date</div></th>
+                  <th style={{ textAlign: 'right' }}>Gray</th>
+                  <th style={{ textAlign: 'right' }}>Ready</th>
+                  <th style={{ textAlign: 'center' }}>Status</th>
+                  <th style={{ textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filteredOrders.map((order, idx) => {
-                  const sc = statusColors[order.status] ?? statusColors['completed'];
+              <tbody>
+                {orders.map((order) => {
+                  const sc = statusConfig[order.status] ?? statusConfig['completed'];
                   return (
-                    <tr
-                      key={order.id}
-                      className={`hover:bg-blue-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
-                    >
-                      {/* Order No */}
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <p className="font-mono font-bold text-gray-800">{order.order_no}</p>
+                    <tr key={order.id}>
+                      <td>
+                        <p style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--gray-900)', fontSize: '0.875rem' }}>
+                          {order.order_no}
+                        </p>
                         {order.invoice_no && (
-                          <p className="text-[10px] font-bold text-blue-600 uppercase tracking-tighter mt-0.5">
-                            Inv: {order.invoice_no}
+                          <p style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--brand-600)', marginTop: '2px' }}>
+                            INV: {order.invoice_no}
                           </p>
                         )}
                       </td>
-
-                      {/* Lot No */}
-                      <td className="px-5 py-4 text-gray-600 whitespace-nowrap">
+                      <td style={{ color: 'var(--gray-500)', fontFamily: 'monospace', fontSize: '0.8125rem' }}>
                         {order.gray_lot?.lot_no ?? '—'}
                       </td>
-
-                      {/* Customer */}
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <p className="font-medium text-gray-800">{order.customer?.name ?? '—'}</p>
+                      <td>
+                        <p style={{ fontWeight: 600, color: 'var(--gray-800)' }}>{order.customer?.name ?? '—'}</p>
                         {order.customer?.customer_code && (
-                          <p className="text-xs text-gray-400">{order.customer.customer_code}</p>
+                          <p style={{ fontSize: '0.6875rem', color: 'var(--gray-400)' }}>{order.customer.customer_code}</p>
                         )}
                       </td>
-
-                      {/* Date */}
-                      <td className="px-5 py-4 text-gray-500 whitespace-nowrap">
+                      <td style={{ color: 'var(--gray-500)', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
                         {order.order_date
-                          ? new Date(order.order_date).toLocaleDateString('en-PK', {
-                              day: '2-digit',
-                              month: 'short',
-                              year: 'numeric',
-                            })
+                          ? new Date(order.order_date).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })
                           : '—'}
                       </td>
-
-                      <td className="px-5 py-4 text-right font-medium text-gray-600 whitespace-nowrap">
+                      <td style={{ textAlign: 'right', fontWeight: 500, color: 'var(--gray-600)' }}>
                         {Number(order.total_gray_gazana ?? 0).toLocaleString()}
                       </td>
-                      <td className="px-5 py-4 text-right font-bold text-blue-600 whitespace-nowrap">
+                      <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--brand-600)' }}>
                         {Number(order.total_ready_gazana ?? 0).toLocaleString()}
                       </td>
-
-                      {/* Status Badge */}
-                      <td className="px-5 py-4 text-center">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${sc.bg} ${sc.text}`}>
-                          {sc.label}
-                        </span>
+                      <td style={{ textAlign: 'center' }}>
+                        <span className={`badge ${sc.badge}`}>{sc.label}</span>
                       </td>
-
-                      <td className="px-5 py-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          {/* {order.status === 'completed' && (
-                            <button
-                              onClick={() => navigate('/billing/new', { state: { preSelectedDoId: order.id } })}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-medium transition-colors"
-                            >
-                              <FileText size={14} />
-                              Invoice
-                            </button>
-                          )} */}
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}>
                           <button
+                            className="row-action-btn view"
                             onClick={() => navigate(`/delivery-orders/${order.id}`)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-700 rounded-lg text-xs font-medium transition-colors"
                           >
-                            <Eye size={14} />
+                            <Eye size={13} />
                             View
                           </button>
                           <button
+                            className="icon-btn danger"
+                            title="Delete Order"
                             onClick={() => handleDelete(order.id)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium transition-colors"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -244,8 +182,8 @@ export default function DeliveryOrders() {
                 })}
               </tbody>
             </table>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

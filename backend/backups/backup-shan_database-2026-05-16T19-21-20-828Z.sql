@@ -14,14 +14,36 @@
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;
-SET @@SESSION.SQL_LOG_BIN= 0;
 
 --
--- GTID state at the beginning of the backup 
+-- Table structure for table `ActivityLog`
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '6b3de35c-4665-11f1-9bfa-4e436636dba8:1-68';
+DROP TABLE IF EXISTS `ActivityLog`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ActivityLog` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `action` varchar(255) NOT NULL,
+  `module` varchar(100) NOT NULL,
+  `details` text,
+  `user_name` varchar(120) DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `ActivityLog`
+--
+
+LOCK TABLES `ActivityLog` WRITE;
+/*!40000 ALTER TABLE `ActivityLog` DISABLE KEYS */;
+INSERT INTO `ActivityLog` VALUES (1,'Deleted Lot ID #7','Gray Lots','Gray Lot removed from system',NULL,'127.0.0.1','2026-05-16 18:23:03','2026-05-16 18:23:03'),(2,'Generated Invoice #INV-0001','Invoices','Total Amount: 62910','Anonymous (Invalid Token)','127.0.0.1','2026-05-16 18:47:03','2026-05-16 18:47:03');
+/*!40000 ALTER TABLE `ActivityLog` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `customers`
@@ -63,7 +85,7 @@ CREATE TABLE `customers` (
 
 LOCK TABLES `customers` WRITE;
 /*!40000 ALTER TABLE `customers` DISABLE KEYS */;
-INSERT INTO `customers` VALUES (1,'CUST-851798','nduwne','2323','323',0.00,0.00,'2026-04-24 18:54:11','2026-05-15 19:06:12'),(2,'CUST-050498','Imran','03003040330',NULL,0.00,4407.26,'2026-05-01 05:40:50','2026-05-16 17:29:14');
+INSERT INTO `customers` VALUES (1,'CUST-851798','nduwne','2323','323',0.00,0.00,'2026-04-24 18:54:11','2026-05-15 19:06:12'),(2,'CUST-050498','Imran','03003040330',NULL,0.00,62910.00,'2026-05-01 05:40:50','2026-05-16 18:47:03');
 /*!40000 ALTER TABLE `customers` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -103,7 +125,7 @@ CREATE TABLE `delivery_orders` (
   CONSTRAINT `delivery_orders_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `delivery_orders_ibfk_2` FOREIGN KEY (`gray_lot_id`) REFERENCES `gray_lots` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `delivery_orders_chk_1` CHECK (json_valid(`grid_data`))
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -112,7 +134,7 @@ CREATE TABLE `delivery_orders` (
 
 LOCK TABLES `delivery_orders` WRITE;
 /*!40000 ALTER TABLE `delivery_orders` DISABLE KEYS */;
-INSERT INTO `delivery_orders` VALUES (12,'DO-0001','INV-0001',2,5,'2026-05-16',NULL,'billed',54407.26,50000.00,1000.00,995.00,50.00,'yard','{\"rows\":[{\"id\":\"1778951950809-0-0.6283271644318749\",\"rowNumber\":0,\"values\":{\"1\":{\"gray\":200,\"ready\":199}}},{\"id\":\"1778951950809-1-0.9872562126712279\",\"rowNumber\":1,\"values\":{\"1\":{\"gray\":200,\"ready\":199}}},{\"id\":\"1778951950809-2-0.8593867423009358\",\"rowNumber\":2,\"values\":{\"1\":{\"gray\":200,\"ready\":199}}},{\"id\":\"1778951950809-3-0.4239549991695475\",\"rowNumber\":3,\"values\":{\"1\":{\"gray\":200,\"ready\":199}}},{\"id\":\"1778951950809-4-0.6223156674984238\",\"rowNumber\":4,\"values\":{\"1\":{\"gray\":200,\"ready\":199}}}],\"colors\":[{\"id\":\"1\",\"name\":\"White\"}]}','2026-05-16 17:19:58','2026-05-16 17:29:14');
+INSERT INTO `delivery_orders` VALUES (13,'DO-0001','INV-0001',2,8,'2026-05-16',NULL,'billed',62910.00,0.00,666.00,699.00,90.00,'meter','{\"rows\":[{\"id\":\"1778957189776-0-0.8547559351881575\",\"rowNumber\":0,\"values\":{\"1\":{\"gray\":200,\"ready\":233}}},{\"id\":\"1778957189776-1-0.04343746674218063\",\"rowNumber\":1,\"values\":{\"1\":{\"gray\":233,\"ready\":233}}},{\"id\":\"1778957189776-2-0.8429006366200287\",\"rowNumber\":2,\"values\":{\"1\":{\"gray\":233,\"ready\":233}}}],\"colors\":[{\"id\":\"1\",\"name\":\"Black\"}]}','2026-05-16 18:46:50','2026-05-16 18:47:03');
 /*!40000 ALTER TABLE `delivery_orders` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -147,7 +169,7 @@ CREATE TABLE `gray_lots` (
   UNIQUE KEY `lot_no_6` (`lot_no`),
   KEY `idx_gray_party_date` (`party_name`,`entry_date`),
   KEY `idx_gray_process_date` (`process_type`,`entry_date`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -156,7 +178,7 @@ CREATE TABLE `gray_lots` (
 
 LOCK TABLES `gray_lots` WRITE;
 /*!40000 ALTER TABLE `gray_lots` DISABLE KEYS */;
-INSERT INTO `gray_lots` VALUES (5,'2026-05-15','Imran','Dyeing','0909','GL-47378','Cotton','Meter',200,2000.00,NULL,'2026-05-15 19:09:28','2026-05-15 19:09:28'),(7,'2026-05-16','Imran','Dyeing','656','LOT-0001','Cotton','Yard',400,4000.00,NULL,'2026-05-16 17:43:41','2026-05-16 17:43:41');
+INSERT INTO `gray_lots` VALUES (8,'2026-05-16','Imran','Dyeing','11','LOT-0001','Cotton','Meter',100,1000.00,'ok','2026-05-16 18:26:24','2026-05-16 18:26:24');
 /*!40000 ALTER TABLE `gray_lots` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -222,7 +244,6 @@ CREATE TABLE `payments` (
 
 LOCK TABLES `payments` WRITE;
 /*!40000 ALTER TABLE `payments` DISABLE KEYS */;
-INSERT INTO `payments` VALUES (4,12,'2026-05-16',50000.00,'cash','','2026-05-16 17:29:14','2026-05-16 17:29:14','');
 /*!40000 ALTER TABLE `payments` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -240,7 +261,7 @@ CREATE TABLE `qualities` (
   `updated_at` datetime NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -294,7 +315,6 @@ LOCK TABLES `users` WRITE;
 INSERT INTO `users` VALUES (1,'admin','admin@gmail.com','$2a$12$erLtfjGu.cxriP0eM1AjJeM4djjiOFF7fP5/xA4XlC7r6gXjT4UkK','admin',1,'2026-04-24 21:56:03','2026-04-24 21:56:03');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
-SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -305,4 +325,4 @@ SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-05-16 22:58:18
+-- Dump completed on 2026-05-17  0:21:20

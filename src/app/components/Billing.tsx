@@ -439,7 +439,7 @@ export default function Billing() {
       {/* Invoice Viewer Modal */}
       {selectedInvoice && org && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-5xl h-[90vh] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-5xl h-[75vh] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50">
                <div>
                   <h3 className="text-xl font-bold text-gray-900 uppercase tracking-tight">System Invoice Ledger</h3>

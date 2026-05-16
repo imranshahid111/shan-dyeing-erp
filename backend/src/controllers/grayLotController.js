@@ -1,6 +1,7 @@
 const { Op } = require("sequelize");
 const { GrayLot, DeliveryOrder } = require("../models");
 const { getNextSequence } = require("../utils/numberGenerator");
+const { logActivity } = require("../utils/logger");
 
 exports.createGrayLot = async (req, res, next) => {
   try {
@@ -22,6 +23,7 @@ exports.createGrayLot = async (req, res, next) => {
     }
 
     const created = await GrayLot.create(payload);
+    await logActivity("Gray Lots", `Created Lot #${payload.lot_no}`, `Party: ${payload.party_name}, Quality: ${payload.quality}`, req);
     return res.status(201).json(created);
   } catch (error) {
     return next(error);
@@ -104,7 +106,8 @@ exports.deleteGrayLot = async (req, res, next) => {
     if (!deleted) {
       return res.status(404).json({ message: "Lot not found" });
     }
-    
+
+    await logActivity("Gray Lots", `Deleted Lot ID #${id}`, `Gray Lot removed from system`, req);
     return res.json({ success: true, message: "Gray Lot deleted successfully" });
   } catch (error) {
     return next(error);

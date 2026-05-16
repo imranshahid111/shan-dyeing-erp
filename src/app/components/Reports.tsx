@@ -1,28 +1,70 @@
-import { useState } from 'react';
-import { Download, FileText, Filter } from 'lucide-react';
-
-const ledgerData = [
-  { date: '2026-04-01', description: 'Invoice INV-4501', debit: 45000, credit: 0, balance: 45000 },
-  { date: '2026-04-05', description: 'Payment Received', debit: 0, credit: 30000, balance: 15000 },
-  { date: '2026-04-10', description: 'Invoice INV-4521', debit: 52000, credit: 0, balance: 67000 },
-  { date: '2026-04-15', description: 'Payment Received', debit: 0, credit: 45000, balance: 22000 },
-];
-
-const outstandingData = [
-  { customer: 'ABC Textiles', totalBilled: 97000, totalPaid: 75000, outstanding: 22000 },
-  { customer: 'XYZ Industries', totalBilled: 68500, totalPaid: 60000, outstanding: 8500 },
-  { customer: 'Global Fabrics', totalBilled: 125000, totalPaid: 65000, outstanding: 60000 },
-];
-
-const stockData = [
-  { lotNo: 'GL-2045', quality: 'Cotton 60s', grayStock: 250, readyStock: 240, pending: 10 },
-  { lotNo: 'GL-2046', quality: 'Polyester Blend', grayStock: 180, readyStock: 175, pending: 5 },
-  { lotNo: 'GL-2047', quality: 'Silk Mix', grayStock: 320, readyStock: 0, pending: 320 },
-];
+import { useEffect, useState, useMemo } from 'react';
+import { Download, FileText, Filter, Loader2 } from 'lucide-react';
+import { dashboardService, LedgerEntry, OutstandingEntry, StockEntry } from '../services/dashboardService';
+import { customerService, CustomerItem } from '../services/customerService';
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState<'ledger' | 'outstanding' | 'stock'>('ledger');
-  const [selectedCustomer, setSelectedCustomer] = useState('ABC Textiles');
+  const [customers, setCustomers] = useState<CustomerItem[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [fromDate, setFromDate] = useState('2026-05-01');
+  const [toDate, setToDate] = useState(new Date().toISOString().slice(0, 10));
+  
+  const [ledgerData, setLedgerData] = useState<LedgerEntry[]>([]);
+  const [outstandingData, setOutstandingData] = useState<OutstandingEntry[]>([]);
+  const [stockData, setStockData] = useState<StockEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const res = await customerService.getCustomers('', 1, 1000);
+        setCustomers(res.data);
+        if (res.data.length > 0) {
+          setSelectedCustomerId(res.data[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to fetch customers:', err);
+      }
+    };
+    fetchCustomers();
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        if (activeTab === 'ledger' && selectedCustomerId) {
+          const data = await dashboardService.getLedger({ 
+            customerId: selectedCustomerId,
+            fromDate,
+            toDate
+          });
+          setLedgerData(data);
+        } else if (activeTab === 'outstanding') {
+          const data = await dashboardService.getOutstanding();
+          setOutstandingData(data);
+        } else if (activeTab === 'stock') {
+          const data = await dashboardService.getStock();
+          setStockData(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch report data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [activeTab, selectedCustomerId, fromDate, toDate]);
+
+  const selectedCustomerName = useMemo(() => {
+    return customers.find(c => c.id === selectedCustomerId)?.name || 'Select Customer';
+  }, [customers, selectedCustomerId]);
+
+  const currentBalance = useMemo(() => {
+    if (ledgerData.length === 0) return 0;
+    return ledgerData[ledgerData.length - 1].balance;
+  }, [ledgerData]);
 
   return (
     <div className="space-y-6">
@@ -70,7 +112,8 @@ export default function Reports() {
               <input
                 type="date"
                 className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                defaultValue="2026-04-01"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
               />
             </div>
             <div className="flex-1">
@@ -78,7 +121,8 @@ export default function Reports() {
               <input
                 type="date"
                 className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                defaultValue="2026-04-18"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
               />
             </div>
             {activeTab === 'ledger' && (
@@ -86,17 +130,17 @@ export default function Reports() {
                 <label className="block text-xs text-gray-500 mb-1">Customer</label>
                 <select
                   className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={selectedCustomer}
-                  onChange={(e) => setSelectedCustomer(e.target.value)}
+                  value={selectedCustomerId || ''}
+                  onChange={(e) => setSelectedCustomerId(Number(e.target.value))}
                 >
-                  <option>ABC Textiles</option>
-                  <option>XYZ Industries</option>
-                  <option>Global Fabrics</option>
+                  {customers.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
                 </select>
               </div>
             )}
             <button className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors mt-5">
-              <Download size={18} />
+              {loading ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
               Export
             </button>
           </div>
@@ -109,12 +153,14 @@ export default function Reports() {
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-800">{selectedCustomer}</h3>
+                <h3 className="text-lg font-semibold text-gray-800">{selectedCustomerName}</h3>
                 <p className="text-sm text-gray-500 mt-1">Account Ledger</p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-gray-500">Current Balance</p>
-                <p className="text-2xl font-bold text-red-600">Rs 22,000</p>
+                <p className={`text-2xl font-bold ${currentBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  Rs {Math.abs(currentBalance).toLocaleString()} {currentBalance > 0 ? '(Dr)' : '(Cr)'}
+                </p>
               </div>
             </div>
           </div>
@@ -123,24 +169,19 @@ export default function Reports() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Debit
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Credit
-                  </th>
-                  <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Balance
-                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                  <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Debit</th>
+                  <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Credit</th>
+                  <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
+                {ledgerData.length === 0 && !loading && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400">No records found for this period.</td>
+                  </tr>
+                )}
                 {ledgerData.map((entry, index) => (
                   <tr key={index} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-gray-600">{entry.date}</td>
@@ -240,15 +281,15 @@ export default function Reports() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
               <p className="text-sm opacity-90 mb-1">Total Gray Stock</p>
-              <p className="text-3xl font-bold">750 gaz</p>
+              <p className="text-3xl font-bold">{stockData.reduce((sum, s) => sum + s.grayStock, 0).toLocaleString()} gaz</p>
             </div>
             <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg">
               <p className="text-sm opacity-90 mb-1">Total Ready Stock</p>
-              <p className="text-3xl font-bold">415 gaz</p>
+              <p className="text-3xl font-bold">{stockData.reduce((sum, s) => sum + s.readyStock, 0).toLocaleString()} gaz</p>
             </div>
             <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-6 text-white shadow-lg">
               <p className="text-sm opacity-90 mb-1">In Processing</p>
-              <p className="text-3xl font-bold">335 gaz</p>
+              <p className="text-3xl font-bold">{stockData.reduce((sum, s) => sum + s.pending, 0).toLocaleString()} gaz</p>
             </div>
           </div>
 

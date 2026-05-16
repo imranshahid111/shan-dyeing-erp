@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, Loader2 } from 'lucide-react';
 import { grayLotService, GrayLotItem } from '../services/grayLotService';
 
 export default function GrayLotManagement() {
@@ -16,7 +16,7 @@ export default function GrayLotManagement() {
         const response = await grayLotService.getGrayLots(searchTerm);
         setLots(response.data);
       } catch (error) {
-        console.error("Failed to load gray lots", error);
+        console.error('Failed to load gray lots', error);
       } finally {
         setLoading(false);
       }
@@ -25,105 +25,128 @@ export default function GrayLotManagement() {
   }, [searchTerm]);
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this Gray Lot?")) return;
-    
+    if (!window.confirm('Are you sure you want to delete this Gray Lot?')) return;
     try {
       await grayLotService.deleteGrayLot(id);
       setLots(prev => prev.filter(lot => lot.id !== id));
-      alert("Gray Lot deleted successfully!");
     } catch (error: any) {
-      alert(error.response?.data?.message || "Failed to delete gray lot");
-      console.error("Delete error", error);
+      alert(error.response?.data?.message || 'Failed to delete gray lot');
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header Actions */}
-      <div className="flex items-center justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search by Lot No or Party Name..."
-            className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--section-gap)' }}>
+      
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-header-left">
+          <h2>Gray Lot Management</h2>
+          <p>{lots.length} lots in inventory</p>
         </div>
-        <button
-          onClick={() => navigate('/gray-lots/new')}
-          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
-        >
-          <Plus size={20} />
+        <button className="btn btn-primary" onClick={() => navigate('/gray-lots/new')}>
+          <Plus size={16} />
           New Gray Lot
         </button>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lot No</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Party</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Process</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quality</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Than</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gazana</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {loading ? (
+      {/* Card */}
+      <div className="card">
+        {/* Toolbar */}
+        <div className="card-header">
+          <div className="search-bar" style={{ maxWidth: '22rem' }}>
+            <Search className="search-bar-icon" size={16} />
+            <input
+              type="text"
+              placeholder="Search by lot no or party name..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <span className="badge badge-gray">{lots.length} Records</span>
+        </div>
+
+        {/* Table */}
+        <div style={{ overflowX: 'auto' }}>
+          {loading ? (
+            <div className="loading-state">
+              <div className="loading-spinner" />
+              <p>Loading gray lots...</p>
+            </div>
+          ) : lots.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon"><Package size={26} /></div>
+              <p className="empty-state-title">No Gray Lots Found</p>
+              <p className="empty-state-desc">Create your first gray lot to get started with inventory tracking.</p>
+              <button className="btn btn-primary" style={{ marginTop: '1.25rem' }} onClick={() => navigate('/gray-lots/new')}>
+                <Plus size={15} /> New Gray Lot
+              </button>
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
-                    Loading lots...
-                  </td>
+                  <th>Lot No</th>
+                  <th>Date</th>
+                  <th>Party Name</th>
+                  <th>Process</th>
+                  <th>Quality</th>
+                  <th style={{ textAlign: 'right' }}>Than</th>
+                  <th style={{ textAlign: 'right' }}>Gazana</th>
+                  <th style={{ textAlign: 'center' }}>Actions</th>
                 </tr>
-              ) : lots.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
-                    No lots found.
-                  </td>
-                </tr>
-              ) : (
-                lots.map((lot) => (
-                  <tr key={lot.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-800">{lot.lot_no}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.entry_date}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.party_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 rounded-full text-xs ${lot.process_type === 'Dyeing' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+              </thead>
+              <tbody>
+                {lots.map((lot) => (
+                  <tr key={lot.id}>
+                    <td>
+                      <span style={{
+                        fontFamily: 'monospace', fontWeight: 700,
+                        color: 'var(--gray-900)', fontSize: '0.875rem',
+                      }}>{lot.lot_no}</span>
+                    </td>
+                    <td style={{ color: 'var(--gray-500)', fontSize: '0.8125rem' }}>
+                      {lot.entry_date}
+                    </td>
+                    <td>
+                      <span style={{ fontWeight: 600, color: 'var(--gray-800)' }}>
+                        {lot.party_name}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge ${lot.process_type === 'Dyeing' ? 'badge-blue' : 'badge-orange'}`}>
                         {lot.process_type}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.quality}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.than}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-600">{lot.gazana}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <button 
+                    <td style={{ color: 'var(--gray-600)' }}>{lot.quality}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--gray-700)' }}>
+                      {lot.than}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--brand-600)' }}>
+                      {lot.gazana}
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
+                        <button
+                          className="icon-btn primary"
+                          title="Edit Gray Lot"
                           onClick={() => navigate(`/gray-lots/edit/${lot.id}`)}
-                          className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
                         >
-                          <Edit size={16} className="text-blue-600" />
+                          <Edit size={15} />
                         </button>
-                        <button 
+                        <button
+                          className="icon-btn danger"
+                          title="Delete Gray Lot"
                           onClick={() => handleDelete(lot.id)}
-                          className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                         >
-                          <Trash2 size={16} className="text-red-600" />
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
