@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Plus, X, Search, User, DollarSign, Calendar, Wallet, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, X, Search, User, Calendar, Wallet, CheckCircle2, AlertCircle, Loader2, Trash2, Eye, Edit2, Paperclip } from 'lucide-react';
 import { customerService, CustomerItem } from '../services/customerService';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
 import { paymentService, PaymentItem, PaymentStats } from '../services/paymentService';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Allocation {
   invoiceId: number;
@@ -38,6 +39,62 @@ export default function Payments() {
   });
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [historySearch, setHistorySearch] = useState('');
+  const [canDelete, setCanDelete] = useState(true);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // View / Edit States
+  const [selectedPaymentForView, setSelectedPaymentForView] = useState<PaymentItem | null>(null);
+  const [selectedPaymentForEdit, setSelectedPaymentForEdit] = useState<PaymentItem | null>(null);
+  const [editAmount, setEditAmount] = useState('0');
+  const [editDate, setEditDate] = useState('');
+  const [editMethod, setEditMethod] = useState('cash');
+  const [editReference, setEditReference] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+
+  const [attachment, setAttachment] = useState<string | null>(null);
+  const [attachmentName, setAttachmentName] = useState<string | null>(null);
+
+  const [editAttachment, setEditAttachment] = useState<string | null>(null);
+  const [editAttachmentName, setEditAttachmentName] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, isEditForm = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2.5 * 1024 * 1024) {
+      alert("File size is too large. Please select a file smaller than 2.5 MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64String = reader.result as string;
+      if (isEditForm) {
+        setEditAttachment(base64String);
+        setEditAttachmentName(file.name);
+      } else {
+        setAttachment(base64String);
+        setAttachmentName(file.name);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleViewAttachment = (base64Data: string | null | undefined, fileName: string | null | undefined) => {
+    if (!base64Data) return;
+    const link = document.createElement('a');
+    link.href = base64Data;
+    link.download = fileName || 'receipt_document';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Fetch customers for the dropdown
   useEffect(() => {
@@ -66,10 +123,12 @@ export default function Payments() {
     try {
       setLoadingPayments(true);
       const [pRes, sRes] = await Promise.all([
-        paymentService.getPayments(historySearch),
+        paymentService.getPayments(historySearch, currentPage, pageSize),
         paymentService.getPaymentStats()
       ]);
       setPayments(pRes.data);
+      setTotalItems(pRes.total);
+      setTotalPages(Math.ceil(pRes.total / pageSize) || 1);
       setStats(sRes);
     } catch (error) {
       console.error("Failed to load payment history/stats", error);
@@ -78,9 +137,79 @@ export default function Payments() {
     }
   };
 
+  // Reset page when searching
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [historySearch]);
+
   useEffect(() => {
     loadData();
+  }, [historySearch, currentPage]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('erp_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role === 'admin') {
+          setCanDelete(true);
+        } else {
+          setCanDelete(parsed.privileges?.can_delete ?? false);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }, [historySearch]);
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this payment? This will revert the allocation from the Delivery Order and increase the Customer's outstanding balance!")) return;
+    try {
+      await paymentService.deletePayment(id);
+      alert("Payment deleted successfully!");
+      loadData();
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete payment");
+    }
+  };
+
+  const handleStartEdit = (p: PaymentItem) => {
+    setSelectedPaymentForEdit(p);
+    setEditAmount(String(p.amount));
+    setEditDate(p.payment_date);
+    setEditMethod(p.mode);
+    setEditReference(p.reference_no || '');
+    setEditNotes(p.notes || '');
+    setEditAttachment(p.attachment || null);
+    setEditAttachmentName(p.attachment_name || null);
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPaymentForEdit || isEditing) return;
+
+    try {
+      setIsEditing(true);
+      await paymentService.updatePayment(selectedPaymentForEdit.id, {
+        amount: parseFloat(editAmount),
+        paymentDate: editDate,
+        method: editMethod,
+        reference: editReference,
+        notes: editNotes,
+        attachment: editAttachment,
+        attachmentName: editAttachmentName
+      });
+      alert("Payment updated successfully!");
+      setSelectedPaymentForEdit(null);
+      loadData();
+    } catch (error) {
+      console.error(error);
+      alert("Failed to update payment");
+    } finally {
+      setIsEditing(false);
+    }
+  };
 
   // Fetch invoices when customer is selected
   const handleCustomerSelect = async (customer: CustomerItem) => {
@@ -141,7 +270,9 @@ export default function Payments() {
         method: paymentMethod,
         reference,
         notes,
-        selectedInvoiceIds
+        selectedInvoiceIds,
+        attachment,
+        attachmentName
       });
       alert("Payment recorded successfully!");
       setShowModal(false);
@@ -163,12 +294,14 @@ export default function Payments() {
     setPaymentAmount('0');
     setReference('');
     setNotes('');
+    setAttachment(null);
+    setAttachmentName(null);
   };
 
   const totalOutstanding = customerInvoices.reduce((sum, inv) => sum + (Number(inv.total_amount) - Number(inv.paid_amount)), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-[calc(100vh-140px)] flex flex-col">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Payments & Receipts</h2>
@@ -214,9 +347,9 @@ export default function Payments() {
       </div>
 
       {/* Payment Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[85vh] mt-3 shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+      {showModal && createPortal(
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[85vh] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
@@ -319,7 +452,7 @@ export default function Payments() {
                     <div>
                       <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Payment Amount (Rs)</label>
                       <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-green-600" size={18} />
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-green-600 font-black text-xs">PKR</span>
                         <input
                           type="number"
                           required
@@ -380,6 +513,32 @@ export default function Payments() {
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Receipt Document / Photo</label>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 hover:border-blue-500 transition-all font-bold text-xs text-gray-600">
+                        <Plus size={16} />
+                        Choose File
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          className="hidden"
+                          onChange={(e) => handleFileChange(e, false)}
+                        />
+                      </label>
+                      {attachmentName ? (
+                        <div className="flex items-center gap-2 text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-xl font-bold">
+                          <span>{attachmentName}</span>
+                          <button type="button" onClick={() => { setAttachment(null); setAttachmentName(null); }} className="hover:text-red-500 transition-colors">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-gray-400 font-medium">No file selected (Image or PDF)</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -501,11 +660,12 @@ export default function Payments() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       
       {/* Recent Payments Table */}
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex-1 flex flex-col">
          <div className="p-8 border-b border-gray-50 flex items-center justify-between">
             <h3 className="font-black text-gray-900 uppercase tracking-widest text-sm">Recent Collection Log</h3>
             <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl border border-gray-100">
@@ -520,7 +680,7 @@ export default function Payments() {
             </div>
          </div>
          
-         <div className="overflow-x-auto">
+         <div className="overflow-x-auto flex-1">
            {loadingPayments ? (
              <div className="p-20 text-center flex flex-col items-center gap-4">
                <Loader2 className="animate-spin text-blue-600" size={32} />
@@ -535,6 +695,7 @@ export default function Payments() {
                    <th className="px-8 py-4 text-left">Reference</th>
                    <th className="px-8 py-4 text-left">Method</th>
                    <th className="px-8 py-4 text-right">Amount</th>
+                   <th className="px-8 py-4 text-center">Actions</th>
                  </tr>
                </thead>
                <tbody className="divide-y divide-gray-50">
@@ -548,7 +709,18 @@ export default function Payments() {
                         <p className="text-[10px] font-bold text-blue-600 font-mono">DO: {p.delivery_order?.order_no}</p>
                      </td>
                      <td className="px-8 py-4 whitespace-nowrap text-sm text-gray-500 italic">
-                        {p.reference_no || '—'}
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-700 font-semibold">{p.reference_no || '—'}</span>
+                          {p.attachment && (
+                            <button
+                              onClick={() => handleViewAttachment(p.attachment, p.attachment_name || 'receipt')}
+                              className="p-1.5 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
+                              title={`Download Attachment: ${p.attachment_name || 'File'}`}
+                            >
+                              <Paperclip size={14} />
+                            </button>
+                          )}
+                        </div>
                      </td>
                      <td className="px-8 py-4 whitespace-nowrap">
                         <span className="px-2.5 py-1 rounded-lg bg-gray-100 text-[10px] font-black uppercase text-gray-600 tracking-wider">
@@ -557,6 +729,33 @@ export default function Payments() {
                      </td>
                      <td className="px-8 py-4 whitespace-nowrap text-right">
                         <p className="text-sm font-black text-green-600">Rs {Number(p.amount).toLocaleString()}</p>
+                     </td>
+                     <td className="px-8 py-4 whitespace-nowrap text-center">
+                       <div className="flex items-center justify-center gap-1.5">
+                         <button
+                           onClick={() => setSelectedPaymentForView(p)}
+                           className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
+                           title="View Payment"
+                         >
+                           <Eye size={15} />
+                         </button>
+                         <button
+                           onClick={() => handleStartEdit(p)}
+                           className="text-amber-500 hover:text-amber-700 hover:bg-amber-50 p-1.5 rounded-lg transition-colors"
+                           title="Edit Payment"
+                         >
+                           <Edit2 size={15} />
+                         </button>
+                         {canDelete && (
+                           <button
+                             onClick={() => handleDelete(p.id)}
+                             className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                             title="Delete Payment"
+                           >
+                             <Trash2 size={15} />
+                           </button>
+                         )}
+                       </div>
                      </td>
                    </tr>
                  ))}
@@ -570,7 +769,280 @@ export default function Payments() {
              </div>
            )}
          </div>
-      </div>
+          
+          {/* Pagination Footer */}
+          {!loadingPayments && totalItems > 0 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-3xl">
+              <span className="text-xs font-bold text-gray-500">
+                Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalItems)} of {totalItems} entries
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 text-xs font-bold bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                >
+                  Previous
+                </button>
+                <span className="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-100 rounded-lg shadow-sm">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 text-xs font-bold bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+       </div>
+
+      {/* View Payment Modal */}
+      {selectedPaymentForView && createPortal(
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999] p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200" style={{ maxHeight: '85vh' }}>
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                  <Eye size={20} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Payment Details</h3>
+              </div>
+              <button
+                onClick={() => setSelectedPaymentForView(null)}
+                className="p-2 hover:bg-gray-200 rounded-xl transition-colors text-gray-500"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-6 overflow-y-auto flex-1">
+              <div>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Customer</span>
+                <p className="font-bold text-gray-800 text-lg">{selectedPaymentForView.delivery_order?.customer?.name || 'N/A'}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">DO Number</span>
+                  <p className="font-mono font-bold text-blue-600 text-sm">#{selectedPaymentForView.delivery_order?.order_no || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Amount Paid</span>
+                  <p className="font-black text-green-600 text-lg">Rs {Number(selectedPaymentForView.amount).toLocaleString()}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Date</span>
+                  <p className="font-bold text-gray-700">{new Date(selectedPaymentForView.payment_date).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Method</span>
+                  <span className="px-2.5 py-1 rounded-lg bg-gray-100 text-[10px] font-black uppercase text-gray-600 tracking-wider inline-block mt-1">
+                    {selectedPaymentForView.mode}
+                  </span>
+                </div>
+              </div>
+
+              {selectedPaymentForView.reference_no && (
+                <div>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Reference / Cheque #</span>
+                  <p className="text-gray-700 font-semibold">{selectedPaymentForView.reference_no}</p>
+                </div>
+              )}
+
+              {selectedPaymentForView.notes && (
+                <div>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Notes</span>
+                  <p className="text-gray-600 text-sm whitespace-pre-line bg-gray-50 p-4 rounded-xl border border-gray-100">{selectedPaymentForView.notes}</p>
+                </div>
+              )}
+
+              {selectedPaymentForView.attachment && (
+                <div>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Receipt Document / Photo</span>
+                  <div className="flex flex-col gap-3">
+                    {selectedPaymentForView.attachment.startsWith('data:image/') ? (
+                      <div className="relative rounded-2xl overflow-hidden border border-gray-100 shadow-sm max-h-[200px] flex items-center justify-center bg-gray-50">
+                        <img 
+                          src={selectedPaymentForView.attachment} 
+                          alt="Receipt Attachment" 
+                          className="max-w-full max-h-[200px] object-contain cursor-zoom-in"
+                          onClick={() => handleViewAttachment(selectedPaymentForView.attachment, selectedPaymentForView.attachment_name || 'receipt')}
+                        />
+                      </div>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => handleViewAttachment(selectedPaymentForView.attachment, selectedPaymentForView.attachment_name || 'receipt')}
+                      className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-xl transition-all text-xs"
+                    >
+                      <Plus size={16} />
+                      Download/View Attachment ({selectedPaymentForView.attachment_name || 'File'})
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setSelectedPaymentForView(null)}
+                className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Edit Payment Modal */}
+      {selectedPaymentForEdit && createPortal(
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999] p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200" style={{ maxHeight: '85vh' }}>
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+                  <Edit2 size={20} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Edit Payment</h3>
+              </div>
+              <button
+                onClick={() => setSelectedPaymentForEdit(null)}
+                className="p-2 hover:bg-gray-200 rounded-xl transition-colors text-gray-500"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdate} className="p-8 space-y-6 flex-1 flex flex-col overflow-hidden">
+              <div className="space-y-6 overflow-y-auto flex-1 pr-1">
+                <div>
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Customer / DO</span>
+                  <p className="font-bold text-gray-800">{selectedPaymentForEdit.delivery_order?.customer?.name || 'N/A'}</p>
+                  <p className="font-mono text-xs text-blue-600 font-bold">DO #{selectedPaymentForEdit.delivery_order?.order_no || 'N/A'}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Amount Paid (Rs)</label>
+                    <input
+                      type="number"
+                      required
+                      step="0.01"
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:outline-none font-black text-gray-900"
+                      value={editAmount}
+                      onChange={(e) => setEditAmount(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Payment Date</label>
+                    <input
+                      type="date"
+                      required
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:outline-none font-bold text-gray-800"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Method</label>
+                    <select
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:outline-none bg-white font-bold text-gray-800"
+                      value={editMethod}
+                      onChange={(e) => setEditMethod(e.target.value)}
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="bank">Bank Transfer</option>
+                      <option value="cheque">Cheque</option>
+                      <option value="online">Online</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Reference / Chq #</label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:outline-none font-bold text-gray-800"
+                      value={editReference}
+                      onChange={(e) => setEditReference(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Notes</label>
+                  <textarea
+                    rows={2}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:outline-none font-medium text-gray-700"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Receipt Document / Photo</label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 hover:border-blue-500 transition-all font-bold text-xs text-gray-600">
+                      <Plus size={16} />
+                      Replace File
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                        onChange={(e) => handleFileChange(e, true)}
+                      />
+                    </label>
+                    {editAttachmentName ? (
+                      <div className="flex items-center gap-2 text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-xl font-bold">
+                        <span>{editAttachmentName}</span>
+                        <button type="button" onClick={() => { setEditAttachment(null); setEditAttachmentName(null); }} className="hover:text-red-500 transition-colors">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-gray-400 font-medium">No file attached</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4 border-t border-gray-100 bg-white">
+                <button
+                  type="submit"
+                  disabled={isEditing || parseFloat(editAmount) <= 0}
+                  className="flex-1 bg-blue-600 text-white py-3 rounded-2xl font-black tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                >
+                  {isEditing ? (
+                    <>
+                      <Loader2 className="animate-spin" size={18} />
+                      SAVING...
+                    </>
+                  ) : (
+                    'SAVE CHANGES'
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPaymentForEdit(null)}
+                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-2xl font-black tracking-widest hover:bg-gray-200 transition-all"
+                >
+                  CANCEL
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

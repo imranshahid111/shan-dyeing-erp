@@ -1,41 +1,15 @@
 import { useState, useRef, KeyboardEvent, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Save, X, UserPlus } from 'lucide-react';
+import { Save, X, UserPlus, MapPin, Phone, Building } from 'lucide-react';
 import { customerService } from '../services/customerService';
 
 interface Customer {
   id: string;
   name: string;
-  contactPerson: string;
   mobile: string;
-  email: string;
   address: string;
-  gstNo: string;
   outstanding: number;
 }
-
-const mockCustomers: Customer[] = [
-  {
-    id: '1',
-    name: 'ABC Textiles',
-    contactPerson: 'Rajesh Kumar',
-    mobile: '+91 98765 43210',
-    email: 'rajesh@abctextiles.com',
-    address: 'Mumbai, Maharashtra',
-    gstNo: '27AAAAA1234A1Z5',
-    outstanding: 52000,
-  },
-  {
-    id: '2',
-    name: 'XYZ Industries',
-    contactPerson: 'Priya Sharma',
-    mobile: '+91 98765 43211',
-    email: 'priya@xyzind.com',
-    address: 'Surat, Gujarat',
-    gstNo: '24BBBBB5678B2Y4',
-    outstanding: 38500,
-  },
-];
 
 export default function CustomerForm() {
   const { id } = useParams();
@@ -44,38 +18,37 @@ export default function CustomerForm() {
 
   const [formData, setFormData] = useState<Partial<Customer>>({
     name: '',
-    contactPerson: '',
     mobile: '',
-    email: '',
     address: '',
-    gstNo: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
   // Refs for all form fields in order
   const nameRef = useRef<HTMLInputElement>(null);
-  const contactPersonRef = useRef<HTMLInputElement>(null);
   const mobileRef = useRef<HTMLInputElement>(null);
-  const emailRef = useRef<HTMLInputElement>(null);
-  const gstNoRef = useRef<HTMLInputElement>(null);
   const addressRef = useRef<HTMLInputElement>(null);
 
-  const fieldRefs = [
-    nameRef,
-    contactPersonRef,
-    mobileRef,
-    emailRef,
-    gstNoRef,
-    addressRef,
-  ];
+  const fieldRefs = [nameRef, mobileRef, addressRef];
 
   useEffect(() => {
-    if (isEdit) {
-      const customer = mockCustomers.find((c) => c.id === id);
-      if (customer) {
-        setFormData(customer);
-      }
+    if (isEdit && id) {
+      const loadCustomer = async () => {
+        try {
+          const res = await customerService.getCustomer(id);
+          setFormData({
+            id: String(res.id),
+            name: res.name || '',
+            mobile: res.phone || '',
+            address: res.city || '',
+            outstanding: Number(res.outstanding_amount || 0),
+          });
+        } catch (error) {
+          console.error("Failed to load customer details", error);
+          setSubmitError("Failed to load customer details.");
+        }
+      };
+      loadCustomer();
     }
   }, [id, isEdit]);
 
@@ -92,7 +65,7 @@ export default function CustomerForm() {
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.mobile) {
-      setSubmitError('Company name and mobile are required.');
+      setSubmitError('Company name and mobile number are required.');
       return;
     }
 
@@ -100,25 +73,27 @@ export default function CustomerForm() {
       setSubmitError('');
       setIsSubmitting(true);
 
-      const customerCode = `CUST-${Date.now().toString().slice(-6)}`;
-
-   
-
-      await customerService.createCustomer({
-        customerCode,
+      const payload = {
         name: formData.name,
         mobile: formData.mobile,
         address: formData.address || '',
         outstanding: formData.outstanding || 0,
-      });
+      };
 
-    
-
-      alert(isEdit ? 'Customer updated successfully!' : 'New Customer added successfully!');
+      if (isEdit && id) {
+        await customerService.updateCustomer(id, payload);
+        alert('Customer updated successfully!');
+      } else {
+        const customerCode = `CUST-${Date.now().toString().slice(-6)}`;
+        await customerService.createCustomer({
+          customerCode,
+          ...payload
+        });
+        alert('New Customer added successfully!');
+      }
       navigate('/customers');
     } catch (error) {
       setSubmitError('Customer save failed. Please check backend connection.');
-  
     } finally {
       setIsSubmitting(false);
     }
@@ -132,7 +107,7 @@ export default function CustomerForm() {
             {isEdit ? 'Edit Customer' : 'Add New Customer'}
           </h2>
           <p className="text-gray-500 mt-1">
-            {isEdit ? `Modifying: ${formData.name}` : 'Create a new customer profile for billing and tracking'}
+            {isEdit ? `Modifying profile for: ${formData.name}` : 'Create a new customer profile for billing and tracking'}
           </p>
         </div>
         <button
@@ -145,115 +120,94 @@ export default function CustomerForm() {
 
       <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
         <div className="space-y-8">
+          
+          {/* Company Details Section */}
           <section>
             <div className="flex items-center gap-2 mb-6 text-blue-600">
               <UserPlus size={20} />
-              <h4 className="text-sm font-semibold uppercase tracking-wider">Company Information</h4>
+              <h4 className="text-sm font-semibold uppercase tracking-wider">Customer Profile</h4>
             </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Company Name</label>
-                <input
-                  ref={nameRef}
-                  type="text"
-                  placeholder="e.g., ABC Textiles Ltd."
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  onKeyDown={(e) => handleKeyDown(e, 0)}
-                  autoFocus
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Company / Customer Name</label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Building size={18} />
+                  </div>
+                  <input
+                    ref={nameRef}
+                    type="text"
+                    required
+                    placeholder="e.g., ABC Textiles Ltd."
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 font-semibold"
+                    onKeyDown={(e) => handleKeyDown(e, 0)}
+                    autoFocus
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Contact Person</label>
-                <input
-                  ref={contactPersonRef}
-                  type="text"
-                  placeholder="Enter contact name"
-                  value={formData.contactPerson}
-                  onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  onKeyDown={(e) => handleKeyDown(e, 1)}
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mobile / Phone Number</label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <Phone size={18} />
+                  </div>
+                  <input
+                    ref={mobileRef}
+                    type="tel"
+                    required
+                    placeholder="e.g., +92 300 1234567"
+                    value={formData.mobile}
+                    onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 font-semibold"
+                    onKeyDown={(e) => handleKeyDown(e, 1)}
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">GST Number</label>
-                <input
-                  ref={gstNoRef}
-                  type="text"
-                  placeholder="Enter GSTIN"
-                  value={formData.gstNo}
-                  onChange={(e) => setFormData({ ...formData, gstNo: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all uppercase"
-                  onKeyDown={(e) => handleKeyDown(e, 4)}
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-2">City / Full Address</label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <MapPin size={18} />
+                  </div>
+                  <input
+                    ref={addressRef}
+                    type="text"
+                    placeholder="e.g., Faisalabad, Punjab"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 font-semibold"
+                    onKeyDown={(e) => handleKeyDown(e, 2)}
+                  />
+                </div>
               </div>
             </div>
           </section>
 
           {submitError && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 font-medium">
               {submitError}
             </div>
           )}
 
-          <section>
-            <div className="flex items-center gap-2 mb-6 text-blue-600">
-              <Save size={20} className="text-gray-400" />
-              <h4 className="text-sm font-semibold uppercase tracking-wider">Contact & Address</h4>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Mobile Number</label>
-                <input
-                  ref={mobileRef}
-                  type="tel"
-                  placeholder="+91 "
-                  value={formData.mobile}
-                  onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  onKeyDown={(e) => handleKeyDown(e, 2)}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                <input
-                  ref={emailRef}
-                  type="email"
-                  placeholder="email@example.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  onKeyDown={(e) => handleKeyDown(e, 3)}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Full Address</label>
-                <input
-                  ref={addressRef}
-                  type="text"
-                  placeholder="Street, City, State, ZIP"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  onKeyDown={(e) => handleKeyDown(e, 5)}
-                />
-              </div>
-            </div>
-          </section>
-
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-4 pt-4">
+          <div className="flex items-center justify-end gap-4 pt-4 border-t border-gray-100">
             <button
+              type="button"
               onClick={() => navigate('/customers')}
               className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-semibold"
             >
               Cancel
             </button>
             <button
+              type="button"
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex items-center gap-2 px-10 py-3.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 font-semibold"
+              className="flex items-center gap-2 px-10 py-3.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 font-semibold disabled:opacity-50"
             >
               <Save size={20} />
               {isSubmitting ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Customer'}

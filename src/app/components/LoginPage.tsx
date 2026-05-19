@@ -88,16 +88,16 @@ export default function LoginPage() {
               <Package size={22} color="white" />
             </div>
             <h2 style={{
-              fontSize: '2rem', fontWeight: 800, color: 'white',
+              fontSize: '2.25rem', fontWeight: 800, color: 'white',
               lineHeight: 1.25, letterSpacing: '-0.02em', margin: 0,
             }}>
-              Manage your<br />textile factory<br />with precision.
+              Shan Dyeing<br />Textile Industry
             </h2>
             <p style={{
-              color: 'rgba(255,255,255,0.65)',
-              marginTop: '1rem', fontSize: '0.9375rem', lineHeight: 1.6, margin: '1rem 0 0',
+              color: 'rgba(255,255,255,0.8)',
+              marginTop: '1rem', fontSize: '1rem', lineHeight: 1.6, margin: '1rem 0 0',
             }}>
-              The complete ERP solution for modern dyeing and printing industries.
+              Developed by <span style={{ color: '#fff', fontWeight: 700 }}>Imran Shahid</span>
             </p>
           </div>
 
@@ -181,9 +181,9 @@ export default function LoginPage() {
                 <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)' }}>
                   Password
                 </label>
-                <a href="#" style={{ fontSize: '0.75rem', color: 'rgba(99,179,237,0.8)', fontWeight: 600, textDecoration: 'none' }}>
+                {/* <a href="#" style={{ fontSize: '0.75rem', color: 'rgba(99,179,237,0.8)', fontWeight: 600, textDecoration: 'none' }}>
                   Forgot password?
-                </a>
+                </a> */}
               </div>
               <div style={{ position: 'relative' }}>
                 <Lock size={16} style={{
@@ -267,10 +267,10 @@ export default function LoginPage() {
 
           {/* Footer */}
           <p style={{
-            marginTop: '2rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.2)',
+            marginTop: '2rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)',
             textAlign: 'center', lineHeight: 1.5,
           }}>
-            Shan Dyeing ERP &mdash; Enterprise Resource Planning
+            Shan Dyeing ERP &mdash; Developed by Imran Shahid
           </p>
         </div>
       </div>

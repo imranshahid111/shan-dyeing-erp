@@ -1,18 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Mail, User as UserIcon, Lock, X, Shield, Users } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { Plus, Trash2, Users, Eye, Pencil } from 'lucide-react';
 import { userService, UserItem } from '../services/userService';
 
 export default function Staff() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    full_name: '',
-    email: '',
-    password: '',
-    role: 'staff',
-  });
 
   const fetchUsers = async () => {
     try {
@@ -27,21 +21,6 @@ export default function Staff() {
   };
 
   useEffect(() => { fetchUsers(); }, []);
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      await userService.createUser(formData);
-      setShowModal(false);
-      setFormData({ full_name: '', email: '', password: '', role: 'staff' });
-      fetchUsers();
-    } catch (error) {
-      alert('Failed to create staff member');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to remove this staff member?')) return;
@@ -62,7 +41,7 @@ export default function Staff() {
           <h2>Staff Management</h2>
           <p>Manage team members and access roles</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+        <button className="btn btn-primary" onClick={() => navigate('/staff/new')}>
           <Plus size={16} />
           Add Staff Member
         </button>
@@ -81,7 +60,7 @@ export default function Staff() {
               <div className="empty-state-icon"><Users size={26} /></div>
               <p className="empty-state-title">No Staff Members</p>
               <p className="empty-state-desc">Add your first staff member to manage system access.</p>
-              <button className="btn btn-primary" style={{ marginTop: '1.25rem' }} onClick={() => setShowModal(true)}>
+              <button className="btn btn-primary" style={{ marginTop: '1.25rem' }} onClick={() => navigate('/staff/new')}>
                 <Plus size={15} /> Add Staff Member
               </button>
             </div>
@@ -92,6 +71,7 @@ export default function Staff() {
                   <th>Staff Member</th>
                   <th>Role</th>
                   <th>Email</th>
+                  <th>Privileges</th>
                   <th>Joined Date</th>
                   <th>Status</th>
                   <th style={{ textAlign: 'center' }}>Actions</th>
@@ -121,6 +101,26 @@ export default function Staff() {
                       </span>
                     </td>
                     <td style={{ color: 'var(--gray-600)', fontSize: '0.875rem' }}>{user.email}</td>
+                    <td>
+                      {user.role === 'admin' ? (
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--brand-600)' }}>Full Access (Admin)</span>
+                      ) : (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '22rem' }}>
+                          {(user as any).privilege?.can_view_dashboard && <span className="badge badge-blue" style={{ fontSize: '0.625rem', padding: '1px 5px' }}>Dashboard</span>}
+                          {(user as any).privilege?.can_view_gray_lots && <span className="badge badge-blue" style={{ fontSize: '0.625rem', padding: '1px 5px' }}>Lots</span>}
+                          {(user as any).privilege?.can_view_delivery_orders && <span className="badge badge-green" style={{ fontSize: '0.625rem', padding: '1px 5px' }}>Orders</span>}
+                          {(user as any).privilege?.can_view_billing && <span className="badge badge-purple" style={{ fontSize: '0.625rem', padding: '1px 5px' }}>Billing</span>}
+                          {(user as any).privilege?.can_view_payments && <span className="badge badge-blue" style={{ fontSize: '0.625rem', padding: '1px 5px' }}>Payments</span>}
+                          {(user as any).privilege?.can_view_customers && <span className="badge badge-orange" style={{ fontSize: '0.625rem', padding: '1px 5px' }}>Customers</span>}
+                          {(user as any).privilege?.can_view_gate_pass && <span className="badge badge-green" style={{ fontSize: '0.625rem', padding: '1px 5px' }}>Gate Pass</span>}
+                          {(user as any).privilege?.can_delete ? (
+                            <span className="badge" style={{ fontSize: '0.625rem', padding: '1px 5px', background: '#fee2e2', color: 'var(--error)', fontWeight: 700 }}>Can Delete</span>
+                          ) : (
+                            <span className="badge" style={{ fontSize: '0.625rem', padding: '1px 5px', background: 'var(--gray-100)', color: 'var(--gray-400)' }}>View Only</span>
+                          )}
+                        </div>
+                      )}
+                    </td>
                     <td style={{ color: 'var(--gray-500)', fontSize: '0.8125rem' }}>
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
@@ -131,7 +131,49 @@ export default function Staff() {
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
+                        <button
+                          className="icon-btn"
+                          style={{
+                            background: '#eff6ff',
+                            color: '#2563eb',
+                            border: 'none',
+                            padding: '0.4rem',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#dbeafe'}
+                          onMouseLeave={e => e.currentTarget.style.background = '#eff6ff'}
+                          title="View Staff Details"
+                          onClick={() => navigate(`/staff/view/${user.id}`)}
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <button
+                          className="icon-btn"
+                          style={{
+                            background: '#fffbeb',
+                            color: '#d97706',
+                            border: 'none',
+                            padding: '0.4rem',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#fef3c7'}
+                          onMouseLeave={e => e.currentTarget.style.background = '#fffbeb'}
+                          title="Edit Staff Member"
+                          onClick={() => navigate(`/staff/edit/${user.id}`)}
+                        >
+                          <Pencil size={15} />
+                        </button>
                         <button
                           className="icon-btn danger"
                           title="Remove Staff Member"
@@ -148,99 +190,6 @@ export default function Staff() {
           )}
         </div>
       </div>
-
-      {/* Add Staff Modal */}
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-dialog" style={{ maxWidth: '26rem' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Add Staff Member</h3>
-              <button className="modal-close-btn" onClick={() => setShowModal(false)}>
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreate}>
-              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {/* Full Name */}
-                <div>
-                  <label className="form-label">Full Name</label>
-                  <div className="input-wrapper">
-                    <div className="input-icon-left"><UserIcon size={16} /></div>
-                    <input
-                      type="text"
-                      required
-                      className="input-field input-with-icon-left"
-                      placeholder="Enter full name"
-                      value={formData.full_name}
-                      onChange={e => setFormData({ ...formData, full_name: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="form-label">Email Address</label>
-                  <div className="input-wrapper">
-                    <div className="input-icon-left"><Mail size={16} /></div>
-                    <input
-                      type="email"
-                      required
-                      className="input-field input-with-icon-left"
-                      placeholder="name@company.com"
-                      value={formData.email}
-                      onChange={e => setFormData({ ...formData, email: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* Password */}
-                <div>
-                  <label className="form-label">Create Password</label>
-                  <div className="input-wrapper">
-                    <div className="input-icon-left"><Lock size={16} /></div>
-                    <input
-                      type="password"
-                      required
-                      className="input-field input-with-icon-left"
-                      placeholder="••••••••"
-                      value={formData.password}
-                      onChange={e => setFormData({ ...formData, password: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* Role */}
-                <div>
-                  <label className="form-label">Assign Role</label>
-                  <div className="input-wrapper">
-                    <div className="input-icon-left"><Shield size={16} /></div>
-                    <select
-                      className="input-field input-with-icon-left"
-                      style={{ appearance: 'none', cursor: 'pointer' }}
-                      value={formData.role}
-                      onChange={e => setFormData({ ...formData, role: e.target.value })}
-                    >
-                      <option value="staff">Staff / Operator</option>
-                      <option value="manager">Manager</option>
-                      <option value="admin">Administrator</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating...' : 'Create Account'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

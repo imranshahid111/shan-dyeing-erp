@@ -8,7 +8,7 @@ module.exports = (sequelize, DataTypes) =>
       process_type: { type: DataTypes.STRING(40), allowNull: false },
       bill_no: { type: DataTypes.STRING(60), allowNull: true },
       lot_no: { type: DataTypes.STRING(60), allowNull: false, unique: true },
-      quality: { type: DataTypes.STRING(120), allowNull: false },
+      quality_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
       measurement: { type: DataTypes.STRING(20), allowNull: false },
       than: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, defaultValue: 0 },
       gazana: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },

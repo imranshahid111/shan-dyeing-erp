@@ -20,6 +20,7 @@ function shouldRetry(error: any) {
  */
 export const apiClient: AxiosInstance = axios.create({
   baseURL: 'http://127.0.0.1:5001/api',
+  adapter: 'xhr', // Force browser XHR adapter for Electron Network Tab
   headers: {
     'Content-Type': 'application/json',
   },
@@ -61,6 +62,15 @@ apiClient.interceptors.response.use(
       error.response?.data?.message ||
       error.message ||
       'Server not available';
+
+    // Auto logout if token expires or is invalid
+    if (error.response?.status === 401) {
+      localStorage.removeItem('erp_auth');
+      localStorage.removeItem('erp_token');
+      localStorage.removeItem('erp_user');
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
 
     if (error.code === 'ERR_NETWORK' || !error.response || error.response?.status >= 500) {
       serverStatusStore.markDisconnected(errorMessage);

@@ -13,6 +13,10 @@ export default function CreateInvoice() {
   const [discountType, setDiscountType] = useState<'flat' | 'percentage'>('percentage');
   const [discountValue, setDiscountValue] = useState(0);
   const [discountInput, setDiscountInput] = useState('0');
+  const [kinarCutAmount, setKinarCutAmount] = useState(0);
+  const [kinarCutInput, setKinarCutInput] = useState('0');
+  const [packingAmount, setPackingAmount] = useState(0);
+  const [packingInput, setPackingInput] = useState('0');
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rateUnit, setRateUnit] = useState<'meter' | 'yard'>('meter');
@@ -49,7 +53,7 @@ export default function CreateInvoice() {
 
   const discountAmount =
     discountType === 'percentage' ? (grossAmount * discountValue) / 100 : discountValue;
-  const netAmount = grossAmount - discountAmount;
+  const netAmount = grossAmount - discountAmount + kinarCutAmount + packingAmount;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -165,6 +169,52 @@ export default function CreateInvoice() {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-gray-600 mb-2">Kinar Cut Amount (Rs)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={kinarCutInput}
+                  onChange={(e) => {
+                    setKinarCutInput(e.target.value);
+                    setKinarCutAmount(parseFloat(e.target.value) || 0);
+                  }}
+                  onBlur={() => {
+                    if (kinarCutInput === '' || isNaN(parseFloat(kinarCutInput))) {
+                      setKinarCutInput('0');
+                      setKinarCutAmount(0);
+                    }
+                  }}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-2">Packing Amount (Rs)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={packingInput}
+                  onChange={(e) => {
+                    setPackingInput(e.target.value);
+                    setPackingAmount(parseFloat(e.target.value) || 0);
+                  }}
+                  onBlur={() => {
+                    if (packingInput === '' || isNaN(parseFloat(packingInput))) {
+                      setPackingInput('0');
+                      setPackingAmount(0);
+                    }
+                  }}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm text-gray-600 mb-2">Discount</label>
               <div className="flex gap-3">
@@ -231,7 +281,7 @@ export default function CreateInvoice() {
                 if (!selectedDO || isSubmitting) return;
                 try {
                   setIsSubmitting(true);
-                  await deliveryOrderService.generateInvoice(selectedDO.id, netAmount, rate, rateUnit);
+                  await deliveryOrderService.generateInvoice(selectedDO.id, netAmount, rate, rateUnit, kinarCutAmount, packingAmount);
                   alert("Invoice generated and customer ledger updated!");
                   navigate('/billing');
                 } catch (err) {

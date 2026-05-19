@@ -17,6 +17,12 @@ export default function DeliveryOrders() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [total, setTotal] = useState(0);
+  const [canDelete, setCanDelete] = useState(true);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
+  const [totalPages, setTotalPages] = useState(1);
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure? This will also remove associated payments and adjust customer balance.')) return;
@@ -33,10 +39,11 @@ export default function DeliveryOrders() {
     try {
       setLoading(true);
       const res = await deliveryOrderService.getDeliveryOrders(
-        statusFilter, 1, 100, undefined, undefined, undefined, search
+        statusFilter, currentPage, pageSize, undefined, undefined, undefined, search
       );
       setOrders(res.data);
       setTotal(res.total);
+      setTotalPages(Math.ceil(res.total / pageSize) || 1);
     } catch (err) {
       console.error('Failed to load delivery orders:', err);
     } finally {
@@ -44,7 +51,28 @@ export default function DeliveryOrders() {
     }
   };
 
-  useEffect(() => { loadOrders(); }, [statusFilter, search]);
+  // Reset to page 1 on filter/search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, search]);
+
+  useEffect(() => { loadOrders(); }, [statusFilter, search, currentPage]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('erp_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role === 'admin') {
+          setCanDelete(true);
+        } else {
+          setCanDelete(parsed.privileges?.can_delete ?? false);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--section-gap)' }}>
@@ -168,13 +196,15 @@ export default function DeliveryOrders() {
                             <Eye size={13} />
                             View
                           </button>
-                          <button
-                            className="icon-btn danger"
-                            title="Delete Order"
-                            onClick={() => handleDelete(order.id)}
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                           {canDelete && (
+                            <button
+                              className="icon-btn danger"
+                              title="Delete Order"
+                              onClick={() => handleDelete(order.id)}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -182,6 +212,34 @@ export default function DeliveryOrders() {
                 })}
               </tbody>
             </table>
+          )}
+          
+          {/* Pagination Footer */}
+          {!loading && total > 0 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-3xl">
+              <span className="text-xs font-bold text-gray-500">
+                Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, total)} of {total} entries
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 text-xs font-bold bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                >
+                  Previous
+                </button>
+                <span className="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-100 rounded-lg shadow-sm">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 text-xs font-bold bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>

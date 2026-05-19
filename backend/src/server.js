@@ -6,7 +6,7 @@ const os = require("os");
 async function bootstrap() {
   
   await sequelize.authenticate();
-  await sequelize.sync();
+  await sequelize.sync({ alter: true });
   
   // Initialize Background Services
   try {

@@ -10,6 +10,7 @@ export default function Qualities() {
   const [qualityName, setQualityName] = useState('');
   const [search, setSearch] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [canDelete, setCanDelete] = useState(true);
 
   const fetchQualities = async () => {
     try {
@@ -23,7 +24,22 @@ export default function Qualities() {
     }
   };
 
-  useEffect(() => { fetchQualities(); }, []);
+  useEffect(() => {
+    fetchQualities();
+    try {
+      const saved = localStorage.getItem('erp_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role === 'admin') {
+          setCanDelete(true);
+        } else {
+          setCanDelete(parsed.privileges?.can_delete ?? false);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   const openModal = (id?: number, name?: string) => {
     setEditingId(id ?? null);
@@ -147,9 +163,11 @@ export default function Qualities() {
                     <button className="icon-btn primary" onClick={() => openModal(q.id, q.name)} title="Edit">
                       <Edit2 size={14} />
                     </button>
-                    <button className="icon-btn danger" onClick={() => handleDelete(q.id)} title="Delete">
-                      <Trash2 size={14} />
-                    </button>
+                    {canDelete && (
+                      <button className="icon-btn danger" onClick={() => handleDelete(q.id)} title="Delete">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

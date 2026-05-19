@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Plus, Trash2, Save, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, Search, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { deliveryOrderService } from '../services/deliveryOrderService';
 import { grayLotService, DeliveryLotOption } from '../services/grayLotService';
@@ -27,7 +27,25 @@ export default function CreateDeliveryOrder() {
   const navigate = useNavigate();
   const [lots, setLots] = useState<DeliveryLotOption[]>([]);
   const [selectedLot, setSelectedLot] = useState<DeliveryLotOption | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [inputUnit, setInputUnit] = useState<'meter' | 'gaz'>('meter');
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredLots = lots.filter(lot => 
+    lot.lotNo.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    lot.partyName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const [colors, setColors] = useState<ColorColumn[]>(
     Array.from({ length: 10 }, (_, index) => ({
@@ -341,23 +359,68 @@ export default function CreateDeliveryOrder() {
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Lot Selection</h3>
 
             <div className="space-y-4">
-              <div>
+              <div ref={dropdownRef} className="relative z-50">
                 <label className="block text-sm text-gray-600 mb-2">Select Lot No</label>
-                <select
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  onChange={e => {
-                    const lot = lots.find(l => String(l.id) === e.target.value);
-                    setSelectedLot(lot || null);
-                  }}
-                  value={selectedLot?.id || ''}
+                <div 
+                  className={`w-full px-4 py-2.5 rounded-xl border ${isDropdownOpen ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'} bg-white cursor-pointer flex justify-between items-center transition-all`}
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 >
-                  <option value="">Choose a lot...</option>
-                  {lots.map(lot => (
-                    <option key={lot.id} value={lot.id}>
-                      {lot.lotNo} ({lot.partyName})
-                    </option>
-                  ))}
-                </select>
+                  <span className={selectedLot ? 'text-gray-800 font-medium' : 'text-gray-500'}>
+                    {selectedLot ? `${selectedLot.lotNo} (${selectedLot.partyName})` : 'Choose a lot...'}
+                  </span>
+                  <ChevronDown size={18} className={`text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                </div>
+
+                {isDropdownOpen && (
+                  <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] max-h-72 flex flex-col overflow-hidden">
+                    <div className="p-2 border-b border-gray-50 bg-gray-50/50">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={15} />
+                        <input
+                          type="text"
+                          className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-gray-400"
+                          placeholder="Search lot no or party name..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    <div className="p-1.5 overflow-y-auto">
+                      {filteredLots.length === 0 ? (
+                        <div className="p-4 text-sm text-gray-500 text-center flex flex-col items-center gap-2">
+                          <Search size={20} className="text-gray-300" />
+                          <p>No lots found matching "{searchQuery}"</p>
+                        </div>
+                      ) : (
+                        filteredLots.map(lot => (
+                          <div
+                            key={lot.id}
+                            className={`px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-all ${selectedLot?.id === lot.id ? 'bg-blue-50 border border-blue-100' : 'hover:bg-gray-50 border border-transparent'}`}
+                            onClick={() => {
+                              setSelectedLot(lot);
+                              setIsDropdownOpen(false);
+                              setSearchQuery('');
+                            }}
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className={`font-semibold ${selectedLot?.id === lot.id ? 'text-blue-700' : 'text-gray-800'}`}>
+                                {lot.lotNo}
+                              </span>
+                              <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md font-medium">
+                                {lot.remaining} left
+                              </span>
+                            </div>
+                            <div className={`text-xs mt-0.5 ${selectedLot?.id === lot.id ? 'text-blue-600/80' : 'text-gray-500'}`}>
+                              {lot.partyName}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

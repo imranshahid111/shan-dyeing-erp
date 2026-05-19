@@ -37,9 +37,26 @@ export interface OutstandingEntry {
 export interface StockEntry {
   lotNo: string;
   quality: string;
+  measurement: string;
   grayStock: number;
   readyStock: number;
   pending: number;
+  totalGazana: number;
+  grayStockMeters: number;
+  readyStockMeters: number;
+  pendingMeters: number;
+  totalMeters: number;
+}
+
+export interface QualityStockEntry {
+  quality: string;
+  lotCount: number;
+  totalGaz: number;
+  readyGaz: number;
+  pendingGaz: number;
+  totalMeters: number;
+  readyMeters: number;
+  pendingMeters: number;
 }
 
 export const dashboardService = {
@@ -60,5 +77,8 @@ export const dashboardService = {
   },
   getStock: () => {
     return apiClient.get<unknown, StockEntry[]>('/reports/stock');
+  },
+  getQualityStock: () => {
+    return apiClient.get<unknown, QualityStockEntry[]>('/reports/stock/quality');
   },
 };

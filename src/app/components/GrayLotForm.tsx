@@ -1,5 +1,5 @@
 import { useState, useRef, KeyboardEvent, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, useLocation } from 'react-router';
 import { Save, X, PlusCircle } from 'lucide-react';
 import { grayLotService } from '../services/grayLotService';
 import { customerService, CustomerItem } from '../services/customerService';
@@ -12,47 +12,20 @@ interface GrayLot {
   processType: string;
   biltiNo: string;
   lotNo: string;
-  quality: string;
+  qualityId: string;
+  quality?: any;
   measurement: string;
   than: number;
   gazana: number;
   notes: string;
 }
 
-// Mock data (in a real app, this would come from an API)
-const mockLots: GrayLot[] = [
-  {
-    id: '1',
-    entryDate: '2026-04-15',
-    partyName: 'ABC Textiles',
-    processType: 'Dyeing',
-    biltiNo: 'B-1001',
-    lotNo: 'GL-2045',
-    quality: 'Cotton 60s',
-    measurement: 'Meter',
-    than: 10,
-    gazana: 250,
-    notes: 'Premium quality batch',
-  },
-  {
-    id: '2',
-    entryDate: '2026-04-16',
-    partyName: 'XYZ Industries',
-    processType: 'Redyeing',
-    biltiNo: 'B-1002',
-    lotNo: 'GL-2046',
-    quality: 'Polyester Blend',
-    measurement: 'Yard',
-    than: 8,
-    gazana: 180,
-    notes: 'Reprocess - color correction',
-  },
-];
-
 export default function GrayLotForm() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const isEdit = !!id;
+  const location = useLocation();
+  const isEdit = !!id && location.pathname.includes('/edit/');
+  const isView = !!id && location.pathname.includes('/view/');
 
   const [formData, setFormData] = useState<Partial<GrayLot>>({
     entryDate: new Date().toISOString().split('T')[0],
@@ -70,7 +43,7 @@ export default function GrayLotForm() {
   const partyNameRef = useRef<HTMLInputElement>(null);
   const processTypeRef = useRef<HTMLSelectElement>(null);
   const biltiNoRef = useRef<HTMLInputElement>(null);
-  const qualityRef = useRef<HTMLInputElement>(null);
+  const qualityRef = useRef<HTMLSelectElement>(null);
   const measurementRef = useRef<HTMLSelectElement>(null);
   const thanRef = useRef<HTMLInputElement>(null);
   const gazanaRef = useRef<HTMLInputElement>(null);
@@ -89,13 +62,31 @@ export default function GrayLotForm() {
   ];
 
   useEffect(() => {
-    if (isEdit) {
-      const lot = mockLots.find((l) => l.id === id);
-      if (lot) {
-        setFormData(lot);
-      }
+    if (id) {
+      const loadLot = async () => {
+        try {
+          const res = await grayLotService.getGrayLot(id);
+          setFormData({
+            id: String(res.id),
+            entryDate: res.entry_date || '',
+            partyName: res.party_name || '',
+            processType: res.process_type || 'Dyeing',
+            biltiNo: res.bill_no || '',
+            lotNo: res.lot_no || '',
+            qualityId: String(res.quality_id || ''),
+            measurement: res.measurement || 'Meter',
+            than: res.than || 0,
+            gazana: res.gazana || 0,
+            notes: res.notes || '',
+          });
+        } catch (error) {
+          console.error("Failed to load gray lot details", error);
+          setSubmitError("Failed to load gray lot details.");
+        }
+      };
+      loadLot();
     }
-  }, [id, isEdit]);
+  }, [id]);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -114,7 +105,7 @@ export default function GrayLotForm() {
   }, []);
 
   useEffect(() => {
-    if (!isEdit) {
+    if (!id) {
       const fetchNextLot = async () => {
         try {
           const res = await grayLotService.getNextLotNumber();
@@ -125,7 +116,7 @@ export default function GrayLotForm() {
       };
       fetchNextLot();
     }
-  }, [isEdit]);
+  }, [id]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>, fieldIndex: number) => {
     if (e.key === 'Enter') {
@@ -139,8 +130,9 @@ export default function GrayLotForm() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.partyName || !formData.quality || !formData.entryDate) {
-      setSubmitError('Party name, quality and entry date are required.');
+    if (isView) return;
+    if (!formData.partyName || !formData.qualityId || !formData.entryDate) {
+      setSubmitError('Party name, fabric quality and entry date are required.');
       return;
     }
 
@@ -148,27 +140,30 @@ export default function GrayLotForm() {
       setSubmitError('');
       setIsSubmitting(true);
 
-   
-
-      await grayLotService.createGrayLot({
+      const payload = {
         entryDate: formData.entryDate,
         partyName: formData.partyName,
         processType: formData.processType || 'Dyeing',
         billNo: formData.biltiNo || '',
-        lotNo: formData.lotNo,
-        quality: formData.quality,
+        lotNo: formData.lotNo || '',
+        qualityId: Number(formData.qualityId),
         measurement: formData.measurement || 'Meter',
         than: Number(formData.than || 0),
         gazana: Number(formData.gazana || 0),
         notes: formData.notes || '',
-      });
+      };
 
+      if (isEdit && id) {
+        await grayLotService.updateGrayLot(id, payload);
+        alert('Gray Lot updated successfully!');
+      } else {
+        await grayLotService.createGrayLot(payload);
+        alert('New Gray Lot added successfully!');
+      }
 
-      alert(isEdit ? 'Gray Lot updated successfully!' : 'New Gray Lot added successfully!');
       navigate('/gray-lots');
     } catch (error) {
       setSubmitError('Gray lot save failed. Please check backend connection.');
-   
     } finally {
       setIsSubmitting(false);
     }
@@ -179,10 +174,10 @@ export default function GrayLotForm() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">
-            {isEdit ? 'Edit Gray Lot' : 'Add New Gray Lot'}
+            {isView ? 'View Gray Lot' : isEdit ? 'Edit Gray Lot' : 'Add New Gray Lot'}
           </h2>
           <p className="text-gray-500 mt-1">
-            {isEdit ? `Modifying Lot No: ${formData.lotNo}` : 'Create a new entry for fabric processing'}
+            {isView ? `Viewing Lot No: ${formData.lotNo}` : isEdit ? `Modifying Lot No: ${formData.lotNo}` : 'Create a new entry for fabric processing'}
           </p>
         </div>
         <button
@@ -206,10 +201,11 @@ export default function GrayLotForm() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Entry Date</label>
                 <input
                   ref={entryDateRef}
+                  disabled={isView}
                   type="date"
                   value={formData.entryDate}
                   onChange={(e) => setFormData({ ...formData, entryDate: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:bg-gray-50 disabled:text-gray-500"
                   onKeyDown={(e) => handleKeyDown(e, 0)}
                 />
               </div>
@@ -217,12 +213,13 @@ export default function GrayLotForm() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Party Name</label>
                 <input
                   ref={partyNameRef}
+                  disabled={isView}
                   list="party-list"
                   type="text"
                   placeholder="Search party..."
                   value={formData.partyName || ''}
                   onChange={(e) => setFormData({ ...formData, partyName: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:bg-gray-50 disabled:text-gray-500"
                   onKeyDown={(e) => handleKeyDown(e, 1)}
                 />
                 <datalist id="party-list">
@@ -235,9 +232,10 @@ export default function GrayLotForm() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Process Type</label>
                 <select
                   ref={processTypeRef}
+                  disabled={isView}
                   value={formData.processType}
                   onChange={(e) => setFormData({ ...formData, processType: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem_1.25rem] bg-[right_0.75rem_center] bg-no-repeat"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem_1.25rem] bg-[right_0.75rem_center] bg-no-repeat disabled:bg-gray-50 disabled:text-gray-500"
                   onKeyDown={(e) => handleKeyDown(e, 2)}
                 >
                   <option>Dyeing</option>
@@ -248,11 +246,12 @@ export default function GrayLotForm() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Bilti No</label>
                 <input
                   ref={biltiNoRef}
+                  disabled={isView}
                   type="text"
                   placeholder="Enter bilti number"
                   value={formData.biltiNo || ''}
                   onChange={(e) => setFormData({ ...formData, biltiNo: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:bg-gray-50 disabled:text-gray-500"
                   onKeyDown={(e) => handleKeyDown(e, 3)}
                 />
               </div>
@@ -264,7 +263,7 @@ export default function GrayLotForm() {
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 font-bold cursor-not-allowed"
                   disabled
                 />
-                <p className="text-[10px] text-blue-500 mt-1 italic font-bold uppercase tracking-wider">Sequential Auto-Generated</p>
+                {!isView && <p className="text-[10px] text-blue-500 mt-1 italic font-bold uppercase tracking-wider">Sequential Auto-Generated</p>}
               </div>
             </div>
           </section>
@@ -286,15 +285,16 @@ export default function GrayLotForm() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Quality Name</label>
                 <select
                   ref={qualityRef}
+                  disabled={isView}
                   required
-                  value={formData.quality || ''}
-                  onChange={(e) => setFormData({ ...formData, quality: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem_1.25rem] bg-[right_0.75rem_center] bg-no-repeat"
+                  value={formData.qualityId || ''}
+                  onChange={(e) => setFormData({ ...formData, qualityId: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem_1.25rem] bg-[right_0.75rem_center] bg-no-repeat disabled:bg-gray-50 disabled:text-gray-500"
                   onKeyDown={(e) => handleKeyDown(e, 4)}
                 >
                   <option value="">Select Quality</option>
                   {qualities.map((q) => (
-                    <option key={q.id} value={q.name}>{q.name}</option>
+                    <option key={q.id} value={q.id}>{q.name}</option>
                   ))}
                 </select>
               </div>
@@ -302,9 +302,10 @@ export default function GrayLotForm() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Measurement</label>
                 <select
                   ref={measurementRef}
+                  disabled={isView}
                   value={formData.measurement}
                   onChange={(e) => setFormData({ ...formData, measurement: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem_1.25rem] bg-[right_0.75rem_center] bg-no-repeat"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem_1.25rem] bg-[right_0.75rem_center] bg-no-repeat disabled:bg-gray-50 disabled:text-gray-500"
                   onKeyDown={(e) => handleKeyDown(e, 5)}
                 >
                   <option>Meter</option>
@@ -315,11 +316,12 @@ export default function GrayLotForm() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Than / Pieces</label>
                 <input
                   ref={thanRef}
+                  disabled={isView}
                   type="number"
                   placeholder="0"
                   value={formData.than || ''}
                   onChange={(e) => setFormData({ ...formData, than: Number(e.target.value) })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:bg-gray-50 disabled:text-gray-500"
                   onKeyDown={(e) => handleKeyDown(e, 6)}
                 />
               </div>
@@ -327,11 +329,12 @@ export default function GrayLotForm() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Gazana</label>
                 <input
                   ref={gazanaRef}
+                  disabled={isView}
                   type="number"
                   placeholder="0.00"
                   value={formData.gazana || ''}
                   onChange={(e) => setFormData({ ...formData, gazana: Number(e.target.value) })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:bg-gray-50 disabled:text-gray-500"
                   onKeyDown={(e) => handleKeyDown(e, 7)}
                 />
               </div>
@@ -343,11 +346,12 @@ export default function GrayLotForm() {
             <label className="block text-sm font-medium text-gray-700 mb-4 uppercase tracking-wider">Additional Notes</label>
             <textarea
               ref={notesRef}
+              disabled={isView}
               placeholder="Enter any additional details about this lot..."
               rows={4}
               value={formData.notes || ''}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none disabled:bg-gray-50 disabled:text-gray-500"
               onKeyDown={(e) => handleKeyDown(e, 8)}
             ></textarea>
           </section>
@@ -358,16 +362,18 @@ export default function GrayLotForm() {
               onClick={() => navigate('/gray-lots')}
               className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-semibold"
             >
-              Cancel
+              {isView ? 'Back' : 'Cancel'}
             </button>
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="flex items-center gap-2 px-10 py-3.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 font-semibold"
-            >
-              <Save size={20} />
-              {isSubmitting ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Gray Lot'}
-            </button>
+            {!isView && (
+              <button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="flex items-center gap-2 px-10 py-3.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 font-semibold"
+              >
+                <Save size={20} />
+                {isSubmitting ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Gray Lot'}
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -19,7 +19,7 @@ app.use(
   })
 );
 app.use(compression());
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "10mb" }));
 app.use(morgan("tiny"));
 app.use((req, _res, next) => {
 
@@ -36,7 +36,7 @@ app.use(
   })
 );
 
-app.use(authMiddleware);
+// app.use(authMiddleware);
 app.use("/api", routes);
 
 app.use(notFound);

@@ -14,6 +14,8 @@ module.exports = (sequelize, DataTypes) =>
       paid_amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
       total_gray_gazana: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
       total_ready_gazana: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
+      kinar_cut_amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
+      packing_amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
       rate: { type: DataTypes.DECIMAL(12, 2), allowNull: true },
       rate_unit: { type: DataTypes.STRING(20), allowNull: true },
       grid_data: { type: DataTypes.JSON, allowNull: true },

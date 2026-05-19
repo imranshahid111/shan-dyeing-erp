@@ -221,32 +221,93 @@ exports.getOutstandingReport = async (req, res, next) => {
 exports.getStockReport = async (req, res, next) => {
   try {
     const lots = await GrayLot.findAll({
-      include: [{
-        model: DeliveryOrder,
-        attributes: ["total_gray_gazana", "total_ready_gazana"],
-      }],
+      include: [
+        {
+          model: DeliveryOrder,
+          attributes: ["total_gray_gazana", "total_ready_gazana"],
+        },
+        {
+          model: Quality,
+          attributes: ["name"],
+        }
+      ],
+      order: [["entry_date", "DESC"]],
     });
+
+    const GAZ_TO_METER = 0.9144;
 
     const stockData = lots.map(lot => {
       const totalGrayDispatched = lot.delivery_orders.reduce((sum, do_item) => sum + Number(do_item.total_gray_gazana), 0);
       const totalReadyProduced = lot.delivery_orders.reduce((sum, do_item) => sum + Number(do_item.total_ready_gazana), 0);
-      
-      const grayStock = Number(lot.gazana) - totalGrayDispatched;
-      const readyStock = totalReadyProduced; // Assuming ready stock is what's processed but not necessarily "dispatched" in this model's logic
-      // Actually, in this model, DO has total_ready_gazana. 
-      // If we want "current ready stock", we'd need another field for "dispatched ready gazana".
-      // Let's stick to a simpler interpretation for now based on the UI's needs.
-      
+
+      const grayStockGaz = Math.max(0, Number(lot.gazana) - totalGrayDispatched);
+      const readyStockGaz = totalReadyProduced;
+      const pendingGaz = Math.max(0, Number(lot.gazana) - totalReadyProduced);
+
       return {
         lotNo: lot.lot_no,
-        quality: lot.quality,
-        grayStock: Math.max(0, grayStock),
-        readyStock: readyStock,
-        pending: Math.max(0, Number(lot.gazana) - totalReadyProduced),
+        quality: lot.quality ? lot.quality.name : 'Unknown',
+        measurement: lot.measurement,
+        // Gaz values
+        grayStock: grayStockGaz,
+        readyStock: readyStockGaz,
+        pending: pendingGaz,
+        totalGazana: Number(lot.gazana),
+        // Meter values (1 Gaz = 0.9144 Meter)
+        grayStockMeters: parseFloat((grayStockGaz * GAZ_TO_METER).toFixed(2)),
+        readyStockMeters: parseFloat((readyStockGaz * GAZ_TO_METER).toFixed(2)),
+        pendingMeters: parseFloat((pendingGaz * GAZ_TO_METER).toFixed(2)),
+        totalMeters: parseFloat((Number(lot.gazana) * GAZ_TO_METER).toFixed(2)),
       };
     });
 
     return res.json(stockData);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.getQualityStockReport = async (req, res, next) => {
+  try {
+    const lots = await GrayLot.findAll({
+      include: [
+        {
+          model: DeliveryOrder,
+          attributes: ["total_gray_gazana", "total_ready_gazana"],
+        },
+        {
+          model: Quality,
+          attributes: ["name"],
+        }
+      ],
+    });
+
+    const GAZ_TO_METER = 0.9144;
+
+    // Group by quality name
+    const qualityMap = {};
+    lots.forEach(lot => {
+      const q = lot.quality ? lot.quality.name : 'Unknown';
+      if (!qualityMap[q]) {
+        qualityMap[q] = { quality: q, totalGaz: 0, readyGaz: 0, pendingGaz: 0, lotCount: 0 };
+      }
+      const totalReadyProduced = lot.delivery_orders.reduce((sum, d) => sum + Number(d.total_ready_gazana), 0);
+      const pendingGaz = Math.max(0, Number(lot.gazana) - totalReadyProduced);
+
+      qualityMap[q].totalGaz += Number(lot.gazana);
+      qualityMap[q].readyGaz += totalReadyProduced;
+      qualityMap[q].pendingGaz += pendingGaz;
+      qualityMap[q].lotCount += 1;
+    });
+
+    const result = Object.values(qualityMap).map(q => ({
+      ...q,
+      totalMeters: parseFloat((q.totalGaz * GAZ_TO_METER).toFixed(2)),
+      readyMeters: parseFloat((q.readyGaz * GAZ_TO_METER).toFixed(2)),
+      pendingMeters: parseFloat((q.pendingGaz * GAZ_TO_METER).toFixed(2)),
+    }));
+
+    return res.json(result);
   } catch (error) {
     return next(error);
   }

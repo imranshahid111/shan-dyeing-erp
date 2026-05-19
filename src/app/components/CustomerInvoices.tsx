@@ -23,6 +23,12 @@ export default function CustomerInvoices() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [org, setOrg] = useState<Organization | null>(null);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   // Payment Form State
   const [paymentAmount, setPaymentAmount] = useState('0');
   const [paymentMethod, setPaymentMethod] = useState('cash');
@@ -46,10 +52,12 @@ export default function CustomerInvoices() {
     try {
       setLoading(true);
       const [invRes, orgRes] = await Promise.all([
-        deliveryOrderService.getDeliveryOrders('billed', 1, 100, id, startDate || undefined, endDate || undefined),
+        deliveryOrderService.getDeliveryOrders('billed', currentPage, pageSize, id, startDate || undefined, endDate || undefined),
         organizationService.getOrganization()
       ]);
       setInvoices(invRes.data);
+      setTotalItems(invRes.total);
+      setTotalPages(Math.ceil(invRes.total / pageSize) || 1);
       setOrg(orgRes);
     } catch (error) {
       console.error("Failed to load data", error);
@@ -62,9 +70,14 @@ export default function CustomerInvoices() {
     fetchCustomerData();
   }, [id]);
 
+  // Reset to page 1 on filter change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [id, startDate, endDate]);
+
   useEffect(() => {
     fetchInvoices();
-  }, [id, startDate, endDate]);
+  }, [id, startDate, endDate, currentPage]);
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,6 +231,34 @@ export default function CustomerInvoices() {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination Footer */}
+        {!loading && totalItems > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-3xl">
+            <span className="text-xs font-bold text-gray-500">
+              Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalItems)} of {totalItems} entries
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 text-xs font-bold bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                Previous
+              </button>
+              <span className="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-100 rounded-lg shadow-sm">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 text-xs font-bold bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Invoice Viewer Modal — full-screen, header always visible */}
@@ -226,7 +267,7 @@ export default function CustomerInvoices() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15,23,42,0.7)',
+            background: 'transparent',
             zIndex: 9999,
             display: 'flex',
             flexDirection: 'column',
@@ -307,7 +348,7 @@ export default function CustomerInvoices() {
 
       {/* Payment Modal */}
       {paymentInvoice && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300 border border-gray-100">
             <div className="bg-slate-900 p-8 text-white relative">
               <button onClick={() => setPaymentInvoice(null)} className="absolute right-6 top-6 p-2 hover:bg-white/20 rounded-xl transition-colors">
@@ -333,7 +374,7 @@ export default function CustomerInvoices() {
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Receive Amount (Rs)</label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600" size={18} />
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-600 font-black text-xs">PKR</span>
                     <input 
                       type="number" 
                       required 

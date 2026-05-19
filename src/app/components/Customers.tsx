@@ -17,12 +17,24 @@ export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [canDelete, setCanDelete] = useState(true);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Reset to page 1 on search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   useEffect(() => {
     const loadCustomers = async () => {
       try {
         setLoading(true);
-        const response = await customerService.getCustomers(searchTerm, 1, 60);
+        const response = await customerService.getCustomers(searchTerm, currentPage, pageSize);
         const mapped = response.data.map((item) => ({
           id: String(item.id),
           name: item.name,
@@ -32,6 +44,8 @@ export default function Customers() {
           customerCode: item.customer_code,
         }));
         setCustomers(mapped);
+        setTotalItems(response.total);
+        setTotalPages(Math.ceil(response.total / pageSize) || 1);
       } catch (error) {
         console.error('Failed to load customers:', error);
       } finally {
@@ -39,7 +53,22 @@ export default function Customers() {
       }
     };
     loadCustomers();
-  }, [searchTerm]);
+
+    // Parse user privileges
+    try {
+      const saved = localStorage.getItem('erp_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role === 'admin') {
+          setCanDelete(true);
+        } else {
+          setCanDelete(parsed.privileges?.can_delete ?? false);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [searchTerm, currentPage]);
 
   const filteredCustomers = useMemo(() => customers, [customers]);
 
@@ -50,7 +79,7 @@ export default function Customers() {
       <div className="page-header">
         <div className="page-header-left">
           <h2>Customers</h2>
-          <p>{customers.length} registered customers</p>
+          <p>{totalItems} registered customers</p>
         </div>
         <button className="btn btn-primary" onClick={() => navigate('/customers/new')}>
           <Plus size={16} />
@@ -71,7 +100,7 @@ export default function Customers() {
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
-          <span className="badge badge-gray">{filteredCustomers.length} Records</span>
+          <span className="badge badge-gray">{totalItems} Records</span>
         </div>
 
         {/* Table */}
@@ -153,9 +182,11 @@ export default function Customers() {
                         >
                           <Edit size={15} />
                         </button>
-                        <button className="icon-btn danger" title="Delete Customer">
-                          <Trash2 size={15} />
-                        </button>
+                        {canDelete && (
+                          <button className="icon-btn danger" title="Delete Customer">
+                            <Trash2 size={15} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -164,6 +195,34 @@ export default function Customers() {
             </table>
           )}
         </div>
+
+        {/* Pagination Footer */}
+        {!loading && totalItems > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-3xl">
+            <span className="text-xs font-bold text-gray-500">
+              Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalItems)} of {totalItems} entries
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 text-xs font-bold bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                Previous
+              </button>
+              <span className="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-100 rounded-lg shadow-sm">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 text-xs font-bold bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

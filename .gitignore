@@ -39,3 +39,6 @@ dist-electron/
 
 # Misc
 *.log
+
+# Backend Backups
+backend/backups/

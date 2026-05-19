@@ -6,7 +6,7 @@ export interface CreateGrayLotPayload {
   processType: string;
   billNo: string;
   lotNo: string;
-  quality: string;
+  qualityId: number;
   measurement: string;
   than: number;
   gazana: number;
@@ -20,7 +20,8 @@ export interface GrayLotItem {
   process_type: string;
   bill_no: string;
   lot_no: string;
-  quality: string;
+  quality_id: number;
+  quality?: { id: number; name: string };
   measurement: string;
   than: number;
   gazana: number;
@@ -49,6 +50,9 @@ export const grayLotService = {
       params: { search, page, pageSize },
     });
   },
+  getGrayLot: (id: number | string) => {
+    return apiClient.get<unknown, any>(`/gray-lots/${id}`);
+  },
   getLotsWithBalance: () => {
     return apiClient.get<unknown, DeliveryLotOption[]>('/gray-lots/balances');
   },
@@ -57,6 +61,9 @@ export const grayLotService = {
   },
   createGrayLot: (payload: CreateGrayLotPayload) => {
     return apiClient.post('/gray-lots', payload);
+  },
+  updateGrayLot: (id: number | string, payload: any) => {
+    return apiClient.put(`/gray-lots/${id}`, payload);
   },
   deleteGrayLot: (id: number) => {
     return apiClient.delete(`/gray-lots/${id}`);

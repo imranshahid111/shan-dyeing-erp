@@ -21,6 +21,7 @@ export default function Billing() {
   const [endDate, setEndDate] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all, paid, unpaid, partial
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [canDelete, setCanDelete] = useState(true);
 
   // Customer Selection State
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
@@ -39,6 +40,21 @@ export default function Billing() {
   // Fetch Organization details once
   useEffect(() => {
     organizationService.getOrganization().then(setOrg).catch(console.error);
+
+    // Parse user privileges
+    try {
+      const saved = localStorage.getItem('erp_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role === 'admin') {
+          setCanDelete(true);
+        } else {
+          setCanDelete(parsed.privileges?.can_delete ?? false);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }, []);
 
   // Fetch customers for the dropdown
@@ -63,15 +79,12 @@ export default function Billing() {
     return () => clearTimeout(delayDebounceFn);
   }, [customerSearch, selectedCustomer]);
 
-  // Fetch invoices when customer is selected or search changes
+  // Fetch invoices
   const fetchInvoices = async () => {
-    if (!selectedCustomer) {
-      setInvoices([]);
-      return;
-    }
     try {
       setLoading(true);
-      const invRes = await deliveryOrderService.getDeliveryOrders('billed', 1, 100, selectedCustomer.id, startDate, endDate, search);
+      const customerId = selectedCustomer ? selectedCustomer.id : undefined;
+      const invRes = await deliveryOrderService.getDeliveryOrders('billed', 1, 100, customerId, startDate, endDate, search);
       setInvoices(invRes.data);
     } catch (error) {
       console.error("Failed to load invoices", error);
@@ -147,7 +160,7 @@ export default function Billing() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-h-[calc(100vh-140px)] flex flex-col">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Invoices & Billing</h2>
@@ -207,10 +220,9 @@ export default function Billing() {
         </div>
 
         {/* Filters */}
-        {selectedCustomer && (
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Start Date</label>
+        <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Start Date</label>
               <input 
                 type="date" 
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 outline-none text-sm font-bold text-gray-700" 
@@ -240,15 +252,14 @@ export default function Billing() {
                 <option value="paid">Fully Paid</option>
               </select>
             </div>
-            <button 
-              onClick={() => { setStartDate(''); setEndDate(''); setStatusFilter('all'); setSearch(''); }}
-              className="p-2.5 hover:bg-gray-100 text-gray-500 rounded-xl transition-colors"
-              title="Reset Filters"
-            >
-              <X size={20} />
-            </button>
-          </div>
-        )}
+          <button 
+            onClick={() => { setStartDate(''); setEndDate(''); setStatusFilter('all'); setSearch(''); }}
+            className="p-2.5 hover:bg-gray-100 text-gray-500 rounded-xl transition-colors"
+            title="Reset Filters"
+          >
+            <X size={20} />
+          </button>
+        </div>
       </div>
 
       {selectedIds.length > 0 && (
@@ -301,19 +312,10 @@ export default function Billing() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[400px] flex flex-col">
-        {!selectedCustomer ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-400 p-12">
-            <div className="p-6 bg-gray-50 rounded-full mb-4">
-              <User size={48} className="opacity-20" />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">No Customer Selected</h3>
-            <p className="text-sm font-medium">Please select a customer from the dropdown above to view their invoices.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse whitespace-nowrap">
-              <thead>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-1 flex flex-col min-h-[400px]">
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-left border-collapse whitespace-nowrap">
+            <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-[10px] uppercase tracking-wider text-gray-500 font-black">
                   <th className="px-6 py-4 w-10">
                     <input 
@@ -323,8 +325,9 @@ export default function Billing() {
                       className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </th>
-                  <th className="px-6 py-4">Invoice No</th>
-                  <th className="px-6 py-4">Date</th>
+                <th className="px-6 py-4">Invoice No</th>
+                <th className="px-6 py-4">Customer</th>
+                <th className="px-6 py-4">Date</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4 text-right">Gazana</th>
                   <th className="px-6 py-4 text-right">Total (Rs)</th>
@@ -336,7 +339,7 @@ export default function Billing() {
               <tbody className="divide-y divide-gray-100 font-medium text-sm">
                 {loading && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center">
+                    <td colSpan={10} className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <Loader2 className="animate-spin text-blue-600" size={24} />
                         <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Loading customer invoices...</p>
@@ -346,7 +349,7 @@ export default function Billing() {
                 )}
                 {!loading && invoices.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
+                    <td colSpan={10} className="px-6 py-12 text-center text-gray-400">
                       <AlertCircle className="mx-auto mb-2 opacity-20" size={48} />
                       <p className="font-bold uppercase tracking-widest text-[10px]">No invoices found for this customer</p>
                     </td>
@@ -367,8 +370,9 @@ export default function Billing() {
                           className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
                       </td>
-                      <td className="px-6 py-4 font-bold text-gray-900 font-mono">#{inv.order_no}</td>
-                      <td className="px-6 py-4 text-gray-500">{new Date(inv.order_date).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 font-bold text-gray-900 font-mono">#{inv.order_no}</td>
+                    <td className="px-6 py-4 font-semibold text-gray-700">{inv.customer?.name}</td>
+                    <td className="px-6 py-4 text-gray-500">{new Date(inv.order_date).toLocaleDateString()}</td>
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
                           status === 'paid' ? 'bg-green-100 text-green-700' :
@@ -407,23 +411,25 @@ export default function Billing() {
                             >
                               <Wallet size={16} /> Add Payment
                             </button>
-                            <button 
-                              onClick={async () => {
-                                if (window.confirm("Are you sure you want to delete this invoice? This will revert the order to completed status and delete all associated payments.")) {
-                                  try {
-                                    await deliveryOrderService.deleteInvoice(inv.id);
-                                    alert("Invoice deleted successfully!");
-                                    fetchInvoices();
-                                  } catch (error) {
-                                    alert("Failed to delete invoice");
+                            {canDelete && (
+                              <button 
+                                onClick={async () => {
+                                  if (window.confirm("Are you sure you want to delete this invoice? This will revert the order to completed status and delete all associated payments.")) {
+                                    try {
+                                      await deliveryOrderService.deleteInvoice(inv.id);
+                                      alert("Invoice deleted successfully!");
+                                      fetchInvoices();
+                                    } catch (error) {
+                                      alert("Failed to delete invoice");
+                                    }
                                   }
-                                }
-                                setActiveDropdown(null);
-                              }}
-                              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors font-semibold"
-                            >
-                              <Trash2 size={16} /> Delete Invoice
-                            </button>
+                                  setActiveDropdown(null);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors font-semibold"
+                              >
+                                <Trash2 size={16} /> Delete Invoice
+                              </button>
+                            )}
                           </div>
                         )}
                       </td>
@@ -433,12 +439,11 @@ export default function Billing() {
               </tbody>
             </table>
           </div>
-        )}
       </div>
 
       {/* Invoice Viewer Modal */}
       {selectedInvoice && org && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl w-full max-w-5xl h-[75vh] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50">
                <div>
@@ -472,7 +477,7 @@ export default function Billing() {
 
       {/* Payment Modal */}
       {paymentInvoice && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300 border border-gray-100">
             <div className="bg-slate-900 p-8 text-white relative">
               <button onClick={() => setPaymentInvoice(null)} className="absolute right-6 top-6 p-2 hover:bg-white/20 rounded-xl transition-colors">
@@ -498,7 +503,7 @@ export default function Billing() {
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Receive Amount (Rs)</label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-600" size={18} />
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-600 font-black text-xs">PKR</span>
                     <input 
                       type="number" 
                       required 

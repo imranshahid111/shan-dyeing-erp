@@ -2,22 +2,22 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { 
   LayoutDashboard, Package, Truck, FileText, ClipboardCheck, Users, 
   CreditCard, BarChart3, Bell, Search, ArrowLeft, RefreshCw, 
-  LogOut, History, Wallet, ChevronRight
+  LogOut, History, Wallet, ChevronRight, Database
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-  { path: '/gray-lots', label: 'Gray Lots', icon: Package, section: 'operations' },
-  { path: '/delivery-orders', label: 'Delivery Orders', icon: Truck, section: 'operations' },
-  { path: '/billing', label: 'Billing / Invoices', icon: FileText, section: 'operations' },
-  { path: '/payments', label: 'Payments & Ledger', icon: Wallet, section: 'operations' },
-  { path: '/customers', label: 'Customers', icon: Users, section: 'management' },
-  { path: '/qualities', label: 'Fabric Qualities', icon: ClipboardCheck, section: 'management' },
-  { path: '/gate-pass', label: 'Gate Pass', icon: ClipboardCheck, section: 'management' },
-  { path: '/staff', label: 'Staff', icon: Users, section: 'management' },
-  { path: '/activity-logs', label: 'Activity Logs', icon: History, section: 'system' },
-  { path: '/reports', label: 'Reports', icon: BarChart3, section: 'system' },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard, section: 'main', privilegeKey: 'can_view_dashboard' },
+  { path: '/gray-lots', label: 'Gray Lots', icon: Package, section: 'operations', privilegeKey: 'can_view_gray_lots' },
+  { path: '/delivery-orders', label: 'Delivery Orders', icon: Truck, section: 'operations', privilegeKey: 'can_view_delivery_orders' },
+  { path: '/billing', label: 'Billing / Invoices', icon: FileText, section: 'operations', privilegeKey: 'can_view_billing' },
+  { path: '/payments', label: 'Payments & Ledger', icon: Wallet, section: 'operations', privilegeKey: 'can_view_payments' },
+  { path: '/customers', label: 'Customers', icon: Users, section: 'management', privilegeKey: 'can_view_customers' },
+  { path: '/qualities', label: 'Fabric Qualities', icon: ClipboardCheck, section: 'management', privilegeKey: 'can_view_qualities' },
+  { path: '/gate-pass', label: 'Gate Pass', icon: ClipboardCheck, section: 'management', privilegeKey: 'can_view_gate_pass' },
+  { path: '/staff', label: 'Staff', icon: Users, section: 'management', privilegeKey: 'can_view_staff' },
+  { path: '/activity-logs', label: 'Activity Logs', icon: History, section: 'system', privilegeKey: 'can_view_activity_logs' },
+  { path: '/reports', label: 'Reports', icon: BarChart3, section: 'system', privilegeKey: 'can_view_reports' },
 ];
 
 const sections = [
@@ -32,12 +32,19 @@ export default function Layout() {
   const navigate = useNavigate();
   const { logout } = useAuth();
 
-  let userData = { name: 'Admin User', email: 'admin@textile.com' };
+  let userData = { name: 'Admin User', email: 'admin@textile.com', role: 'admin', privileges: {} as any };
   try {
     const saved = localStorage.getItem('erp_user');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed?.name) userData = parsed;
+      if (parsed) {
+        userData = {
+          name: parsed.full_name || parsed.name || 'Admin User',
+          email: parsed.email || 'admin@textile.com',
+          role: parsed.role || 'admin',
+          privileges: parsed.privileges || {}
+        };
+      }
     }
   } catch { /* silent */ }
 
@@ -55,6 +62,8 @@ export default function Layout() {
   )?.label ?? 'Overview';
 
   const initials = userData.name.substring(0, 2).toUpperCase();
+  const isAdmin = userData.role === 'admin';
+  const privileges: any = userData.privileges || {};
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--gray-50)' }}>
@@ -113,7 +122,11 @@ export default function Layout() {
           flex: 1, overflowY: 'auto', padding: '0.75rem 0.75rem',
         }}>
           {sections.map(({ key, label }) => {
-            const items = navItems.filter(i => i.section === key);
+            const items = navItems.filter(i => {
+              if (i.section !== key) return false;
+              if (isAdmin) return true;
+              return !!privileges[i.privilegeKey];
+            });
             if (!items.length) return null;
             return (
               <div key={key} style={{ marginBottom: '0.25rem' }}>
@@ -315,6 +328,40 @@ export default function Layout() {
                 }}
               />
             </div>
+
+            {/* Database Download Button */}
+            <button
+              title="Download Database Backup"
+              onClick={() => {
+                const url = `${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/database/backup`;
+                // Use an invisible iframe to avoid blank tab and prevent losing app state on error
+                let iframe = document.getElementById('db-download-iframe') as HTMLIFrameElement;
+                if (!iframe) {
+                  iframe = document.createElement('iframe');
+                  iframe.id = 'db-download-iframe';
+                  iframe.style.display = 'none';
+                  document.body.appendChild(iframe);
+                }
+                iframe.src = url;
+              }}
+              style={{
+                width: '2.125rem', height: '2.125rem', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                background: 'var(--gray-50)', border: '1.5px solid var(--gray-150)',
+                borderRadius: '10px', cursor: 'pointer', position: 'relative',
+                color: 'var(--gray-500)', transition: 'all var(--transition-fast)',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'white';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--gray-200)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.background = 'var(--gray-50)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--gray-150)';
+              }}
+            >
+              <Database size={16} />
+            </button>
 
             {/* Bell */}
             <button

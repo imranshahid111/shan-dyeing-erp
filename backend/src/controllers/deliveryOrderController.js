@@ -1,4 +1,4 @@
-const { DeliveryOrder, Customer, GrayLot, Payment, sequelize } = require("../models");
+const { DeliveryOrder, Customer, GrayLot, Payment, GatePass, sequelize } = require("../models");
 const { Op } = require("sequelize");
 const { getNextSequence } = require("../utils/numberGenerator");
 const { logActivity } = require("../utils/logger");
@@ -33,10 +33,11 @@ exports.getDeliveryOrders = async (req, res, next) => {
       subQuery: false,
       include: [
         { model: Customer, attributes: ["id", "name", "customer_code"] },
-        { model: GrayLot, attributes: ["lot_no"] }
+        { model: GrayLot, attributes: ["lot_no"] },
+        { model: GatePass, attributes: ["id", "gate_pass_no"] }
       ],
       order: [["order_date", "DESC"], ["id", "DESC"]],
-      attributes: ["id", "order_no", "invoice_no", "customer_id", "gray_lot_id", "order_date", "status", "total_amount", "paid_amount", "total_gray_gazana", "total_ready_gazana", "rate", "rate_unit"],
+      attributes: ["id", "order_no", "invoice_no", "customer_id", "gray_lot_id", "order_date", "status", "total_amount", "paid_amount", "total_gray_gazana", "total_ready_gazana", "rate", "rate_unit", "kinar_cut_amount", "packing_amount"],
       limit: pageSize,
       offset: (page - 1) * pageSize,
     });
@@ -109,7 +110,7 @@ exports.generateInvoice = async (req, res, next) => {
   const t = await sequelize.transaction();
   try {
     const doId = req.params.id;
-    const { netAmount, rate, rateUnit } = req.body;
+    const { netAmount, rate, rateUnit, kinarCutAmount, packingAmount } = req.body;
 
     const deliveryOrder = await DeliveryOrder.findByPk(doId, { transaction: t });
     if (!deliveryOrder) {
@@ -135,7 +136,9 @@ exports.generateInvoice = async (req, res, next) => {
       status: "billed",
       invoice_no: nextInvNo,
       rate: Number(rate || 0),
-      rate_unit: rateUnit || 'meter'
+      rate_unit: rateUnit || 'meter',
+      kinar_cut_amount: Number(kinarCutAmount || 0),
+      packing_amount: Number(packingAmount || 0)
     }, { transaction: t });
 
     await t.commit();
@@ -183,7 +186,9 @@ exports.deleteInvoice = async (req, res, next) => {
       status: "completed",
       invoice_no: null,
       rate: null,
-      rate_unit: null
+      rate_unit: null,
+      kinar_cut_amount: 0,
+      packing_amount: 0
     }, { transaction: t });
 
     await t.commit();
@@ -217,6 +222,8 @@ exports.addPayment = async (req, res, next) => {
       mode: method || "cash",
       reference_no: reference,
       notes: notes,
+      attachment: req.body.attachment || null,
+      attachment_name: req.body.attachmentName || null,
     }, { transaction: t });
 
     // 2. Update Delivery Order (billed status doesn't change, just paid_amount)

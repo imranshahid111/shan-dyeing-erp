@@ -85,11 +85,8 @@ const styles = StyleSheet.create({
     padding: 8,
     minHeight: 30,
   },
-  col1: { width: '30%' },
-  col2: { width: '15%', textAlign: 'center' },
-  col3: { width: '15%', textAlign: 'center' },
-  col4: { width: '20%', textAlign: 'right' },
-  col5: { width: '20%', textAlign: 'right' },
+  colDesc: { width: '70%' },
+  colAmt: { width: '30%', textAlign: 'right' },
   summaryArea: {
     marginTop: 30,
     flexDirection: 'row',
@@ -162,6 +159,9 @@ export const PDFInvoice = ({ inv, org }: { inv: DeliveryOrderItem, org: Organiza
   const paidAmount = Number(inv.paid_amount || 0);
   const dueAmount = Math.max(totalAmount - paidAmount, 0);
 
+  const processingQty = inv.rate_unit === 'yard' ? Number(inv.total_ready_gazana || 0) / 0.9144 : Number(inv.total_ready_gazana || 0);
+  const processingAmount = processingQty * Number(inv.rate || 0);
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -193,25 +193,32 @@ export const PDFInvoice = ({ inv, org }: { inv: DeliveryOrderItem, org: Organiza
 
         <View style={styles.table}>
           <View style={styles.tableHeader}>
-            <Text style={styles.col1}>Description</Text>
-            <Text style={styles.col2}>Lot #</Text>
-            <Text style={styles.col3}>Qty (Gz)</Text>
-            <Text style={styles.col4}>Rate</Text>
-            <Text style={styles.col5}>Amount</Text>
+            <Text style={styles.colDesc}>Description</Text>
+            <Text style={styles.colAmt}>Amount</Text>
           </View>
           <View style={styles.tableRow}>
-            <Text style={styles.col1}>Dyeing & Processing Services</Text>
-            <Text style={styles.col2}>{inv.gray_lot?.lot_no}</Text>
-            <Text style={styles.col3}>{inv.total_ready_gazana}</Text>
-            <Text style={styles.col4}>{inv.rate} / {inv.rate_unit === 'yard' ? 'Gaz' : 'Mtr'}</Text>
-            <Text style={styles.col5}>{totalAmount.toLocaleString()}</Text>
+            <Text style={styles.colDesc}>
+              {inv.rate_unit === 'yard' ? 'Yard' : 'Meter'} - {processingQty.toFixed(2)} @ Rs {inv.rate} / {inv.rate_unit === 'yard' ? 'Gaz' : 'Mtr'} (Lot #{inv.gray_lot?.lot_no})
+            </Text>
+            <Text style={styles.colAmt}>{processingAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text>
           </View>
-          <View style={styles.tableRow}><Text style={styles.col1}/></View>
-          <View style={styles.tableRow}><Text style={styles.col1}/></View>
+          {Number(inv.kinar_cut_amount) > 0 && (
+            <View style={styles.tableRow}>
+              <Text style={styles.colDesc}>Kinar Cut</Text>
+              <Text style={styles.colAmt}>{Number(inv.kinar_cut_amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text>
+            </View>
+          )}
+          {Number(inv.packing_amount) > 0 && (
+            <View style={styles.tableRow}>
+              <Text style={styles.colDesc}>Packing</Text>
+              <Text style={styles.colAmt}>{Number(inv.packing_amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.summaryArea}>
           <View style={styles.summaryBox}>
+
             <View style={styles.summaryRow}>
               <Text style={styles.totalLabel}>TOTAL BILL AMOUNT:</Text>
               <Text style={styles.totalValue}>{org.currency} {totalAmount.toLocaleString()}</Text>

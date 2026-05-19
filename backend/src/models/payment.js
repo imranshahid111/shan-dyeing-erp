@@ -9,6 +9,8 @@ module.exports = (sequelize, DataTypes) =>
       mode: { type: DataTypes.STRING(30), allowNull: false, defaultValue: "cash" },
       reference_no: { type: DataTypes.STRING(80), allowNull: true },
       notes: { type: DataTypes.TEXT, allowNull: true },
+      attachment: { type: DataTypes.TEXT("long"), allowNull: true },
+      attachment_name: { type: DataTypes.STRING(255), allowNull: true },
     },
     {
       indexes: [

@@ -16,6 +16,7 @@ import LoginPage from "./components/LoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import CreateInvoice from "./components/CreateInvoice";
 import Staff from "./components/Staff";
+import StaffForm from "./components/StaffForm";
 import CustomerInvoices from "./components/CustomerInvoices";
 import ViewDeliveryOrder from "./components/ViewDeliveryOrder";
 import Qualities from "./components/Qualities";
@@ -40,6 +41,7 @@ export const router = createHashRouter([
               { index: true, Component: GrayLotManagement },
               { path: "new", Component: GrayLotForm },
               { path: "edit/:id", Component: GrayLotForm },
+              { path: "view/:id", Component: GrayLotForm },
             ],
           },
           {
@@ -71,7 +73,15 @@ export const router = createHashRouter([
           { path: "payments", Component: Payments },
           { path: "qualities", Component: Qualities },
           { path: "activity-logs", Component: ActivityLogs },
-          { path: "staff", Component: Staff },
+          {
+            path: "staff",
+            children: [
+              { index: true, Component: Staff },
+              { path: "new", Component: StaffForm },
+              { path: "edit/:id", Component: StaffForm },
+              { path: "view/:id", Component: StaffForm },
+            ],
+          },
           { path: "reports", Component: Reports },
         ],
       },

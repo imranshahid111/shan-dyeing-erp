@@ -8,6 +8,8 @@ export interface PaymentItem {
   mode: string;
   reference_no: string | null;
   notes: string | null;
+  attachment?: string | null;
+  attachment_name?: string | null;
   delivery_order?: {
     id: number;
     order_no: string;
@@ -39,5 +41,11 @@ export const paymentService = {
   },
   getPaymentStats: () => {
     return apiClient.get<unknown, PaymentStats>('/payments/stats');
+  },
+  deletePayment: (id: number) => {
+    return apiClient.delete<{ success: boolean; message: string }>(`/payments/${id}`);
+  },
+  updatePayment: (id: number, data: any) => {
+    return apiClient.put<{ success: boolean; message: string; data: any }>(`/payments/${id}`, data);
   }
 };

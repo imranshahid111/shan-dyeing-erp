@@ -21,6 +21,12 @@ export interface DeliveryOrderItem {
   total_ready_gazana: string | number;
   rate?: number;
   rate_unit?: string;
+  kinar_cut_amount?: string | number;
+  packing_amount?: string | number;
+  gate_pass?: {
+    id: number;
+    gate_pass_no: string;
+  };
 }
 
 export interface DeliveryOrdersResponse {
@@ -49,8 +55,8 @@ export const deliveryOrderService = {
   createDeliveryOrder: (payload: CreateDeliveryOrderPayload) => {
     return apiClient.post('/delivery-orders', payload);
   },
-  generateInvoice: (id: number, netAmount: number, rate: number, rateUnit: string) => {
-    return apiClient.put(`/delivery-orders/${id}/invoice`, { netAmount, rate, rateUnit });
+  generateInvoice: (id: number, netAmount: number, rate: number, rateUnit: string, kinarCutAmount: number = 0, packingAmount: number = 0) => {
+    return apiClient.put(`/delivery-orders/${id}/invoice`, { netAmount, rate, rateUnit, kinarCutAmount, packingAmount });
   },
   addPayment: (id: number, payload: any) => {
     return apiClient.post(`/delivery-orders/${id}/payment`, payload);

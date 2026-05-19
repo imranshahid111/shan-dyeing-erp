@@ -173,6 +173,8 @@ exports.addBulkPayment = async (req, res, next) => {
           mode: method || "cash",
           reference_no: reference,
           notes: notes,
+          attachment: req.body.attachment || null,
+          attachment_name: req.body.attachmentName || null,
         }, { transaction: t });
 
         // 2. Update Delivery Order
@@ -201,6 +203,33 @@ exports.addBulkPayment = async (req, res, next) => {
     });
   } catch (error) {
     await t.rollback();
+    return next(error);
+  }
+};
+
+exports.updateCustomer = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const customer = await Customer.findByPk(id);
+    if (!customer) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    const payload = {
+      name: String(req.body.name || "").trim(),
+      phone: String(req.body.mobile || "").trim(),
+      city: String(req.body.address || "").trim() || null,
+      credit_limit: Number(req.body.creditLimit || 0),
+    };
+
+    if (!payload.name || !payload.phone) {
+      return res.status(400).json({ message: "name and mobile are required" });
+    }
+
+    await customer.update(payload);
+    await logActivity("Customers", `Updated Customer: ${payload.name}`, `ID: ${id}`, req);
+    return res.json(customer);
+  } catch (error) {
     return next(error);
   }
 };
