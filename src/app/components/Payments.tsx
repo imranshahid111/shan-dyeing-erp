@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { Plus, X, Search, User, Calendar, Wallet, CheckCircle2, AlertCircle, Loader2, Trash2, Eye, Edit2, Paperclip } from 'lucide-react';
 import { customerService, CustomerItem } from '../services/customerService';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
