@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Package, Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'sonner';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -18,7 +19,7 @@ export default function LoginPage() {
       await login({ email, password });
       navigate('/');
     } catch (error) {
-      alert('Login failed. Please check your credentials.');
+      toast.error('Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }

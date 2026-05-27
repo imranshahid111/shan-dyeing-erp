@@ -5,8 +5,9 @@ import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrd
 import { organizationService, Organization } from '../services/organizationService';
 import { customerService, CustomerItem } from '../services/customerService';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
-import { PDFInvoice } from './PDFInvoice';
+import { PDFInvoice, PDFMultiInvoice } from './PDFInvoice';
 import { PDFStatement } from './PDFStatement';
+import { toast } from 'sonner';
 
 export default function Billing() {
   const navigate = useNavigate();
@@ -110,14 +111,14 @@ export default function Billing() {
         reference,
         notes
       });
-      alert("Payment recorded successfully!");
+      toast.success("Payment recorded successfully!");
       setPaymentInvoice(null);
       setPaymentAmount('0');
       setReference('');
       setNotes('');
       fetchInvoices();
     } catch (error) {
-      alert("Failed to record payment");
+      toast.error("Failed to record payment");
     } finally {
       setIsSubmitting(false);
     }
@@ -273,7 +274,7 @@ export default function Billing() {
              <button 
                onClick={() => {
                  const selectedInvoices = filteredInvoices.filter(i => selectedIds.includes(i.id));
-                 alert(`Preparing statement for ${selectedIds.length} invoices...`);
+                 toast.success(`Preparing statement for ${selectedIds.length} invoices...`);
                }}
                className="hidden"
              >
@@ -297,6 +298,27 @@ export default function Billing() {
                    <>
                      <Download size={14} />
                      {loading ? 'Generating...' : 'Download Statement'}
+                   </>
+                 )}
+               </PDFDownloadLink>
+             )}
+
+             {/* Download All Invoices as multi-page PDF */}
+             {org && selectedIds.length > 0 && (
+               <PDFDownloadLink
+                 document={
+                   <PDFMultiInvoice
+                     invoices={filteredInvoices.filter(i => selectedIds.includes(i.id))}
+                     org={org}
+                   />
+                 }
+                 fileName={`Invoices-${selectedIds.length}-${new Date().toISOString().split('T')[0]}.pdf`}
+                 className="px-4 py-2 bg-white text-green-700 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-green-50 transition-colors flex items-center gap-2"
+               >
+                 {({ loading }) => (
+                   <>
+                     <Download size={14} />
+                     {loading ? 'Generating...' : `Download ${selectedIds.length} Invoice${selectedIds.length > 1 ? 's' : ''} PDF`}
                    </>
                  )}
                </PDFDownloadLink>
@@ -330,6 +352,7 @@ export default function Billing() {
                 <th className="px-6 py-4">Date</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4 text-right">Gazana</th>
+                  <th className="px-6 py-4 text-right">Rate</th>
                   <th className="px-6 py-4 text-right">Total (Rs)</th>
                   <th className="px-6 py-4 text-right">Paid (Rs)</th>
                   <th className="px-6 py-4 text-right">Due (Rs)</th>
@@ -383,6 +406,7 @@ export default function Billing() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">{inv.total_gray_gazana} GZ</td>
+                      <td className="px-6 py-4 text-right font-bold text-gray-500">{inv.rate ? `Rs ${inv.rate}/${inv.rate_unit === 'yard' ? 'Gaz' : 'Mtr'}` : '-'}</td>
                       <td className="px-6 py-4 text-right font-bold text-gray-900">{Number(inv.total_amount).toLocaleString()}</td>
                       <td className="px-6 py-4 text-right font-bold text-gray-600">{Number(inv.paid_amount || 0).toLocaleString()}</td>
                       <td className={`px-6 py-4 text-right font-bold ${status === 'paid' ? 'text-gray-300' : 'text-orange-600'}`}>{due.toLocaleString()}</td>
@@ -417,10 +441,10 @@ export default function Billing() {
                                   if (window.confirm("Are you sure you want to delete this invoice? This will revert the order to completed status and delete all associated payments.")) {
                                     try {
                                       await deliveryOrderService.deleteInvoice(inv.id);
-                                      alert("Invoice deleted successfully!");
+                                      toast.success("Invoice deleted successfully!");
                                       fetchInvoices();
                                     } catch (error) {
-                                      alert("Failed to delete invoice");
+                                      toast.error("Failed to delete invoice");
                                     }
                                   }
                                   setActiveDropdown(null);

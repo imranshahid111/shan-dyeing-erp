@@ -5,6 +5,7 @@ import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrd
 import { organizationService, Organization } from '../services/organizationService';
 import { customerService, CustomerItem } from '../services/customerService';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
+import { toast } from 'sonner';
 import { PDFInvoice } from './PDFInvoice';
 
 export default function CustomerInvoices() {
@@ -92,14 +93,14 @@ export default function CustomerInvoices() {
         reference,
         notes
       });
-      alert("Payment recorded successfully!");
+      toast.success("Payment recorded successfully!");
       setPaymentInvoice(null);
       setPaymentAmount('0');
       setReference('');
       setNotes('');
       fetchInvoices();
     } catch (error) {
-      alert("Failed to record payment");
+      toast.error("Failed to record payment");
     } finally {
       setIsSubmitting(false);
     }
@@ -166,6 +167,7 @@ export default function CustomerInvoices() {
                 <th className="px-6 py-4">Invoice No</th>
                 <th className="px-6 py-4">Date</th>
                 <th className="px-6 py-4 text-right">Gazana</th>
+                <th className="px-6 py-4 text-right">Rate</th>
                 <th className="px-6 py-4 text-right">Total (Rs)</th>
                 <th className="px-6 py-4 text-right text-blue-600">Paid (Rs)</th>
                 <th className="px-6 py-4 text-right text-orange-600">Due (Rs)</th>
@@ -194,6 +196,7 @@ export default function CustomerInvoices() {
                     <td className="px-6 py-4 font-bold text-gray-900 font-mono">#{inv.order_no}</td>
                     <td className="px-6 py-4 text-gray-800 font-semibold">{inv.order_date?.split('T')[0]}</td>
                     <td className="px-6 py-4 text-right">{inv.total_gray_gazana} GZ</td>
+                    <td className="px-6 py-4 text-right font-bold text-gray-500">{inv.rate ? `Rs ${inv.rate}/${inv.rate_unit === 'yard' ? 'Gaz' : 'Mtr'}` : '-'}</td>
                     <td className="px-6 py-4 text-right font-bold">{Number(inv.total_amount).toLocaleString()}</td>
                     <td className="px-6 py-4 text-right font-bold text-green-600">{Number(inv.paid_amount || 0).toLocaleString()}</td>
                     <td className="px-6 py-4 text-right font-bold text-orange-600">{due.toLocaleString()}</td>

@@ -23,6 +23,7 @@ export interface DeliveryOrderItem {
   rate_unit?: string;
   kinar_cut_amount?: string | number;
   packing_amount?: string | number;
+  grid_data?: any;
   gate_pass?: {
     id: number;
     gate_pass_no: string;
@@ -54,6 +55,9 @@ export const deliveryOrderService = {
   },
   createDeliveryOrder: (payload: CreateDeliveryOrderPayload) => {
     return apiClient.post('/delivery-orders', payload);
+  },
+  updateDeliveryOrder: (id: string | number, payload: CreateDeliveryOrderPayload) => {
+    return apiClient.put(`/delivery-orders/${id}`, payload);
   },
   generateInvoice: (id: number, netAmount: number, rate: number, rateUnit: string, kinarCutAmount: number = 0, packingAmount: number = 0) => {
     return apiClient.put(`/delivery-orders/${id}/invoice`, { netAmount, rate, rateUnit, kinarCutAmount, packingAmount });

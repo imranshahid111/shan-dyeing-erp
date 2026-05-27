@@ -59,6 +59,27 @@ export interface QualityStockEntry {
   pendingMeters: number;
 }
 
+export interface PaymentReportEntry {
+  date: string;
+  customer: string;
+  invoiceNo: string;
+  method: string;
+  reference: string;
+  amount: number;
+}
+
+export interface InvoiceReportEntry {
+  date: string;
+  invoiceNo: string;
+  customer: string;
+  lotNo: string;
+  readyStock: number;
+  unit: string;
+  rate: number;
+  rateUnit: string;
+  amount: number;
+}
+
 export const dashboardService = {
   getSummary: () => {
     return apiClient.get<unknown, DashboardSummary>('/dashboard/summary');
@@ -80,5 +101,11 @@ export const dashboardService = {
   },
   getQualityStock: () => {
     return apiClient.get<unknown, QualityStockEntry[]>('/reports/stock/quality');
+  },
+  getPaymentsReport: (params?: { fromDate?: string; toDate?: string }) => {
+    return apiClient.get<unknown, PaymentReportEntry[]>('/reports/payments', { params });
+  },
+  getInvoicesReport: (params?: { fromDate?: string; toDate?: string }) => {
+    return apiClient.get<unknown, InvoiceReportEntry[]>('/reports/invoices', { params });
   },
 };

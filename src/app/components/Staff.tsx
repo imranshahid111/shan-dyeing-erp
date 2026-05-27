@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Plus, Trash2, Users, Eye, Pencil } from 'lucide-react';
 import { userService, UserItem } from '../services/userService';
+import { toast } from 'sonner';
 
 export default function Staff() {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ export default function Staff() {
       await userService.deleteUser(id);
       fetchUsers();
     } catch (error) {
-      alert('Failed to delete user');
+      toast.error('Failed to delete user');
     }
   };
 

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Plus, Search, Eye, Package, FileText, CalendarDays, Hash, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, Package, FileText, CalendarDays, Hash, Trash2, FileEdit } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
+import { toast } from 'sonner';
 
 const statusConfig: Record<string, { badge: string; label: string }> = {
   completed: { badge: 'badge-yellow', label: 'Pending Invoice' },
@@ -31,7 +32,7 @@ export default function DeliveryOrders() {
       setOrders(prev => prev.filter(o => o.id !== id));
       setTotal(prev => prev - 1);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete order');
+      toast.error(err.response?.data?.message || 'Failed to delete order');
     }
   };
 
@@ -196,6 +197,16 @@ export default function DeliveryOrders() {
                             <Eye size={13} />
                             View
                           </button>
+                          {order.status === 'completed' && (
+                            <button
+                              className="row-action-btn view"
+                              style={{ color: 'var(--brand-600)', backgroundColor: 'var(--brand-50)' }}
+                              onClick={() => navigate(`/delivery-orders/edit/${order.id}`)}
+                            >
+                              <FileEdit size={13} />
+                              Edit
+                            </button>
+                          )}
                            {canDelete && (
                             <button
                               className="icon-btn danger"

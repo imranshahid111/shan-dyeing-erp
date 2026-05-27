@@ -4,6 +4,7 @@ import { Save, X, PlusCircle } from 'lucide-react';
 import { grayLotService } from '../services/grayLotService';
 import { customerService, CustomerItem } from '../services/customerService';
 import { qualityService, QualityItem } from '../services/qualityService';
+import { toast } from 'sonner';
 
 interface GrayLot {
   id: string;
@@ -155,10 +156,10 @@ export default function GrayLotForm() {
 
       if (isEdit && id) {
         await grayLotService.updateGrayLot(id, payload);
-        alert('Gray Lot updated successfully!');
+        toast.success('Gray Lot updated successfully!');
       } else {
         await grayLotService.createGrayLot(payload);
-        alert('New Gray Lot added successfully!');
+        toast.success('New Gray Lot added successfully!');
       }
 
       navigate('/gray-lots');

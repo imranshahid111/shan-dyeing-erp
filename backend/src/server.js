@@ -4,10 +4,10 @@ const { sequelize } = require("./models");
 const os = require("os");
 
 async function bootstrap() {
-  
+
   await sequelize.authenticate();
-  await sequelize.sync({ alter: true });
-  
+  // await sequelize.sync({ alter: true });
+
   // Initialize Background Services
   try {
     require("./services/backupService");
@@ -22,7 +22,7 @@ async function bootstrap() {
       .flat()
       .filter((item) => item && item.family === "IPv4" && !item.internal)
       .map((item) => item.address);
-   
+
     console.log(`ERP backend running on http://0.0.0.0:${env.port}`);
   });
 }

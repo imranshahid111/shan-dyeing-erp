@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2, Save, ArrowLeft, Search, ChevronDown } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { deliveryOrderService } from '../services/deliveryOrderService';
 import { grayLotService, DeliveryLotOption } from '../services/grayLotService';
+import { toast } from 'sonner';
 
 interface ColorColumn {
   id: string;
@@ -25,6 +26,7 @@ const createRow = (rowNumber: number): GridRow => ({
 
 export default function CreateDeliveryOrder() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const [lots, setLots] = useState<DeliveryLotOption[]>([]);
   const [selectedLot, setSelectedLot] = useState<DeliveryLotOption | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -91,16 +93,43 @@ export default function CreateDeliveryOrder() {
   }, [rows.length]);
 
   useEffect(() => {
-    const loadLots = async () => {
+    const loadData = async () => {
       try {
         const response = await grayLotService.getLotsWithBalance();
+        
+        if (id) {
+          const doData = await deliveryOrderService.getDeliveryOrderById(id);
+          
+          const lot = response.find(l => l.id === doData.gray_lot_id);
+          if (lot) {
+            // Add back the current DO's amount to the remaining balance so we can edit it freely
+            lot.remaining += Number(doData.total_gray_gazana);
+            setSelectedLot(lot);
+          }
+          
+          if (doData.grid_data) {
+            if (doData.grid_data.colors && doData.grid_data.colors.length > 0) {
+              const c = [...doData.grid_data.colors];
+              while (c.length < 10) c.push({ id: `${Date.now()}-${Math.random()}`, name: '' });
+              setColors(c);
+            }
+            if (doData.grid_data.rows && doData.grid_data.rows.length > 0) {
+              const r = [...doData.grid_data.rows];
+              while (r.length < 10) r.push(createRow(r.length));
+              setRows(r);
+              // Restore the original input unit from saved grid_data
+              setInputUnit(doData.grid_data.inputUnit || 'meter');
+            }
+          }
+        }
+        
         setLots(response);
       } catch (error) {
-        console.error('Failed to load gray lots:', error);
+        console.error('Failed to load data:', error);
       }
     };
-    loadLots();
-  }, []);
+    loadData();
+  }, [id]);
 
   const updateColorName = (colorId: string, newName: string) => {
     setColors(prev => prev.map(c => (c.id === colorId ? { ...c, name: newName } : c)));
@@ -293,8 +322,10 @@ export default function CreateDeliveryOrder() {
     if (!selectedLot) return;
 
     const grayAmount = calculateTotalGray();
-    if (grayAmount > selectedLot.remaining) {
-      alert('Gray gazana exceeds lot remaining quantity.');
+    // lot.remaining is always in meters; convert entered amount to meters before comparing
+    const grayAmountInMeters = convertToMeter(grayAmount);
+    if (grayAmountInMeters > selectedLot.remaining) {
+      toast.error('Gray gazana exceeds lot remaining quantity.');
       return;
     }
 
@@ -303,17 +334,21 @@ export default function CreateDeliveryOrder() {
       const readyAmount = calculateTotalReady();
       const payload = {
         gray_lot_id: selectedLot.id,
+        // Totals always sent in meters to backend for lot balance tracking
         total_gray_gazana: convertToMeter(grayAmount),
         total_ready_gazana: convertToMeter(readyAmount),
+        input_unit: inputUnit,
         grid_data: { 
+          inputUnit: inputUnit,
+          // Grid values stored as-is in the original entered unit (gaz or meter)
           rows: rows.filter(r => Object.keys(r.values).length > 0).map(r => ({
             ...r,
             values: Object.fromEntries(
               Object.entries(r.values).map(([colId, val]) => [
                 colId,
                 {
-                  gray: convertToMeter(val.gray),
-                  ready: convertToMeter(val.ready)
+                  gray: val.gray,
+                  ready: val.ready
                 }
               ])
             )
@@ -323,12 +358,16 @@ export default function CreateDeliveryOrder() {
       };
       
       console.log('Saving DO Payload:', payload);
-      await deliveryOrderService.createDeliveryOrder(payload);
-
-      alert('Delivery order saved successfully!');
+      if (id) {
+        await deliveryOrderService.updateDeliveryOrder(id, payload);
+        toast.success('Delivery order updated successfully!');
+      } else {
+        await deliveryOrderService.createDeliveryOrder(payload);
+        toast.success('Delivery order saved successfully!');
+      }
       navigate('/delivery-orders');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to save Delivery Order.');
+      toast.error(err.response?.data?.message || 'Failed to save Delivery Order.');
       console.error(err);
     } finally {
       setSaving(false);
@@ -347,8 +386,8 @@ export default function CreateDeliveryOrder() {
           Back to DOs
         </button>
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Create Delivery Order</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Fill in the grid below to create a new DO</p>
+          <h2 className="text-2xl font-bold text-gray-800">{id ? 'Edit Delivery Order' : 'Create Delivery Order'}</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Fill in the grid below to {id ? 'update the' : 'create a new'} DO</p>
         </div>
       </div>
 
@@ -517,7 +556,7 @@ export default function CreateDeliveryOrder() {
                   onClick={handleSaveDO}
                 >
                   <Save size={18} />
-                  {saving ? 'Saving...' : 'Save DO'}
+                  {saving ? 'Saving...' : id ? 'Update DO' : 'Save DO'}
                 </button>
                 {selectedLot && calculateTotalGray() > selectedLot.remaining && (
                   <p className="text-red-500 text-xs mt-2 text-center">

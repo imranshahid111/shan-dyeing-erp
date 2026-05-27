@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router';
 import { User, Mail, Lock, Shield, Save, X, Settings } from 'lucide-react';
 import { userService } from '../services/userService';
+import { toast } from 'sonner';
 
 export default function StaffForm() {
   const navigate = useNavigate();
@@ -95,10 +96,10 @@ export default function StaffForm() {
           payload.password = formData.password;
         }
         await userService.updateUser(id, payload);
-        alert('Staff member updated successfully!');
+        toast.success('Staff member updated successfully!');
       } else {
         await userService.createUser(formData);
-        alert('Staff member registered successfully!');
+        toast.success('Staff member registered successfully!');
       }
       navigate('/staff');
     } catch (err: any) {

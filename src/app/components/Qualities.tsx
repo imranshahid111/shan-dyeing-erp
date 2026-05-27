@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Trash2, Edit2, Search, Loader2, AlertCircle, X, Tag } from 'lucide-react';
 import { qualityService, QualityItem } from '../services/qualityService';
+import { toast } from 'sonner';
 
 export default function Qualities() {
   const [qualities, setQualities] = useState<QualityItem[]>([]);
@@ -62,7 +63,7 @@ export default function Qualities() {
       setEditingId(null);
       fetchQualities();
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Operation failed');
+      toast.error(error.response?.data?.message || 'Operation failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -74,7 +75,7 @@ export default function Qualities() {
       await qualityService.deleteQuality(id);
       fetchQualities();
     } catch (error) {
-      alert('Failed to delete quality');
+      toast.error('Failed to delete quality');
     }
   };
 

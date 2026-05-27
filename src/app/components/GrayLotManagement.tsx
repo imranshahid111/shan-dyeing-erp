@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Plus, Search, Edit, Trash2, Package, Loader2, Eye } from 'lucide-react';
 import { grayLotService, GrayLotItem } from '../services/grayLotService';
+import { toast } from 'sonner';
 
 export default function GrayLotManagement() {
   const navigate = useNavigate();
@@ -59,7 +60,7 @@ export default function GrayLotManagement() {
       await grayLotService.deleteGrayLot(id);
       setLots(prev => prev.filter(lot => lot.id !== id));
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to delete gray lot');
+      toast.error(error.response?.data?.message || 'Failed to delete gray lot');
     }
   };
 

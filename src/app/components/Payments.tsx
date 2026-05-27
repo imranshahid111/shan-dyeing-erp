@@ -5,6 +5,7 @@ import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrd
 import { paymentService, PaymentItem, PaymentStats } from '../services/paymentService';
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { toast } from 'sonner';
 
 interface Allocation {
   invoiceId: number;
@@ -18,11 +19,11 @@ export default function Payments() {
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  
+
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerItem | null>(null);
   const [customerInvoices, setCustomerInvoices] = useState<DeliveryOrderItem[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
-  
+
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<number[]>([]);
   const [paymentAmount, setPaymentAmount] = useState<string>('0');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
@@ -69,7 +70,7 @@ export default function Payments() {
     if (!file) return;
 
     if (file.size > 2.5 * 1024 * 1024) {
-      alert("File size is too large. Please select a file smaller than 2.5 MB.");
+      toast.error("File size is too large. Please select a file smaller than 2.5 MB.");
       return;
     }
 
@@ -167,11 +168,11 @@ export default function Payments() {
     if (!window.confirm("Are you sure you want to delete this payment? This will revert the allocation from the Delivery Order and increase the Customer's outstanding balance!")) return;
     try {
       await paymentService.deletePayment(id);
-      alert("Payment deleted successfully!");
+      toast.success("Payment deleted successfully!");
       loadData();
     } catch (error) {
       console.error(error);
-      alert("Failed to delete payment");
+      toast.error("Failed to delete payment");
     }
   };
 
@@ -201,12 +202,12 @@ export default function Payments() {
         attachment: editAttachment,
         attachmentName: editAttachmentName
       });
-      alert("Payment updated successfully!");
+      toast.success("Payment updated successfully!");
       setSelectedPaymentForEdit(null);
       loadData();
     } catch (error) {
       console.error(error);
-      alert("Failed to update payment");
+      toast.error("Failed to update payment");
     } finally {
       setIsEditing(false);
     }
@@ -223,8 +224,8 @@ export default function Payments() {
       const res = await deliveryOrderService.getDeliveryOrders('billed', 1, 100, customer.id);
       const unpaidInvoices = res.data.filter(inv => Number(inv.paid_amount) < Number(inv.total_amount));
       setCustomerInvoices(unpaidInvoices);
-      // Select all by default
-      setSelectedInvoiceIds(unpaidInvoices.map(inv => inv.id));
+      // Deselect all by default, so user has to click to auto-fill
+      setSelectedInvoiceIds([]);
     } catch (error) {
       console.error("Failed to fetch invoices", error);
     } finally {
@@ -232,56 +233,94 @@ export default function Payments() {
     }
   };
 
-  // Calculate allocations based on payment amount and selected invoices
+  // Selected invoice total due only. Do NOT overwrite paymentAmount here.
+  // User can type any amount, then selected invoices will be adjusted against that amount.
+  const selectedInvoiceTotalDue = useMemo(() => {
+    return selectedInvoiceIds.reduce((sum, id) => {
+      const inv = customerInvoices.find(i => i.id === id);
+      if (!inv) return sum;
+      const due = Math.max(0, Number(inv.total_amount) - Number(inv.paid_amount));
+      return sum + due;
+    }, 0);
+  }, [selectedInvoiceIds, customerInvoices]);
+
+  const enteredPaymentAmount = Number.parseFloat(paymentAmount) || 0;
+  const isPaymentAmountTooHigh =
+    selectedInvoiceIds.length > 0 && enteredPaymentAmount > selectedInvoiceTotalDue;
+
+  // Calculate allocations based on typed payment amount and selected invoices.
+  // Existing inv.paid_amount is not overwritten; allocation is only the NEW amount to add.
   const allocations = useMemo(() => {
-    const amount = parseFloat(paymentAmount) || 0;
-    let remaining = amount;
+    let remaining = Number.parseFloat(paymentAmount) || 0;
     const result: Allocation[] = [];
 
-    // Filter and sort selected invoices
     const selectedInvoices = customerInvoices
       .filter(inv => selectedInvoiceIds.includes(inv.id))
       .sort((a, b) => new Date(a.order_date).getTime() - new Date(b.order_date).getTime());
 
     for (const inv of selectedInvoices) {
       if (remaining <= 0) break;
-      const due = Number(inv.total_amount) - Number(inv.paid_amount);
+
+      const due = Math.max(0, Number(inv.total_amount) - Number(inv.paid_amount));
       const allocated = Math.min(remaining, due);
+
       if (allocated > 0) {
         result.push({
           invoiceId: inv.id,
           orderNo: inv.order_no,
-          amount: allocated
+          amount: Number(allocated.toFixed(2))
         });
         remaining -= allocated;
       }
     }
+
     return result;
   }, [paymentAmount, selectedInvoiceIds, customerInvoices]);
+
+  const allocatedTotal = allocations.reduce((sum, a) => sum + a.amount, 0);
+  const remainingSelectedDue = Math.max(0, selectedInvoiceTotalDue - allocatedTotal);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCustomer || isSubmitting) return;
 
+    const amount = Number.parseFloat(paymentAmount) || 0;
+
+    if (selectedInvoiceIds.length === 0) {
+      toast.error("Please select at least one invoice.");
+      return;
+    }
+
+    if (amount <= 0) {
+      toast.error("Payment amount must be greater than 0.");
+      return;
+    }
+
+    if (amount > selectedInvoiceTotalDue) {
+      toast.error(`Payment amount cannot be greater than selected invoices due: Rs ${selectedInvoiceTotalDue.toLocaleString()}`);
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       await customerService.addBulkPayment(selectedCustomer.id, {
-        amount: parseFloat(paymentAmount),
+        amount,
         paymentDate,
         method: paymentMethod,
         reference,
         notes,
         selectedInvoiceIds,
+        allocations,
         attachment,
         attachmentName
       });
-      alert("Payment recorded successfully!");
+      toast.success("Payment recorded successfully!");
       setShowModal(false);
       resetForm();
       loadData(); // Refresh history and stats
     } catch (error) {
       console.error(error);
-      alert("Failed to record payment");
+      toast.error("Failed to record payment");
     } finally {
       setIsSubmitting(false);
     }
@@ -318,33 +357,33 @@ export default function Payments() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-            <div className="p-3 bg-green-50 text-green-600 rounded-xl">
-               <Wallet size={24} />
-            </div>
-            <div>
-               <p className="text-sm text-gray-500 font-medium">Monthly Collection</p>
-               <p className="text-xl font-bold text-gray-900">Rs {stats.monthlyCollection.toLocaleString()}</p>
-            </div>
-         </div>
-         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
-               <CheckCircle2 size={24} />
-            </div>
-            <div>
-               <p className="text-sm text-gray-500 font-medium">Pending Invoices</p>
-               <p className="text-xl font-bold text-gray-900">{stats.pendingInvoices} Orders</p>
-            </div>
-         </div>
-         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-            <div className="p-3 bg-orange-50 text-orange-600 rounded-xl">
-               <AlertCircle size={24} />
-            </div>
-            <div>
-               <p className="text-sm text-gray-500 font-medium">Total Outstanding</p>
-               <p className="text-xl font-bold text-gray-900">Rs {stats.totalOutstanding.toLocaleString()}</p>
-            </div>
-         </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="p-3 bg-green-50 text-green-600 rounded-xl">
+            <Wallet size={24} />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Monthly Collection</p>
+            <p className="text-xl font-bold text-gray-900">Rs {stats.monthlyCollection.toLocaleString()}</p>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <CheckCircle2 size={24} />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Pending Invoices</p>
+            <p className="text-xl font-bold text-gray-900">{stats.pendingInvoices} Orders</p>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="p-3 bg-orange-50 text-orange-600 rounded-xl">
+            <AlertCircle size={24} />
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 font-medium">Total Outstanding</p>
+            <p className="text-xl font-bold text-gray-900">Rs {stats.totalOutstanding.toLocaleString()}</p>
+          </div>
+        </div>
       </div>
 
       {/* Payment Modal */}
@@ -370,7 +409,7 @@ export default function Payments() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   {/* Customer Selection */}
-                   <div className="relative">
+                  <div className="relative">
                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Select Customer</label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -392,7 +431,7 @@ export default function Payments() {
                         </div>
                       )}
                       {selectedCustomer && (
-                        <button 
+                        <button
                           type="button"
                           onClick={() => {
                             setSelectedCustomer(null);
@@ -407,8 +446,8 @@ export default function Payments() {
                     </div>
                     {isDropdownOpen && customers.length > 0 && (
                       <>
-                        <div 
-                          className="fixed inset-0 z-10" 
+                        <div
+                          className="fixed inset-0 z-10"
                           onClick={() => setIsDropdownOpen(false)}
                         />
                         <div className="absolute top-full left-0 w-full bg-white border border-gray-100 rounded-xl mt-2 shadow-2xl z-20 max-h-60 overflow-y-auto divide-y divide-gray-50">
@@ -438,14 +477,14 @@ export default function Payments() {
 
                   {selectedCustomer && (
                     <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center justify-between">
-                       <div>
-                          <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Total Outstanding</p>
-                          <p className="text-xl font-black text-blue-900">Rs {Number(selectedCustomer.outstanding_amount).toLocaleString()}</p>
-                       </div>
-                       <div className="text-right">
-                          <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Pending Bills</p>
-                          <p className="text-xl font-black text-blue-900">{customerInvoices.length}</p>
-                       </div>
+                      <div>
+                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Total Outstanding</p>
+                        <p className="text-xl font-black text-blue-900">Rs {Number(selectedCustomer.outstanding_amount).toLocaleString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Pending Bills</p>
+                        <p className="text-xl font-black text-blue-900">{customerInvoices.length}</p>
+                      </div>
                     </div>
                   )}
 
@@ -460,8 +499,14 @@ export default function Payments() {
                           step="0.01"
                           className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:outline-none font-black text-lg text-gray-900"
                           value={paymentAmount}
+                          max={selectedInvoiceTotalDue || undefined}
                           onChange={(e) => setPaymentAmount(e.target.value)}
                         />
+                        {isPaymentAmountTooHigh && (
+                          <p className="mt-1 text-[10px] font-bold text-red-600">
+                            Amount cannot exceed selected invoices due: Rs {selectedInvoiceTotalDue.toLocaleString()}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div>
@@ -548,7 +593,7 @@ export default function Payments() {
                   <div className="flex items-center justify-between">
                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Invoices to Pay</label>
                     {customerInvoices.length > 0 && (
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setSelectedInvoiceIds(selectedInvoiceIds.length === customerInvoices.length ? [] : customerInvoices.map(i => i.id))}
                         className="text-[10px] font-bold text-blue-600 hover:underline"
@@ -570,23 +615,21 @@ export default function Payments() {
                           const isSelected = selectedInvoiceIds.includes(inv.id);
                           const allocation = allocations.find(a => a.invoiceId === inv.id);
                           const due = Number(inv.total_amount) - Number(inv.paid_amount);
-                          
+
                           return (
-                            <div 
+                            <div
                               key={inv.id}
                               onClick={() => {
                                 if (isSelected) setSelectedInvoiceIds(selectedInvoiceIds.filter(id => id !== inv.id));
                                 else setSelectedInvoiceIds([...selectedInvoiceIds, inv.id]);
                               }}
-                              className={`p-4 rounded-2xl border-2 transition-all cursor-pointer ${
-                                isSelected ? 'bg-white border-blue-600 shadow-sm' : 'bg-transparent border-transparent hover:bg-gray-100'
-                              }`}
+                              className={`p-4 rounded-2xl border-2 transition-all cursor-pointer ${isSelected ? 'bg-white border-blue-600 shadow-sm' : 'bg-transparent border-transparent hover:bg-gray-100'
+                                }`}
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
-                                    isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300'
-                                  }`}>
+                                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300'
+                                    }`}>
                                     {isSelected && <Plus size={14} />}
                                   </div>
                                   <div>
@@ -611,24 +654,24 @@ export default function Payments() {
                         </div>
                       )}
                     </div>
-                    
+
                     {allocations.length > 0 && (
                       <div className="p-6 bg-slate-900 text-white">
                         <div className="flex items-center justify-between mb-4">
-                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Allocation Summary</p>
-                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{allocations.length} INVOICES</p>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Allocation Summary</p>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{allocations.length} INVOICES</p>
                         </div>
                         <div className="space-y-2">
-                           <div className="flex justify-between text-sm">
-                              <span className="text-slate-400">Total Paying</span>
-                              <span className="font-black">Rs {allocations.reduce((sum, a) => sum + a.amount, 0).toLocaleString()}</span>
-                           </div>
-                           {parseFloat(paymentAmount) > allocations.reduce((sum, a) => sum + a.amount, 0) && (
-                             <div className="flex justify-between text-sm text-blue-400">
-                                <span>Unallocated (Credit)</span>
-                                <span className="font-black">Rs {(parseFloat(paymentAmount) - allocations.reduce((sum, a) => sum + a.amount, 0)).toLocaleString()}</span>
-                             </div>
-                           )}
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-400">Total Paying</span>
+                            <span className="font-black">Rs {allocatedTotal.toLocaleString()}</span>
+                          </div>
+                          {remainingSelectedDue > 0 && (
+                            <div className="flex justify-between text-sm text-blue-400">
+                              <span>Remaining Due</span>
+                              <span className="font-black">Rs {remainingSelectedDue.toLocaleString()}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -639,7 +682,13 @@ export default function Payments() {
               <div className="mt-8 flex gap-4">
                 <button
                   type="submit"
-                  disabled={isSubmitting || !selectedCustomer || parseFloat(paymentAmount) <= 0}
+                  disabled={
+                    isSubmitting ||
+                    !selectedCustomer ||
+                    selectedInvoiceIds.length === 0 ||
+                    enteredPaymentAmount <= 0 ||
+                    isPaymentAmountTooHigh
+                  }
                   className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-black tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/30 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? (
@@ -664,141 +713,141 @@ export default function Payments() {
         </div>,
         document.body
       )}
-      
+
       {/* Recent Payments Table */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex-1 flex flex-col">
-         <div className="p-8 border-b border-gray-50 flex items-center justify-between">
-            <h3 className="font-black text-gray-900 uppercase tracking-widest text-sm">Recent Collection Log</h3>
-            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl border border-gray-100">
-               <Search size={16} className="text-gray-400" />
-               <input 
-                 type="text" 
-                 placeholder="Filter history..." 
-                 className="bg-transparent border-none outline-none text-xs font-bold text-gray-700"
-                 value={historySearch}
-                 onChange={(e) => setHistorySearch(e.target.value)}
-               />
+        <div className="p-8 border-b border-gray-50 flex items-center justify-between">
+          <h3 className="font-black text-gray-900 uppercase tracking-widest text-sm">Recent Collection Log</h3>
+          <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl border border-gray-100">
+            <Search size={16} className="text-gray-400" />
+            <input
+              type="text"
+              placeholder="Filter history..."
+              className="bg-transparent border-none outline-none text-xs font-bold text-gray-700"
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto flex-1">
+          {loadingPayments ? (
+            <div className="p-20 text-center flex flex-col items-center gap-4">
+              <Loader2 className="animate-spin text-blue-600" size={32} />
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Fetching Ledger...</p>
             </div>
-         </div>
-         
-         <div className="overflow-x-auto flex-1">
-           {loadingPayments ? (
-             <div className="p-20 text-center flex flex-col items-center gap-4">
-               <Loader2 className="animate-spin text-blue-600" size={32} />
-               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Fetching Ledger...</p>
-             </div>
-           ) : payments.length > 0 ? (
-             <table className="w-full">
-               <thead className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                 <tr>
-                   <th className="px-8 py-4 text-left">Date</th>
-                   <th className="px-8 py-4 text-left">Customer</th>
-                   <th className="px-8 py-4 text-left">Reference</th>
-                   <th className="px-8 py-4 text-left">Method</th>
-                   <th className="px-8 py-4 text-right">Amount</th>
-                   <th className="px-8 py-4 text-center">Actions</th>
-                 </tr>
-               </thead>
-               <tbody className="divide-y divide-gray-50">
-                 {payments.map(p => (
-                   <tr key={p.id} className="hover:bg-blue-50/30 transition-colors">
-                     <td className="px-8 py-4 whitespace-nowrap text-sm font-bold text-gray-600">
-                       {new Date(p.payment_date).toLocaleDateString()}
-                     </td>
-                     <td className="px-8 py-4 whitespace-nowrap">
-                        <p className="text-sm font-black text-gray-800">{p.delivery_order?.customer?.name || 'Unknown'}</p>
-                        <p className="text-[10px] font-bold text-blue-600 font-mono">DO: {p.delivery_order?.order_no}</p>
-                     </td>
-                     <td className="px-8 py-4 whitespace-nowrap text-sm text-gray-500 italic">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-700 font-semibold">{p.reference_no || '—'}</span>
-                          {p.attachment && (
-                            <button
-                              onClick={() => handleViewAttachment(p.attachment, p.attachment_name || 'receipt')}
-                              className="p-1.5 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
-                              title={`Download Attachment: ${p.attachment_name || 'File'}`}
-                            >
-                              <Paperclip size={14} />
-                            </button>
-                          )}
-                        </div>
-                     </td>
-                     <td className="px-8 py-4 whitespace-nowrap">
-                        <span className="px-2.5 py-1 rounded-lg bg-gray-100 text-[10px] font-black uppercase text-gray-600 tracking-wider">
-                          {p.mode}
-                        </span>
-                     </td>
-                     <td className="px-8 py-4 whitespace-nowrap text-right">
-                        <p className="text-sm font-black text-green-600">Rs {Number(p.amount).toLocaleString()}</p>
-                     </td>
-                     <td className="px-8 py-4 whitespace-nowrap text-center">
-                       <div className="flex items-center justify-center gap-1.5">
-                         <button
-                           onClick={() => setSelectedPaymentForView(p)}
-                           className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
-                           title="View Payment"
-                         >
-                           <Eye size={15} />
-                         </button>
-                         <button
-                           onClick={() => handleStartEdit(p)}
-                           className="text-amber-500 hover:text-amber-700 hover:bg-amber-50 p-1.5 rounded-lg transition-colors"
-                           title="Edit Payment"
-                         >
-                           <Edit2 size={15} />
-                         </button>
-                         {canDelete && (
-                           <button
-                             onClick={() => handleDelete(p.id)}
-                             className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
-                             title="Delete Payment"
-                           >
-                             <Trash2 size={15} />
-                           </button>
-                         )}
-                       </div>
-                     </td>
-                   </tr>
-                 ))}
-               </tbody>
-             </table>
-           ) : (
-             <div className="p-20 text-center text-gray-300">
-                <Wallet size={48} className="mx-auto mb-4 opacity-10" />
-                <p className="text-xs font-black uppercase tracking-[0.2em]">No payments found</p>
-                <p className="text-[10px] mt-1 font-bold">Start receiving payments to see them here</p>
-             </div>
-           )}
-         </div>
-          
-          {/* Pagination Footer */}
-          {!loadingPayments && totalItems > 0 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-3xl">
-              <span className="text-xs font-bold text-gray-500">
-                Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalItems)} of {totalItems} entries
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 text-xs font-bold bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                >
-                  Previous
-                </button>
-                <span className="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-100 rounded-lg shadow-sm">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-4 py-2 text-xs font-bold bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                >
-                  Next
-                </button>
-              </div>
+          ) : payments.length > 0 ? (
+            <table className="w-full">
+              <thead className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                <tr>
+                  <th className="px-8 py-4 text-left">Date</th>
+                  <th className="px-8 py-4 text-left">Customer</th>
+                  <th className="px-8 py-4 text-left">Reference</th>
+                  <th className="px-8 py-4 text-left">Method</th>
+                  <th className="px-8 py-4 text-right">Amount</th>
+                  <th className="px-8 py-4 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {payments.map(p => (
+                  <tr key={p.id} className="hover:bg-blue-50/30 transition-colors">
+                    <td className="px-8 py-4 whitespace-nowrap text-sm font-bold text-gray-600">
+                      {new Date(p.payment_date).toLocaleDateString()}
+                    </td>
+                    <td className="px-8 py-4 whitespace-nowrap">
+                      <p className="text-sm font-black text-gray-800">{p.delivery_order?.customer?.name || 'Unknown'}</p>
+                      <p className="text-[10px] font-bold text-blue-600 font-mono">DO: {p.delivery_order?.order_no}</p>
+                    </td>
+                    <td className="px-8 py-4 whitespace-nowrap text-sm text-gray-500 italic">
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-700 font-semibold">{p.reference_no || '—'}</span>
+                        {p.attachment && (
+                          <button
+                            onClick={() => handleViewAttachment(p.attachment, p.attachment_name || 'receipt')}
+                            className="p-1.5 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
+                            title={`Download Attachment: ${p.attachment_name || 'File'}`}
+                          >
+                            <Paperclip size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-8 py-4 whitespace-nowrap">
+                      <span className="px-2.5 py-1 rounded-lg bg-gray-100 text-[10px] font-black uppercase text-gray-600 tracking-wider">
+                        {p.mode}
+                      </span>
+                    </td>
+                    <td className="px-8 py-4 whitespace-nowrap text-right">
+                      <p className="text-sm font-black text-green-600">Rs {Number(p.amount).toLocaleString()}</p>
+                    </td>
+                    <td className="px-8 py-4 whitespace-nowrap text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => setSelectedPaymentForView(p)}
+                          className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
+                          title="View Payment"
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleStartEdit(p)}
+                          className="text-amber-500 hover:text-amber-700 hover:bg-amber-50 p-1.5 rounded-lg transition-colors"
+                          title="Edit Payment"
+                        >
+                          <Edit2 size={15} />
+                        </button>
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDelete(p.id)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                            title="Delete Payment"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="p-20 text-center text-gray-300">
+              <Wallet size={48} className="mx-auto mb-4 opacity-10" />
+              <p className="text-xs font-black uppercase tracking-[0.2em]">No payments found</p>
+              <p className="text-[10px] mt-1 font-bold">Start receiving payments to see them here</p>
             </div>
           )}
-       </div>
+        </div>
+
+        {/* Pagination Footer */}
+        {!loadingPayments && totalItems > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-3xl">
+            <span className="text-xs font-bold text-gray-500">
+              Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalItems)} of {totalItems} entries
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 text-xs font-bold bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                Previous
+              </button>
+              <span className="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-100 rounded-lg shadow-sm">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 text-xs font-bold bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* View Payment Modal */}
       {selectedPaymentForView && createPortal(
@@ -869,9 +918,9 @@ export default function Payments() {
                   <div className="flex flex-col gap-3">
                     {selectedPaymentForView.attachment.startsWith('data:image/') ? (
                       <div className="relative rounded-2xl overflow-hidden border border-gray-100 shadow-sm max-h-[200px] flex items-center justify-center bg-gray-50">
-                        <img 
-                          src={selectedPaymentForView.attachment} 
-                          alt="Receipt Attachment" 
+                        <img
+                          src={selectedPaymentForView.attachment}
+                          alt="Receipt Attachment"
                           className="max-w-full max-h-[200px] object-contain cursor-zoom-in"
                           onClick={() => handleViewAttachment(selectedPaymentForView.attachment, selectedPaymentForView.attachment_name || 'receipt')}
                         />

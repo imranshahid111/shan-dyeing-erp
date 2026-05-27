@@ -51,7 +51,7 @@ exports.getChartsData = async (req, res, next) => {
     // Merge data
     const monthMap = {};
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    
+
     // Initialize last 4 months
     for (let i = 0; i < 4; i++) {
       const d = new Date();
@@ -140,10 +140,10 @@ exports.getLedgerReport = async (req, res, next) => {
         order: [["order_date", "ASC"]],
       }),
       Payment.findAll({
-        include: [{ 
-          model: DeliveryOrder, 
+        include: [{
+          model: DeliveryOrder,
           where: { customer_id: customerId },
-          attributes: [] 
+          attributes: []
         }],
         where: fromDate && toDate ? { payment_date: { [Op.between]: [fromDate, toDate] } } : {},
         order: [["payment_date", "ASC"]],
@@ -327,4 +327,90 @@ function formatTimeAgo(date) {
   if (interval > 1) return Math.floor(interval) + " minutes ago";
   return Math.floor(seconds) + " seconds ago";
 }
+
+exports.getPaymentsReport = async (req, res, next) => {
+  try {
+    const { fromDate, toDate } = req.query;
+    const where = {};
+    if (fromDate && toDate) {
+      where.payment_date = { [Op.between]: [fromDate, toDate] };
+    } else if (fromDate) {
+      where.payment_date = { [Op.gte]: fromDate };
+    } else if (toDate) {
+      where.payment_date = { [Op.lte]: toDate };
+    }
+
+    const payments = await Payment.findAll({
+      where,
+      include: [
+        {
+          model: DeliveryOrder,
+          attributes: ["order_no", "invoice_no"],
+          include: [{ model: Customer, attributes: ["name"] }]
+        }
+      ],
+      order: [["payment_date", "ASC"]],
+    });
+
+    const data = payments.map(p => {
+      const doItem = p.delivery_order || p.DeliveryOrder || {};
+      const customer = doItem.customer || doItem.Customer || {};
+      return {
+        date: p.payment_date,
+        customer: customer.name || "Unknown",
+        invoiceNo: doItem.invoice_no || doItem.order_no || "-",
+        method: p.mode,
+        reference: p.reference_no || "-",
+        amount: Number(p.amount)
+      };
+    });
+
+    return res.json(data);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.getInvoicesReport = async (req, res, next) => {
+  try {
+    const { fromDate, toDate } = req.query;
+    const where = { status: "billed" };
+    if (fromDate && toDate) {
+      where.order_date = { [Op.between]: [fromDate, toDate] };
+    } else if (fromDate) {
+      where.order_date = { [Op.gte]: fromDate };
+    } else if (toDate) {
+      where.order_date = { [Op.lte]: toDate };
+    }
+
+    const orders = await DeliveryOrder.findAll({
+      where,
+      include: [
+        { model: Customer, attributes: ["name"] },
+        { model: GrayLot, attributes: ["lot_no", "measurement"] }
+      ],
+      order: [["order_date", "ASC"]],
+    });
+
+    const data = orders.map(o => {
+      const customer = o.customer || o.Customer || {};
+      const lot = o.gray_lot || o.GrayLot || {};
+      return {
+        date: o.order_date,
+        invoiceNo: o.invoice_no || o.order_no,
+        customer: customer.name || "Unknown",
+        lotNo: lot.lot_no || "-",
+        readyStock: Number(o.total_ready_gazana),
+        unit: lot.measurement || "Meter",
+        rate: Number(o.rate),
+        rateUnit: o.rate_unit || 'meter',
+        amount: Number(o.total_amount)
+      };
+    });
+
+    return res.json(data);
+  } catch (error) {
+    return next(error);
+  }
+};
 

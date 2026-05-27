@@ -5,6 +5,7 @@ import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrd
 import { gatePassService, GatePassItem } from '../services/gatePassService';
 import { organizationService } from '../services/organizationService';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
+import { toast } from 'sonner';
 import { PDFGatePass } from './PDFGatePass';
 
 export default function GatePass() {
@@ -67,11 +68,11 @@ export default function GatePass() {
     if (!window.confirm('Are you sure you want to delete this Gate Pass? This will free up the associated Delivery Order reference.')) return;
     try {
       await gatePassService.deleteGatePass(id);
-      alert('Gate Pass deleted successfully!');
+      toast.success('Gate Pass deleted successfully!');
       fetchGatePassHistory();
     } catch (err: any) {
       console.error("Failed to delete Gate Pass:", err);
-      alert(err.response?.data?.message || 'Failed to delete Gate Pass');
+      toast.error(err.response?.data?.message || 'Failed to delete Gate Pass');
     }
   };
 
@@ -116,7 +117,7 @@ export default function GatePass() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDO) {
-      alert("Please select a Delivery Order reference.");
+      toast.error("Please select a Delivery Order reference.");
       return;
     }
 
@@ -131,12 +132,12 @@ export default function GatePass() {
         notes: notes
       });
 
-      alert("Gate Pass saved successfully!");
+      toast.success("Gate Pass saved successfully!");
       handleCloseAddForm();
       fetchGatePassHistory();
     } catch (err: any) {
       console.error("Failed to save Gate Pass:", err);
-      alert(err.response?.data?.message || "Failed to save Gate Pass.");
+      toast.error(err.response?.data?.message || "Failed to save Gate Pass.");
     } finally {
       setIsSaving(false);
     }

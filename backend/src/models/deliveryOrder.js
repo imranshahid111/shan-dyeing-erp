@@ -18,6 +18,7 @@ module.exports = (sequelize, DataTypes) =>
       packing_amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
       rate: { type: DataTypes.DECIMAL(12, 2), allowNull: true },
       rate_unit: { type: DataTypes.STRING(20), allowNull: true },
+      input_unit: { type: DataTypes.STRING(20), allowNull: true },
       grid_data: { type: DataTypes.JSON, allowNull: true },
     },
     {

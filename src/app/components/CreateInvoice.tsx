@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { FileText, Printer, Download, ArrowLeft } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
+import { toast } from 'sonner';
 
 export default function CreateInvoice() {
   const navigate = useNavigate();
@@ -282,11 +283,11 @@ export default function CreateInvoice() {
                 try {
                   setIsSubmitting(true);
                   await deliveryOrderService.generateInvoice(selectedDO.id, netAmount, rate, rateUnit, kinarCutAmount, packingAmount);
-                  alert("Invoice generated and customer ledger updated!");
+                  toast.success("Invoice generated and customer ledger updated!");
                   navigate('/billing');
                 } catch (err) {
                   console.error(err);
-                  alert("Failed to generate invoice");
+                  toast.error("Failed to generate invoice");
                 } finally {
                   setIsSubmitting(false);
                 }

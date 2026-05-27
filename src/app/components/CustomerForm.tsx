@@ -2,6 +2,7 @@ import { useState, useRef, KeyboardEvent, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { Save, X, UserPlus, MapPin, Phone, Building } from 'lucide-react';
 import { customerService } from '../services/customerService';
+import { toast } from 'sonner';
 
 interface Customer {
   id: string;
@@ -82,14 +83,14 @@ export default function CustomerForm() {
 
       if (isEdit && id) {
         await customerService.updateCustomer(id, payload);
-        alert('Customer updated successfully!');
+        toast.success('Customer updated successfully!');
       } else {
         const customerCode = `CUST-${Date.now().toString().slice(-6)}`;
         await customerService.createCustomer({
           customerCode,
           ...payload
         });
-        alert('New Customer added successfully!');
+        toast.success('New Customer added successfully!');
       }
       navigate('/customers');
     } catch (error) {

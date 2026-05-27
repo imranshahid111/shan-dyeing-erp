@@ -37,7 +37,7 @@ exports.getDeliveryOrders = async (req, res, next) => {
         { model: GatePass, attributes: ["id", "gate_pass_no"] }
       ],
       order: [["order_date", "DESC"], ["id", "DESC"]],
-      attributes: ["id", "order_no", "invoice_no", "customer_id", "gray_lot_id", "order_date", "status", "total_amount", "paid_amount", "total_gray_gazana", "total_ready_gazana", "rate", "rate_unit", "kinar_cut_amount", "packing_amount"],
+      attributes: ["id", "order_no", "invoice_no", "customer_id", "gray_lot_id", "order_date", "status", "total_amount", "paid_amount", "total_gray_gazana", "total_ready_gazana", "rate", "rate_unit", "input_unit", "kinar_cut_amount", "packing_amount", "grid_data"],
       limit: pageSize,
       offset: (page - 1) * pageSize,
     });
@@ -50,10 +50,15 @@ exports.getDeliveryOrders = async (req, res, next) => {
 
 exports.getDeliveryOrderById = async (req, res, next) => {
   try {
+    const { Quality } = require("../models");
     const order = await DeliveryOrder.findByPk(req.params.id, {
       include: [
         { model: Customer, attributes: ["id", "name", "customer_code", "phone", "city"] },
-        { model: GrayLot, attributes: ["id", "lot_no", "party_name", "quality", "measurement"] }
+        { 
+          model: GrayLot, 
+          attributes: ["id", "lot_no", "party_name", "measurement"],
+          include: [{ model: Quality, attributes: ["name"] }]
+        }
       ]
     });
 
@@ -61,7 +66,14 @@ exports.getDeliveryOrderById = async (req, res, next) => {
       return res.status(404).json({ message: "Delivery Order not found" });
     }
 
-    return res.json(order);
+    const orderData = order.toJSON();
+    if (orderData.gray_lot && orderData.gray_lot.quality) {
+      orderData.gray_lot.quality = orderData.gray_lot.quality.name;
+    } else if (orderData.GrayLot && orderData.GrayLot.Quality) {
+      orderData.GrayLot.quality = orderData.GrayLot.Quality.name;
+    }
+
+    return res.json(orderData);
   } catch (error) {
     return next(error);
   }
@@ -70,7 +82,7 @@ exports.getDeliveryOrderById = async (req, res, next) => {
 exports.createDeliveryOrder = async (req, res, next) => {
   try {
     console.log("Creating DO with body:", JSON.stringify(req.body, null, 2));
-    const { gray_lot_id, total_gray_gazana, total_ready_gazana, grid_data } = req.body;
+    const { gray_lot_id, total_gray_gazana, total_ready_gazana, grid_data, input_unit } = req.body;
     
     const lot = await GrayLot.findByPk(gray_lot_id);
     if (!lot) return res.status(404).json({ message: "Gray lot not found" });
@@ -96,11 +108,61 @@ exports.createDeliveryOrder = async (req, res, next) => {
       total_amount: 0,
       total_gray_gazana: grayQty,
       total_ready_gazana: Number(total_ready_gazana || 0),
+      input_unit: input_unit || 'meter',
       grid_data: grid_data || {},
       status: "completed"
     });
 
     return res.status(201).json(newDo);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.updateDeliveryOrder = async (req, res, next) => {
+  try {
+    const doId = req.params.id;
+    const { gray_lot_id, total_gray_gazana, total_ready_gazana, grid_data, input_unit } = req.body;
+    
+    const deliveryOrder = await DeliveryOrder.findByPk(doId);
+    if (!deliveryOrder) return res.status(404).json({ message: "Delivery Order not found" });
+
+    if (deliveryOrder.status === 'billed' || deliveryOrder.status === 'paid') {
+       return res.status(400).json({ message: "Cannot edit a billed delivery order. Please delete the invoice first." });
+    }
+
+    const lot = await GrayLot.findByPk(gray_lot_id);
+    if (!lot) return res.status(404).json({ message: "Gray lot not found" });
+
+    // Check balance
+    let orders = await DeliveryOrder.findAll({ where: { gray_lot_id } });
+    let delivered = orders.reduce((sum, o) => {
+      // Exclude current DO from the delivered sum
+      if (o.id === Number(doId)) return sum;
+      return sum + Number(o.total_gray_gazana || 0);
+    }, 0);
+    
+    const balance = Number(lot.gazana || 0) - delivered;
+    const grayQty = Number(total_gray_gazana || 0);
+
+    if (grayQty > balance) {
+      return res.status(400).json({ message: `Qty (${grayQty}) exceeds remaining gazana (${balance})` });
+    }
+
+    let customer = await Customer.findOne({ where: { name: lot.party_name } });
+
+    await deliveryOrder.update({
+      customer_id: customer ? customer.id : deliveryOrder.customer_id,
+      gray_lot_id,
+      total_gray_gazana: grayQty,
+      total_ready_gazana: Number(total_ready_gazana || 0),
+      input_unit: input_unit || deliveryOrder.input_unit,
+      grid_data: grid_data || {},
+    });
+
+    await logActivity("Delivery Orders", `Updated Order #${deliveryOrder.order_no}`, `Updated quantities and grid data`, req);
+
+    return res.json(deliveryOrder);
   } catch (err) {
     return next(err);
   }

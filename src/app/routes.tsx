@@ -49,6 +49,7 @@ export const router = createHashRouter([
             children: [
               { index: true, Component: DeliveryOrders },
               { path: "new", Component: CreateDeliveryOrder },
+              { path: "edit/:id", Component: CreateDeliveryOrder },
               { path: ":id", Component: ViewDeliveryOrder },
             ],
           },

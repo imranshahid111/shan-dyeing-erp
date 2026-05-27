@@ -38,12 +38,41 @@ export default function ViewDeliveryOrder() {
 
   const colors = order.grid_data?.colors || [];
   const rows = order.grid_data?.rows || [];
-
+  
   // Helper to extract values from grid_data
   const getCellValue = (rowIndex: number, colorId: string, field: 'gray' | 'ready') => {
     const row = rows[rowIndex];
     return row?.values?.[colorId]?.[field];
   };
+
+  const gridGrayTotal = rows.reduce((sum: number, row: any, index: number) => {
+    return sum + colors.reduce((cSum: number, color: any) => cSum + (Number(getCellValue(index, color.id, 'gray')) || 0), 0);
+  }, 0);
+  
+  const gridReadyTotal = rows.reduce((sum: number, row: any, index: number) => {
+    return sum + colors.reduce((cSum: number, color: any) => cSum + (Number(getCellValue(index, color.id, 'ready')) || 0), 0);
+  }, 0);
+
+  // Determine input unit, auto-detecting legacy Gaz records where grid sum > db sum
+  let inputUnit = order.input_unit || order.grid_data?.inputUnit;
+  if (!inputUnit) {
+    const dbGray = Number(order.total_gray_gazana);
+    if (gridGrayTotal > 0 && dbGray > 0 && Math.abs(gridGrayTotal - dbGray) > 1) {
+      inputUnit = 'gaz';
+    } else {
+      inputUnit = 'meter';
+    }
+  }
+
+  const unitLabel = inputUnit === 'gaz' ? 'Gaz' : 'Mtr';
+  const unitLabelFull = inputUnit === 'gaz' ? 'Gaz (Yard)' : 'Meter';
+
+  const displayGrayQty = gridGrayTotal > 0 ? gridGrayTotal.toLocaleString() : (inputUnit === 'gaz' ? (Number(order.total_gray_gazana) / 0.9144).toFixed(2) : Number(order.total_gray_gazana).toLocaleString());
+  const displayReadyQty = gridReadyTotal > 0 ? gridReadyTotal.toLocaleString() : (inputUnit === 'gaz' ? (Number(order.total_ready_gazana) / 0.9144).toFixed(2) : Number(order.total_ready_gazana).toLocaleString());
+
+  const secondaryGrayQty = inputUnit === 'gaz' ? Number(order.total_gray_gazana).toLocaleString() : (Number(order.total_gray_gazana) / 0.9144).toFixed(2);
+  const secondaryReadyQty = inputUnit === 'gaz' ? Number(order.total_ready_gazana).toLocaleString() : (Number(order.total_ready_gazana) / 0.9144).toFixed(2);
+  const secondaryUnit = inputUnit === 'gaz' ? 'Meters' : 'Gaz (Yards)';
 
   const handlePrint = () => {
     window.print();
@@ -134,12 +163,22 @@ export default function ViewDeliveryOrder() {
                        <p className="text-sm font-black text-gray-900">{order.gray_lot?.quality}</p>
                     </div>
                     <div className="flex justify-between items-center mb-2">
-                       <p className="text-xs font-bold text-gray-400 uppercase">Gray Gazana</p>
-                       <p className="text-sm font-black text-gray-900">{order.total_gray_gazana} {order.gray_lot?.measurement}</p>
+                       <p className="text-xs font-bold text-gray-400 uppercase">Gray Qty</p>
+                       <div className="text-right">
+                         <p className="text-sm font-black text-gray-900">{displayGrayQty} <span className="text-xs font-semibold text-gray-400">{unitLabelFull}</span></p>
+                         <p className="text-[10px] text-gray-500 font-bold tracking-tighter">≈ {secondaryGrayQty} {secondaryUnit}</p>
+                       </div>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                       <p className="text-xs font-bold text-gray-400 uppercase">Ready Qty</p>
+                       <div className="text-right">
+                         <p className="text-lg font-black text-blue-600">{displayReadyQty} <span className="text-xs font-semibold text-blue-400">{unitLabelFull}</span></p>
+                         <p className="text-[10px] text-blue-400 font-bold tracking-tighter">≈ {secondaryReadyQty} {secondaryUnit}</p>
+                       </div>
                     </div>
                     <div className="flex justify-between items-center">
-                       <p className="text-xs font-bold text-gray-400 uppercase">Ready Gazana</p>
-                       <p className="text-lg font-black text-blue-600">{order.total_ready_gazana} {order.gray_lot?.measurement}</p>
+                       <p className="text-xs font-bold text-gray-400 uppercase">Entry Unit</p>
+                       <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg ${ inputUnit === 'gaz' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>{unitLabelFull}</span>
                     </div>
                     {order.status === 'billed' && order.rate && (
                        <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
@@ -162,6 +201,7 @@ export default function ViewDeliveryOrder() {
               <div className="flex items-center gap-3 text-gray-400 print:text-black">
                  <FileText size={18} />
                  <h4 className="text-xs font-black uppercase tracking-widest">Fabric Distribution Grid</h4>
+                 <span className={`ml-auto px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg ${ inputUnit === 'gaz' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>Unit: {unitLabelFull}</span>
               </div>
               
               <div className="border border-gray-200 rounded-2xl overflow-x-auto print:border-gray-300">
@@ -179,8 +219,8 @@ export default function ViewDeliveryOrder() {
                       <th className="border border-gray-700 px-2 py-2 print:border-gray-300">#</th>
                       {colors.map(color => (
                         <React.Fragment key={color.id}>
-                          <th className="border border-gray-700 px-1 py-1 text-center font-medium print:border-gray-300">GRAY</th>
-                          <th className="border border-gray-700 px-1 py-1 text-center font-medium print:border-gray-300">RDY</th>
+                          <th className="border border-gray-700 px-1 py-1 text-center font-medium print:border-gray-300">GRAY ({unitLabel})</th>
+                          <th className="border border-gray-700 px-1 py-1 text-center font-medium print:border-gray-300">RDY ({unitLabel})</th>
                         </React.Fragment>
                       ))}
                     </tr>

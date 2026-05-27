@@ -3,38 +3,37 @@
     "private": true,
     "version": "0.0.1",
     "description": "Admin Dashboard ERP Desktop App",
-"author": "AppleChoice",
+    "author": "AppleChoice",
     "type": "module",
     "main": "electron/main.js",
-   "scripts": {
-  "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-  "build": "vite build",
-  "dist": "npm run build && electron-builder",
-  "dist:mac": "npm run build && electron-builder --mac",
-  "dist:win": "npm run build && electron-builder --win --x64",
-  "start": "electron ."
-},
-
-"build": {
-  "appId": "com.myapp.desktop",
-  "productName": "Shan Dyeing ERP",
-  "files": [
-    "dist/**/*",
-    "electron/**/*",
-    "package.json"
-  ],
-  "win": {
-    "target": "nsis",
-    "executableName": "ShanDyeingERP",
-    "artifactName": "${productName}-Setup.${ext}",
-    "icon": "build/favicon.ico"
-  },
-   "mac": {
-    "target": "dmg",
-    "icon": "build/favicon.icns"
-  },
-  "asar": true
-},
+    "scripts": {
+        "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+        "build": "vite build",
+        "dist": "npm run build && electron-builder",
+        "dist:mac": "npm run build && electron-builder --mac",
+        "dist:win": "npm run build && electron-builder --win --x64",
+        "start": "electron ."
+    },
+    "build": {
+        "appId": "com.myapp.desktop",
+        "productName": "Shan Dyeing ERP",
+        "files": [
+            "dist/**/*",
+            "electron/**/*",
+            "package.json"
+        ],
+        "win": {
+            "target": "nsis",
+            "executableName": "ShanDyeingERP",
+            "artifactName": "${productName}-Setup.${ext}",
+            "icon": "build/favicon.ico"
+        },
+        "mac": {
+            "target": "dmg",
+            "icon": "build/favicon.icns"
+        },
+        "asar": true
+    },
     "dependencies": {
         "@emotion/react": "11.14.0",
         "@emotion/styled": "11.14.1",
@@ -92,7 +91,8 @@
         "sonner": "2.0.3",
         "tailwind-merge": "3.2.0",
         "tw-animate-css": "1.3.8",
-        "vaul": "1.1.2"
+        "vaul": "1.1.2",
+        "xlsx": "^0.18.5"
     },
     "devDependencies": {
         "@tailwindcss/vite": "4.1.12",

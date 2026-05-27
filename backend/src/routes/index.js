@@ -33,6 +33,7 @@ router.post("/customers/:id/bulk-payment", customerController.addBulkPayment);
 
 router.get("/delivery-orders", deliveryOrderController.getDeliveryOrders);
 router.get("/delivery-orders/:id", deliveryOrderController.getDeliveryOrderById);
+router.put("/delivery-orders/:id", deliveryOrderController.updateDeliveryOrder);
 router.post("/delivery-orders", deliveryOrderController.createDeliveryOrder);
 router.put("/delivery-orders/:id/invoice", deliveryOrderController.generateInvoice);
 router.delete("/delivery-orders/:id/invoice", deliveryOrderController.deleteInvoice);
@@ -65,6 +66,8 @@ router.get("/reports/ledger", dashboardController.getLedgerReport);
 router.get("/reports/outstanding", dashboardController.getOutstandingReport);
 router.get("/reports/stock", dashboardController.getStockReport);
 router.get("/reports/stock/quality", dashboardController.getQualityStockReport);
+router.get("/reports/payments", dashboardController.getPaymentsReport);
+router.get("/reports/invoices", dashboardController.getInvoicesReport);
 
 router.post("/auth/login", authController.login);
 
