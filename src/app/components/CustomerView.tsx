@@ -212,7 +212,7 @@ export default function CustomerView() {
                   </div>
                 </div>
                 <div className="p-6 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 text-white">
-                  <h5 className="font-semibold mb-2">Customer Credit Limit</h5>
+                  <h5 className="font-semibold mb-2 text-white">Customer Credit Limit</h5>
                   <p className="text-xs text-slate-400 mb-4">Set a maximum credit limit for this customer to manage risk.</p>
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-xl font-bold">Rs {Number(customer.credit_limit || 0).toLocaleString()}</span>

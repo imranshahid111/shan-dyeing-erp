@@ -20,7 +20,7 @@ type CellField = 'gray' | 'ready';
 
 const createRow = (rowNumber: number): GridRow => ({
   id: `${Date.now()}-${rowNumber}-${Math.random()}`,
-  rowNumber,
+  rowNumber, // This will now be 1, 2, 3, etc.
   values: {},
 });
 
@@ -56,10 +56,9 @@ export default function CreateDeliveryOrder() {
     }))
   );
 
-  const [rows, setRows] = useState<GridRow[]>(
-    Array.from({ length: 10 }, (_, index) => createRow(index))
-  );
-
+ const [rows, setRows] = useState<GridRow[]>(
+  Array.from({ length: 10 }, (_, index) => createRow(index + 1)) // Change index to index + 1
+);
   const [headerInputs, setHeaderInputs] = useState<Record<string, { gray: string; ready: string }>>({});
 
 
@@ -135,18 +134,19 @@ export default function CreateDeliveryOrder() {
     setColors(prev => prev.map(c => (c.id === colorId ? { ...c, name: newName } : c)));
   };
 
-  const addRow = () => setRows(prev => [...prev, createRow(prev.length)]);
+const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]); 
+
 
   const removeLastRow = () =>
     setRows(prev => (prev.length <= 1 ? prev : prev.slice(0, -1)));
 
-  const addRowAndFocus = (rowIndex: number, colorIndex: number, field: CellField) => {
-    pendingFocusRef.current = { rowIndex, colorIndex, field };
-    setRows(prev => {
-      if (rowIndex < prev.length) return prev;
-      return [...prev, createRow(prev.length)];
-    });
-  };
+ const addRowAndFocus = (rowIndex: number, colorIndex: number, field: CellField) => {
+  pendingFocusRef.current = { rowIndex, colorIndex, field };
+  setRows(prev => {
+    if (rowIndex < prev.length) return prev;
+    return [...prev, createRow(prev.length + 1)]; // +1 for next serial number
+  });
+};
 
   const updateCellValue = (rowId: string, colorId: string, field: CellField, value: string) => {
     const val = Math.max(0, parseFloat(value) || 0);
@@ -322,6 +322,8 @@ export default function CreateDeliveryOrder() {
     if (!selectedLot) return;
 
     const grayAmount = calculateTotalGray();
+    const readyAmount = calculateTotalReady();
+
     // lot.remaining is always in meters; convert entered amount to meters before comparing
     const grayAmountInMeters = convertToMeter(grayAmount);
     if (grayAmountInMeters > selectedLot.remaining) {
@@ -329,9 +331,13 @@ export default function CreateDeliveryOrder() {
       return;
     }
 
+    if (readyAmount > grayAmount) {
+      toast.error('Total Ready quantity cannot be greater than Total Gray quantity.');
+      return;
+    }
+
     try {
       setSaving(true);
-      const readyAmount = calculateTotalReady();
       const payload = {
         gray_lot_id: selectedLot.id,
         // Totals always sent in meters to backend for lot balance tracking
@@ -499,8 +505,14 @@ export default function CreateDeliveryOrder() {
                     <span className="text-sm text-gray-600">Total Gray Qty</span>
                     <span className="text-sm font-medium text-gray-800">{selectedLot.totalGray}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Remaining Qty</span>
+                  {(selectedLot.returned || 0) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-red-600 font-medium">Returned / Damaged</span>
+                      <span className="text-sm font-bold text-red-600">{selectedLot.returned}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-blue-100 pt-2 mt-2">
+                    <span className="text-sm text-gray-600">Available Ready Qty</span>
                     <span className="text-sm font-semibold text-blue-600">{selectedLot.remaining}</span>
                   </div>
                 </div>
@@ -552,7 +564,7 @@ export default function CreateDeliveryOrder() {
               <div className="pt-2">
                 <button
                   className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                  disabled={!selectedLot || calculateTotalGray() > (selectedLot?.remaining || 0) || saving}
+                  disabled={!selectedLot || calculateTotalGray() > (selectedLot?.remaining || 0) || calculateTotalReady() > calculateTotalGray() || saving}
                   onClick={handleSaveDO}
                 >
                   <Save size={18} />
@@ -561,6 +573,11 @@ export default function CreateDeliveryOrder() {
                 {selectedLot && calculateTotalGray() > selectedLot.remaining && (
                   <p className="text-red-500 text-xs mt-2 text-center">
                     Gray miqdar remaining ({selectedLot.remaining}) se zyada hai
+                  </p>
+                )}
+                {calculateTotalReady() > calculateTotalGray() && (
+                  <p className="text-red-500 text-xs mt-2 text-center">
+                    Ready miqdar Gray se zyada nahi ho sakti
                   </p>
                 )}
               </div>
@@ -649,6 +666,7 @@ export default function CreateDeliveryOrder() {
                             value={headerInputs[color.id]?.gray || ''}
                             onChange={(e) => updateHeaderInput(color.id, 'gray', e.target.value)}
                             onKeyDown={(e) => handleHeaderKeyDown(e, color.id, 'gray')}
+                            onKeyPress={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
                             placeholder="Add..."
                             className="w-full h-8 px-2 text-center text-xs font-bold text-blue-700 bg-white/50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
@@ -661,6 +679,7 @@ export default function CreateDeliveryOrder() {
                             value={headerInputs[color.id]?.ready || ''}
                             onChange={(e) => updateHeaderInput(color.id, 'ready', e.target.value)}
                             onKeyDown={(e) => handleHeaderKeyDown(e, color.id, 'ready')}
+                            onKeyPress={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
                             placeholder="Add..."
                             className="w-full h-8 px-2 text-center text-xs font-bold text-blue-700 bg-white/50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
@@ -687,6 +706,7 @@ export default function CreateDeliveryOrder() {
                               value={getCellValue(row, color.id, 'gray')}
                               onChange={e => updateCellValue(row.id, color.id, 'gray', e.target.value)}
                               onKeyDown={e => handleCellKeyDown(e, rowIndex, colorIndex, 'gray')}
+                              onKeyPress={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
                               onFocus={(e) => e.target.select()}
                               placeholder="0"
                               className="w-full h-8 px-2 text-center text-xs bg-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -701,6 +721,7 @@ export default function CreateDeliveryOrder() {
                               value={getCellValue(row, color.id, 'ready')}
                               onChange={e => updateCellValue(row.id, color.id, 'ready', e.target.value)}
                               onKeyDown={e => handleCellKeyDown(e, rowIndex, colorIndex, 'ready')}
+                              onKeyPress={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
                               onFocus={(e) => e.target.select()}
                               placeholder="0"
                               className="w-full h-8 px-2 text-center text-xs bg-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"

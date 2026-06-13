@@ -4,7 +4,6 @@ module.exports = (sequelize, DataTypes) =>
     {
       id: { type: DataTypes.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true },
       gate_pass_no: { type: DataTypes.STRING(60), allowNull: false, unique: true },
-      delivery_order_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false, unique: true },
       gate_pass_date: { type: DataTypes.DATEONLY, allowNull: false },
       vehicle_no: { type: DataTypes.STRING(60), allowNull: true },
       driver_name: { type: DataTypes.STRING(120), allowNull: true },
@@ -14,7 +13,7 @@ module.exports = (sequelize, DataTypes) =>
     {
       indexes: [
         { name: "idx_gate_pass_no", unique: true, fields: ["gate_pass_no"] },
-        { name: "idx_gate_delivery_order", unique: true, fields: ["delivery_order_id"] },
       ],
     }
   );
+

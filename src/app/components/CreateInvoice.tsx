@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { FileText, Printer, Download, ArrowLeft } from 'lucide-react';
+import { FileText, Printer, ArrowLeft, Search, ChevronDown, Check } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
 import { toast } from 'sonner';
 
@@ -9,18 +9,41 @@ export default function CreateInvoice() {
   const location = useLocation();
   const [dos, setDos] = useState<DeliveryOrderItem[]>([]);
   const [selectedDO, setSelectedDO] = useState<DeliveryOrderItem | null>(null);
+  
+  const [doSearch, setDoSearch] = useState('');
+  const [isDoDropdownOpen, setIsDoDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
   const [rate, setRate] = useState(0);
   const [rateInput, setRateInput] = useState('0');
   const [discountType, setDiscountType] = useState<'flat' | 'percentage'>('percentage');
   const [discountValue, setDiscountValue] = useState(0);
   const [discountInput, setDiscountInput] = useState('0');
+  
   const [kinarCutAmount, setKinarCutAmount] = useState(0);
   const [kinarCutInput, setKinarCutInput] = useState('0');
+  const [kinarCutType, setKinarCutType] = useState<'flat' | 'per_unit'>('flat');
+  
   const [packingAmount, setPackingAmount] = useState(0);
   const [packingInput, setPackingInput] = useState('0');
+  const [packingType, setPackingType] = useState<'flat' | 'per_unit'>('flat');
+  
+  const [kinarCutQtyInput, setKinarCutQtyInput] = useState('');
+  const [packingQtyInput, setPackingQtyInput] = useState('');
+  
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rateUnit, setRateUnit] = useState<'meter' | 'yard'>('meter');
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDoDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
 
   useEffect(() => {
@@ -54,7 +77,19 @@ export default function CreateInvoice() {
 
   const discountAmount =
     discountType === 'percentage' ? (grossAmount * discountValue) / 100 : discountValue;
-  const netAmount = grossAmount - discountAmount + kinarCutAmount + packingAmount;
+    
+  const finalKinarCutQty = kinarCutQtyInput === '' ? effectiveQuantity : (parseFloat(kinarCutQtyInput) || 0);
+  const kinarCutTotal = kinarCutType === 'per_unit' ? kinarCutAmount * finalKinarCutQty : kinarCutAmount;
+
+  const finalPackingQty = packingQtyInput === '' ? effectiveQuantity : (parseFloat(packingQtyInput) || 0);
+  const packingTotal = packingType === 'per_unit' ? packingAmount * finalPackingQty : packingAmount;
+  
+  const netAmount = grossAmount - discountAmount + kinarCutTotal + packingTotal;
+
+  const filteredDOs = dos.filter(d => 
+    d.order_no.toLowerCase().includes(doSearch.toLowerCase()) || 
+    (d.customer?.name || '').toLowerCase().includes(doSearch.toLowerCase())
+  );
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -71,22 +106,66 @@ export default function CreateInvoice() {
       {/* DO Selection */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Select Delivery Order</h3>
-        <select
-          className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-          disabled={loading}
-          onChange={(e) => {
-            const doItem = dos.find((d) => String(d.id) === e.target.value);
-            setSelectedDO(doItem || null);
-          }}
-          value={selectedDO?.id || ''}
-        >
-          <option value="">{loading ? 'Loading DOs...' : 'Choose DO...'}</option>
-          {dos.map((doItem) => (
-            <option key={doItem.id} value={doItem.id}>
-              {doItem.order_no} - {doItem.customer?.name}
-            </option>
-          ))}
-        </select>
+        <div className="relative" ref={dropdownRef}>
+          <div 
+            className={`w-full px-4 py-3 rounded-xl border ${isDoDropdownOpen ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'} bg-white flex items-center justify-between cursor-pointer transition-all ${loading ? 'opacity-50 pointer-events-none' : ''}`}
+            onClick={() => setIsDoDropdownOpen(!isDoDropdownOpen)}
+          >
+            <div className="flex flex-col">
+              {selectedDO ? (
+                <>
+                  <span className="font-bold text-gray-800">{selectedDO.order_no}</span>
+                  <span className="text-xs text-gray-500">{selectedDO.customer?.name}</span>
+                </>
+              ) : (
+                <span className="text-gray-500">{loading ? 'Loading DOs...' : 'Choose Delivery Order...'}</span>
+              )}
+            </div>
+            <ChevronDown size={20} className={`text-gray-400 transition-transform ${isDoDropdownOpen ? 'rotate-180' : ''}`} />
+          </div>
+
+          {isDoDropdownOpen && (
+            <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden flex flex-col">
+              <div className="p-3 border-b border-gray-100 bg-gray-50/50">
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
+                    placeholder="Search by DO number or party name..."
+                    value={doSearch}
+                    onChange={(e) => setDoSearch(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <div className="max-h-60 overflow-y-auto">
+                {filteredDOs.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-gray-500">No delivery orders found</div>
+                ) : (
+                  filteredDOs.map((doItem) => (
+                    <div 
+                      key={doItem.id} 
+                      className={`px-4 py-3 hover:bg-blue-50 cursor-pointer flex items-center justify-between border-b border-gray-50 last:border-0 ${selectedDO?.id === doItem.id ? 'bg-blue-50/50' : ''}`}
+                      onClick={() => {
+                        setSelectedDO(doItem);
+                        setIsDoDropdownOpen(false);
+                        setDoSearch('');
+                      }}
+                    >
+                      <div>
+                        <div className="font-bold text-gray-800">{doItem.order_no}</div>
+                        <div className="text-xs text-gray-500">{doItem.customer?.name}</div>
+                      </div>
+                      {selectedDO?.id === doItem.id && <Check size={18} className="text-blue-600" />}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         {selectedDO && (
           <div className="mt-4 grid grid-cols-3 gap-4">
@@ -170,49 +249,123 @@ export default function CreateInvoice() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-gray-600 mb-2">Kinar Cut Amount (Rs)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={kinarCutInput}
-                  onChange={(e) => {
-                    setKinarCutInput(e.target.value);
-                    setKinarCutAmount(parseFloat(e.target.value) || 0);
-                  }}
-                  onBlur={() => {
-                    if (kinarCutInput === '' || isNaN(parseFloat(kinarCutInput))) {
-                      setKinarCutInput('0');
-                      setKinarCutAmount(0);
-                    }
-                  }}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="0.00"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <label className="block text-sm text-gray-600">Kinar Cut Amount</label>
+                  <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                    <button 
+                      type="button"
+                      onClick={() => setKinarCutType('flat')}
+                      className={`text-[10px] px-2 py-1 rounded-md font-bold uppercase ${kinarCutType === 'flat' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      Flat
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setKinarCutType('per_unit')}
+                      className={`text-[10px] px-2 py-1 rounded-md font-bold uppercase ${kinarCutType === 'per_unit' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      Per {rateUnit === 'meter' ? 'Mtr' : 'Gaz'}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-semibold">Rs</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={kinarCutInput}
+                      onChange={(e) => {
+                        setKinarCutInput(e.target.value);
+                        setKinarCutAmount(parseFloat(e.target.value) || 0);
+                      }}
+                      onBlur={() => {
+                        if (kinarCutInput === '' || isNaN(parseFloat(kinarCutInput))) {
+                          setKinarCutInput('0');
+                          setKinarCutAmount(0);
+                        }
+                      }}
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  {kinarCutType === 'per_unit' && (
+                    <div className="relative flex-1">
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold uppercase">{rateUnit === 'meter' ? 'Mtr' : 'Gaz'}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={kinarCutQtyInput}
+                        onChange={(e) => setKinarCutQtyInput(e.target.value)}
+                        className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder={effectiveQuantity.toFixed(2)}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm text-gray-600 mb-2">Packing Amount (Rs)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={packingInput}
-                  onChange={(e) => {
-                    setPackingInput(e.target.value);
-                    setPackingAmount(parseFloat(e.target.value) || 0);
-                  }}
-                  onBlur={() => {
-                    if (packingInput === '' || isNaN(parseFloat(packingInput))) {
-                      setPackingInput('0');
-                      setPackingAmount(0);
-                    }
-                  }}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="0.00"
-                />
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <label className="block text-sm text-gray-600">Packing Amount</label>
+                  <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                    <button 
+                      type="button"
+                      onClick={() => setPackingType('flat')}
+                      className={`text-[10px] px-2 py-1 rounded-md font-bold uppercase ${packingType === 'flat' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      Flat
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setPackingType('per_unit')}
+                      className={`text-[10px] px-2 py-1 rounded-md font-bold uppercase ${packingType === 'per_unit' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      Per {rateUnit === 'meter' ? 'Mtr' : 'Gaz'}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-semibold">Rs</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={packingInput}
+                      onChange={(e) => {
+                        setPackingInput(e.target.value);
+                        setPackingAmount(parseFloat(e.target.value) || 0);
+                      }}
+                      onBlur={() => {
+                        if (packingInput === '' || isNaN(parseFloat(packingInput))) {
+                          setPackingInput('0');
+                          setPackingAmount(0);
+                        }
+                      }}
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  {packingType === 'per_unit' && (
+                    <div className="relative flex-1">
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold uppercase">{rateUnit === 'meter' ? 'Mtr' : 'Gaz'}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={packingQtyInput}
+                        onChange={(e) => setPackingQtyInput(e.target.value)}
+                        className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder={effectiveQuantity.toFixed(2)}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -282,7 +435,16 @@ export default function CreateInvoice() {
                 if (!selectedDO || isSubmitting) return;
                 try {
                   setIsSubmitting(true);
-                  await deliveryOrderService.generateInvoice(selectedDO.id, netAmount, rate, rateUnit, kinarCutAmount, packingAmount);
+                  await deliveryOrderService.generateInvoice(
+                    selectedDO.id, 
+                    netAmount, 
+                    rate, 
+                    rateUnit, 
+                    kinarCutTotal, 
+                    packingTotal,
+                    kinarCutType === 'per_unit' ? finalKinarCutQty : undefined,
+                    packingType === 'per_unit' ? finalPackingQty : undefined
+                  );
                   toast.success("Invoice generated and customer ledger updated!");
                   navigate('/billing');
                 } catch (err) {

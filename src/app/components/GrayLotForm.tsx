@@ -164,6 +164,7 @@ export default function GrayLotForm() {
 
       navigate('/gray-lots');
     } catch (error) {
+      console.log(error);
       setSubmitError('Gray lot save failed. Please check backend connection.');
     } finally {
       setIsSubmitting(false);
@@ -319,9 +320,13 @@ export default function GrayLotForm() {
                   ref={thanRef}
                   disabled={isView}
                   type="number"
+                  min="0"
                   placeholder="0"
                   value={formData.than || ''}
-                  onChange={(e) => setFormData({ ...formData, than: Number(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, than: Math.max(0, Number(e.target.value)) })}
+                  onKeyPress={(e) => {
+                    if (e.key === '-' || e.key === 'e') e.preventDefault();
+                  }}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:bg-gray-50 disabled:text-gray-500"
                   onKeyDown={(e) => handleKeyDown(e, 6)}
                 />
@@ -332,9 +337,14 @@ export default function GrayLotForm() {
                   ref={gazanaRef}
                   disabled={isView}
                   type="number"
+                  min="0"
+                  step="0.01"
                   placeholder="0.00"
                   value={formData.gazana || ''}
-                  onChange={(e) => setFormData({ ...formData, gazana: Number(e.target.value) })}
+                  onChange={(e) => setFormData({ ...formData, gazana: Math.max(0, Number(e.target.value)) })}
+                  onKeyPress={(e) => {
+                    if (e.key === '-' || e.key === 'e') e.preventDefault();
+                  }}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:bg-gray-50 disabled:text-gray-500"
                   onKeyDown={(e) => handleKeyDown(e, 7)}
                 />

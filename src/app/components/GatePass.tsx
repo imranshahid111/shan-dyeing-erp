@@ -1,30 +1,32 @@
 //@ts-nocheck
 import { useState, useEffect } from 'react';
-import { Printer, Save, ClipboardCheck, Loader2, Plus, Search, CalendarDays, Hash, ArrowLeft, Truck, User, Eye, X, Trash2 } from 'lucide-react';
+import { Printer, Save, ClipboardCheck, Loader2, Plus, Search, CalendarDays, Hash, ArrowLeft, Truck, User, Trash2, X } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
-import { gatePassService, GatePassItem } from '../services/gatePassService';
+import { gatePassService, GatePassItem, GatePassDOItem } from '../services/gatePassService';
 import { organizationService } from '../services/organizationService';
-import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import { toast } from 'sonner';
-import { PDFGatePass } from './PDFGatePass';
+import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
+import { PDFGatePass } from './PDFGatePass'; // Make sure the path is correct
+// GatePass.tsx - Imports section mein yeh add karo
+import { pdf } from '@react-pdf/renderer';
+
+interface FormDORow {
+  delivery_order_id: number;
+  order_no: string;
+  party_name: string;
+  lot_no: string;
+  description: string;
+  bundles: string;
+  gazana_total: string;
+}
 
 export default function GatePass() {
-  // Navigation / View state
   const [showAddForm, setShowAddForm] = useState(false);
-
-  // List states
   const [gatePasses, setGatePasses] = useState<GatePassItem[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [search, setSearch] = useState('');
-
-  // Selected Gate Pass for high-fidelity PDF viewing modal
-  const [selectedGatePassForView, setSelectedGatePassForView] = useState<GatePassItem | null>(null);
-  const [org, setOrg] = useState<any>(null);
-
-  // Form states
   const [deliveryOrders, setDeliveryOrders] = useState<DeliveryOrderItem[]>([]);
   const [gatePassNo, setGatePassNo] = useState('');
-  const [selectedDO, setSelectedDO] = useState<DeliveryOrderItem | null>(null);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [vehicleNo, setVehicleNo] = useState('');
   const [driverName, setDriverName] = useState('');
@@ -33,799 +35,374 @@ export default function GatePass() {
   const [isSaving, setIsSaving] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [canDelete, setCanDelete] = useState(true);
+  const [doRows, setDoRows] = useState<FormDORow[]>([]);
+  const [doSearch, setDoSearch] = useState('');
+  const [doDropdownOpen, setDoDropdownOpen] = useState(false);
+  const [organization, setOrganization] = useState<any>(null);
 
-  // Fetch Delivery Orders and Next Number for Form
+  const fetchGatePassHistory = async () => {
+    try { setLoadingList(true); const res = await gatePassService.getGatePasses(); setGatePasses(res || []); }
+    catch (err) { console.error(err); } finally { setLoadingList(false); }
+  };
+
   const fetchDOsAndGPNo = async () => {
     try {
       setLoadingOrders(true);
-      const doRes = await deliveryOrderService.getDeliveryOrders('', 1, 200);
+      const [doRes, gpRes] = await Promise.all([
+        deliveryOrderService.getDeliveryOrders('', 1, 500),
+        gatePassService.getNextGatePassNumber()
+      ]);
       setDeliveryOrders(doRes.data || []);
-
-      const gpRes = await gatePassService.getNextGatePassNumber();
       setGatePassNo(gpRes.nextNumber || 'GP-0001');
-    } catch (err) {
-      console.error("Failed to load initial gate pass data:", err);
-    } finally {
-      setLoadingOrders(false);
-    }
-  };
-
-  // Fetch Gate Pass list history
-  const fetchGatePassHistory = async () => {
-    try {
-      setLoadingList(true);
-      const res = await gatePassService.getGatePasses();
-      setGatePasses(res || []);
-    } catch (err) {
-      console.error("Failed to load gate passes:", err);
-    } finally {
-      setLoadingList(false);
-    }
-  };
-
-  // Delete Gate Pass and free up associated Delivery Order
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this Gate Pass? This will free up the associated Delivery Order reference.')) return;
-    try {
-      await gatePassService.deleteGatePass(id);
-      toast.success('Gate Pass deleted successfully!');
-      fetchGatePassHistory();
-    } catch (err: any) {
-      console.error("Failed to delete Gate Pass:", err);
-      toast.error(err.response?.data?.message || 'Failed to delete Gate Pass');
-    }
+    } catch (err) { console.error(err); } finally { setLoadingOrders(false); }
   };
 
   useEffect(() => {
     fetchGatePassHistory();
-    // Fetch Organization details once
-    organizationService.getOrganization().then(setOrg).catch(console.error);
-
-    // Parse user privileges
+    organizationService.getOrganization().then(org => setOrganization(org)).catch(console.error);
     try {
       const saved = localStorage.getItem('erp_user');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.role === 'admin') {
-          setCanDelete(true);
-        } else {
-          setCanDelete(parsed.privileges?.can_delete ?? false);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
+      if (saved) { const p = JSON.parse(saved); setCanDelete(p.role === 'admin' ? true : (p.privileges?.can_delete ?? false)); }
+    } catch (e) { console.error(e); }
   }, []);
 
-  const handleOpenAddForm = () => {
-    fetchDOsAndGPNo();
-    setShowAddForm(true);
+  const handleOpenAddForm = () => { fetchDOsAndGPNo(); setShowAddForm(true); };
+
+  const resetForm = () => {
+    setShowAddForm(false); setDoRows([]); setVehicleNo(''); setDriverName('');
+    setDriverMobile(''); setNotes(''); setDoSearch('');
   };
 
-  const handleCloseAddForm = () => {
-    setShowAddForm(false);
-    setSelectedDO(null);
-    setVehicleNo('');
-    setDriverName('');
-    setDriverMobile('');
-    setNotes('');
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('Delete this Gate Pass?')) return;
+    try { await gatePassService.deleteGatePass(id); toast.success('Deleted!'); fetchGatePassHistory(); }
+    catch (err: any) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
-  // Filter Delivery Orders to only show those that do NOT have a Gate Pass already
-  const availableDOs = deliveryOrders.filter(order => !order.gate_pass);
+  // Available DOs not already added in form rows
+  const usedIds = doRows.map(r => r.delivery_order_id);
+  const availableDOs = deliveryOrders.filter(o => !usedIds.includes(o.id));
+  const filteredAvailable = availableDOs.filter(o =>
+    o.order_no.toLowerCase().includes(doSearch.toLowerCase()) ||
+    (o.customer?.name || '').toLowerCase().includes(doSearch.toLowerCase())
+  );
+
+  const addDOToRows = (o: DeliveryOrderItem) => {
+    setDoRows(prev => [...prev, {
+      delivery_order_id: o.id,
+      order_no: o.order_no,
+      party_name: o.customer?.name || '',
+      lot_no: (o as any).gray_lot?.lot_no || '',
+      description: '',
+      bundles: '0',
+      gazana_total: String(Number(o.total_gray_gazana || 0)),
+    }]);
+    setDoSearch(''); setDoDropdownOpen(false);
+  };
+
+  const removeDORow = (idx: number) => setDoRows(prev => prev.filter((_, i) => i !== idx));
+
+  const updateRow = (idx: number, field: string, val: string) =>
+    setDoRows(prev => prev.map((r, i) => i === idx ? { ...r, [field]: val } : r));
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDO) {
-      toast.error("Please select a Delivery Order reference.");
-      return;
-    }
-
+    if (doRows.length === 0) { toast.error('Add at least one Delivery Order'); return; }
     try {
       setIsSaving(true);
       await gatePassService.createGatePass({
-        delivery_order_id: selectedDO.id,
-        gate_pass_date: date,
-        vehicle_no: vehicleNo,
-        driver_name: driverName,
-        driver_mobile: driverMobile,
-        notes: notes
+        gate_pass_date: date, vehicle_no: vehicleNo, driver_name: driverName,
+        driver_mobile: driverMobile, notes,
+        items: doRows.map(r => ({
+          delivery_order_id: r.delivery_order_id, order_no: r.order_no,
+          description: r.description, bundles: Number(r.bundles) || 0,
+          gazana_total: Number(r.gazana_total) || 0,
+        }))
       });
-
-      toast.success("Gate Pass saved successfully!");
-      handleCloseAddForm();
-      fetchGatePassHistory();
-    } catch (err: any) {
-      console.error("Failed to save Gate Pass:", err);
-      toast.error(err.response?.data?.message || "Failed to save Gate Pass.");
-    } finally {
-      setIsSaving(false);
-    }
+      toast.success('Gate Pass saved!'); resetForm(); fetchGatePassHistory();
+    } catch (err: any) { toast.error(err.response?.data?.message || 'Failed'); }
+    finally { setIsSaving(false); }
   };
 
-  // High fidelity printable pop-up generator
-  const handlePrintGatePass = (gp: GatePassItem) => {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Gate Pass ${gp.gate_pass_no}</title>
-            <style>
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-                padding: 40px;
-                color: #1e293b;
-                line-height: 1.5;
-              }
-              .gate-pass {
-                border: 2px solid #e2e8f0;
-                border-radius: 12px;
-                padding: 40px;
-                background: white;
-                max-width: 800px;
-                margin: 0 auto;
-                box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-              }
-              .header {
-                text-align: center;
-                border-bottom: 2px solid #e2e8f0;
-                padding-bottom: 20px;
-                margin-bottom: 30px;
-              }
-              .header h2 {
-                font-size: 26px;
-                font-weight: 900;
-                letter-spacing: 0.1em;
-                margin: 0;
-                color: #0f172a;
-              }
-              .header p {
-                font-size: 13px;
-                color: #64748b;
-                margin-top: 6px;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-              }
-              .grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 20px;
-                margin-bottom: 25px;
-              }
-              .grid-col p {
-                margin: 0;
-              }
-              .label {
-                font-size: 11px;
-                font-weight: 800;
-                text-transform: uppercase;
-                color: #64748b;
-                letter-spacing: 0.05em;
-              }
-              .value {
-                font-weight: 700;
-                color: #1e293b;
-                font-size: 15px;
-                margin-top: 4px !important;
-              }
-              .divider {
-                border-top: 1px solid #f1f5f9;
-                padding-top: 15px;
-                margin-bottom: 15px;
-              }
-              .signatures {
-                display: flex;
-                justify-content: space-between;
-                margin-top: 80px;
-                padding-top: 40px;
-              }
-              .sig-box {
-                border-top: 1.5px solid #94a3b8;
-                padding-top: 8px;
-                width: 40%;
-                text-align: center;
-                font-size: 12px;
-                font-weight: 700;
-                color: #64748b;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="gate-pass">
-              <div class="header">
-                <h2>GATE PASS</h2>
-                <p>Shan Dyeing — Textile Factory</p>
-              </div>
-              <div class="grid">
-                <div class="grid-col">
-                  <p class="label">Gate Pass No:</p>
-                  <p class="value">${gp.gate_pass_no}</p>
-                </div>
-                <div class="grid-col">
-                  <p class="label">Date:</p>
-                  <p class="value">${new Date(gp.gate_pass_date).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
-                </div>
-              </div>
-              <div class="divider">
-                <p class="label">Party Name / Customer:</p>
-                <p class="value">${gp.delivery_order?.customer?.name || '—'}</p>
-              </div>
-              <div class="divider">
-                <p class="label">DO Reference Number:</p>
-                <p class="value" style="font-family: monospace; font-weight: 800;">${gp.delivery_order?.order_no || '—'}</p>
-              </div>
-              <div class="divider">
-                <p class="label">Total Gazana:</p>
-                <p class="value">${gp.delivery_order ? `${Number(gp.delivery_order.total_gray_gazana || 0).toLocaleString()} GZ` : '—'}</p>
-              </div>
-              <div class="divider">
-                <p class="label">Vehicle Number:</p>
-                <p class="value">${gp.vehicle_no || '—'}</p>
-              </div>
-              <div class="divider">
-                <p class="label">Driver Name:</p>
-                <p class="value">${gp.driver_name || '—'}</p>
-              </div>
-              <div class="divider">
-                <p class="label">Driver Mobile:</p>
-                <p class="value">${gp.driver_mobile || '—'}</p>
-              </div>
-              <div class="divider" style="margin-bottom: 0;">
-                <p class="label">Additional Notes / Transport Details:</p>
-                <p class="value">${gp.notes || '—'}</p>
-              </div>
-              <div class="signatures">
-                <div class="sig-box">Security Signature</div>
-                <div class="sig-box">Authorized Signature</div>
-              </div>
-            </div>
-            <script>
-              window.onload = function() {
-                window.print();
-                window.close();
-              }
-            </script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
+// In GatePass.tsx - Updated handlePrint function
+const handlePrint = async (gp: GatePassItem) => {
+  try {
+    // Create PDF blob
+    const blob = await pdf(<PDFGatePass gp={gp} org={organization} />).toBlob();
+    const url = URL.createObjectURL(blob);
+    
+    // Open in new window for printing
+    const printWindow = window.open(url, '_blank', 'width=1100,height=800');
+    if (!printWindow) {
+      toast.error('Please allow popups to print');
+      return;
     }
-  };
-
-  const handlePrintCurrent = () => {
-    if (!selectedDO) return;
-    const currentGP: GatePassItem = {
-      id: 0,
-      gate_pass_no: gatePassNo,
-      gate_pass_date: date,
-      delivery_order_id: selectedDO.id,
-      vehicle_no: vehicleNo,
-      driver_name: driverName,
-      driver_mobile: driverMobile,
-      notes: notes,
-      delivery_order: selectedDO
+    
+    // Auto print after load
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+      }, 1000);
     };
-    handlePrintGatePass(currentGP);
+    
+    toast.success('Gate pass opened for printing');
+  } catch (error) {
+    console.error('Print error:', error);
+    toast.error('Failed to generate PDF for printing');
+  }
+};
+
+// For direct PDF download with 2 copies
+const handleDownloadPDF = async (gp: GatePassItem) => {
+  try {
+    const blob = await pdf(<PDFGatePass gp={gp} org={organization} />).toBlob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `GatePass_${gp.gate_pass_no}_2Copies.pdf`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success('PDF with 2 copies downloaded successfully!');
+  } catch (error) {
+    console.error('Download error:', error);
+    toast.error('Failed to download PDF');
+  }
+};
+
+  // Alternative: Direct download link
+  const handlePrintWithDownload = (gp: GatePassItem) => {
+    // This will open a new tab with PDF viewer
+    const pdfBlob = pdf(<PDFGatePass gp={gp} org={organization} />).toBlob();
+    const url = URL.createObjectURL(pdfBlob);
+    window.open(url, '_blank');
   };
 
-  const formField = (label: string, input: React.ReactNode) => (
-    <div>
-      <label className="form-label">{label}</label>
-      {input}
-    </div>
-  );
-
-  // Search filtering logic
-  const filteredGatePasses = gatePasses.filter(gp => {
-    const term = search.toLowerCase();
-    return (
-      gp.gate_pass_no.toLowerCase().includes(term) ||
-      (gp.driver_name || '').toLowerCase().includes(term) ||
-      (gp.vehicle_no || '').toLowerCase().includes(term) ||
-      (gp.delivery_order?.order_no || '').toLowerCase().includes(term) ||
-      (gp.delivery_order?.customer?.name || '').toLowerCase().includes(term)
-    );
+  const filtered = gatePasses.filter(gp => {
+    const t = search.toLowerCase();
+    const allDOs = (gp.items || []).map(it => `${it.delivery_order?.order_no} ${it.delivery_order?.customer?.name}`).join(' ').toLowerCase();
+    return gp.gate_pass_no.toLowerCase().includes(t) || (gp.driver_name || '').toLowerCase().includes(t) || (gp.vehicle_no || '').toLowerCase().includes(t) || allDOs.includes(t);
   });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--section-gap)' }}>
-      
-      {/* Page Header */}
       <div className="page-header">
         <div className="page-header-left">
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-            <ClipboardCheck size={22} style={{ color: 'var(--brand-500)' }} />
-            Gate Pass Management
+            <ClipboardCheck size={22} style={{ color: 'var(--brand-500)' }} />Gate Pass Management
           </h2>
-          <p>{showAddForm ? 'Create a new gate pass reference' : `${gatePasses.length} gate pass record(s) found`}</p>
+          <p>{showAddForm ? 'Create a new gate pass with multiple DOs' : `${gatePasses.length} gate pass record(s)`}</p>
         </div>
         <div>
-          {showAddForm ? (
-            <button className="btn btn-secondary" onClick={handleCloseAddForm}>
-              <ArrowLeft size={16} />
-              Back to List
-            </button>
-          ) : (
-            <button className="btn btn-primary" onClick={handleOpenAddForm}>
-              <Plus size={16} />
-              Add Gate Pass
-            </button>
-          )}
+          {showAddForm
+            ? <button className="btn btn-secondary" onClick={resetForm}><ArrowLeft size={16} />Back to List</button>
+            : <button className="btn btn-primary" onClick={handleOpenAddForm}><Plus size={16} />Add Gate Pass</button>
+          }
         </div>
       </div>
 
-      {/* Conditional View Rendering */}
       {!showAddForm ? (
-        /* List View */
         <div className="card">
-          {/* List Search Bar */}
           <div className="card-header">
             <div className="search-bar" style={{ maxWidth: '20rem', flex: 1 }}>
               <Search className="search-bar-icon" size={16} />
-              <input
-                type="text"
-                placeholder="Search by GP no, driver, DO..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
+              <input type="text" placeholder="Search GP, driver, DO..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <span className="badge badge-gray">{filteredGatePasses.length} Records</span>
+            <span className="badge badge-gray">{filtered.length} Records</span>
           </div>
-
-          {/* List Table */}
           <div style={{ overflowX: 'auto' }}>
             {loadingList ? (
-              <div className="loading-state">
-                <div className="loading-spinner" />
-                <p>Loading gate passes...</p>
-              </div>
-            ) : filteredGatePasses.length === 0 ? (
+              <div className="loading-state"><div className="loading-spinner" /><p>Loading...</p></div>
+            ) : filtered.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-state-icon"><ClipboardCheck size={26} /></div>
                 <p className="empty-state-title">No Gate Passes</p>
-                <p className="empty-state-desc">Create a new gate pass by clicking the "Add Gate Pass" button.</p>
-                <button className="btn btn-primary" style={{ marginTop: '1.25rem' }} onClick={handleOpenAddForm}>
-                  <Plus size={15} /> Create Gate Pass
-                </button>
+                <p className="empty-state-desc">Create one using "Add Gate Pass".</p>
+                <button className="btn btn-primary" style={{ marginTop: '1.25rem' }} onClick={handleOpenAddForm}><Plus size={15} />Create Gate Pass</button>
               </div>
             ) : (
               <table className="data-table">
-                <thead>
-                  <tr>
-                    <th><div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Hash size={12} />GP No</div></th>
-                    <th><div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><CalendarDays size={12} />Date</div></th>
-                    <th>DO Ref</th>
-                    <th>Customer Name</th>
-                    <th>Vehicle No</th>
-                    <th>Driver Details</th>
-                    <th style={{ textAlign: 'center' }}>Actions</th>
-                  </tr>
-                </thead>
+                <thead><tr>
+                  <th><div style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}><Hash size={12} />GP No</div></th>
+                  <th><div style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}><CalendarDays size={12} />Date</div></th>
+                  <th>DOs</th>
+                  <th>Vehicle / Driver</th>
+                  <th>Total Gazana</th>
+                  <th style={{ textAlign: 'center' }}>Actions</th>
+                </tr></thead>
                 <tbody>
-                  {filteredGatePasses.map((gp) => (
-                    <tr key={gp.id}>
-                      <td>
-                        <p style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--gray-900)', fontSize: '0.875rem' }}>
-                          {gp.gate_pass_no}
-                        </p>
-                      </td>
-                      <td style={{ color: 'var(--gray-500)', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
-                        {gp.gate_pass_date
-                          ? new Date(gp.gate_pass_date).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })
-                          : '—'}
-                      </td>
-                      <td>
-                        <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--brand-600)' }}>
-                          {gp.delivery_order?.order_no || '—'}
-                        </span>
-                      </td>
-                      <td>
-                        <p style={{ fontWeight: 600, color: 'var(--gray-800)' }}>
-                          {gp.delivery_order?.customer?.name || '—'}
-                        </p>
-                        {gp.delivery_order?.customer?.customer_code && (
-                          <p style={{ fontSize: '0.6875rem', color: 'var(--gray-400)' }}>
-                            {gp.delivery_order.customer.customer_code}
-                          </p>
-                        )}
-                      </td>
-                      <td style={{ color: 'var(--gray-700)', fontWeight: 500 }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <Truck size={13} style={{ color: 'var(--gray-400)' }} />
-                          {gp.vehicle_no || '—'}
-                        </span>
-                      </td>
-                      <td>
-                        <p style={{ fontWeight: 600, color: 'var(--gray-850)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <User size={13} style={{ color: 'var(--gray-400)' }} />
-                          {gp.driver_name || '—'}
-                        </p>
-                        {gp.driver_mobile && (
-                          <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginLeft: '17px' }}>{gp.driver_mobile}</p>
-                        )}
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}>
-                          <button
-                            className="row-action-btn view"
-                            onClick={() => setSelectedGatePassForView(gp)}
-                          >
-                            <Eye size={13} />
-                            View
-                          </button>
-                          <button
-                            className="icon-btn"
-                            title="Print Document"
-                            onClick={() => handlePrintGatePass(gp)}
-                          >
-                            <Printer size={13} />
-                          </button>
-                          {canDelete && (
-                            <button
-                              className="icon-btn danger"
-                              title="Delete Gate Pass"
-                              onClick={() => handleDelete(gp.id)}
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {filtered.map(gp => {
+                    const totalGaz = (gp.items || []).reduce((s, it) => s + Number(it.gazana_total || 0), 0);
+                    return (
+                      <tr key={gp.id}>
+                        <td><p style={{ fontFamily:'monospace', fontWeight:700, color:'var(--gray-900)', fontSize:'0.875rem' }}>{gp.gate_pass_no}</p></td>
+                        <td style={{ color:'var(--gray-500)', fontSize:'0.8125rem', whiteSpace:'nowrap' }}>
+                          {gp.gate_pass_date ? new Date(gp.gate_pass_date).toLocaleDateString('en-PK', { day:'2-digit', month:'short', year:'numeric' }) : '—'}
+                        </td>
+                        <td>
+                          {(gp.items || []).map((it, i) => (
+                            <div key={i} style={{ marginBottom: i < gp.items.length - 1 ? 4 : 0 }}>
+                              <span style={{ fontFamily:'monospace', fontWeight:600, color:'var(--brand-600)', fontSize:'0.8rem' }}>{it.delivery_order?.order_no || '—'}</span>
+                              <span style={{ fontSize:'0.7rem', color:'var(--gray-500)', marginLeft:4 }}>{it.delivery_order?.customer?.name || ''}</span>
+                            </div>
+                          ))}
+                        </td>
+                        <td>
+                          <div style={{ display:'flex', alignItems:'center', gap:4 }}><Truck size={13} style={{ color:'var(--gray-400)' }} /><span style={{ fontWeight:500 }}>{gp.vehicle_no || '—'}</span></div>
+                          <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:2 }}><User size={13} style={{ color:'var(--gray-400)' }} /><span style={{ fontSize:'0.8rem', color:'var(--gray-600)' }}>{gp.driver_name || '—'}</span></div>
+                        </td>
+                        <td><span style={{ fontWeight:700, color:'var(--brand-700)' }}>{totalGaz.toLocaleString()} GZ</span></td>
+                        <td style={{ textAlign: 'center' }}>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}>
+    {/* Print Button - Opens PDF for printing */}
+    {organization && (
+      <button 
+        className="icon-btn" 
+        title="Print Gate Pass (2 Copies)" 
+        onClick={() => handlePrint(gp)}
+        style={{ background: 'var(--brand-50)', color: 'var(--brand-600)' }}
+      >
+        <Printer size={13} />
+      </button>
+    )}
+    
+    {/* Download PDF Button */}
+    {organization && (
+      <button
+        className="icon-btn"
+        title="Download PDF (2 Copies)"
+        onClick={() => handleDownloadPDF(gp)}
+        style={{ background: 'var(--success-50)', color: 'var(--success-600)' }}
+      >
+        <Save size={13} />
+      </button>
+    )}
+    
+    {/* Delete Button */}
+    {canDelete && (
+      <button className="icon-btn danger" title="Delete" onClick={() => handleDelete(gp.id)}>
+        <Trash2 size={13} />
+      </button>
+    )}
+  </div>
+</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
           </div>
         </div>
       ) : (
-        /* Form View */
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1fr 1fr',
-          gap: '1.25rem', alignItems: 'start',
-        }}>
-          {/* Form Panel */}
+        <form onSubmit={handleSave} style={{ display:'flex', flexDirection:'column', gap:'1.25rem' }}>
+          {/* Header fields */}
+          <div className="card">
+            <div className="card-header"><h3 style={{ fontSize:'0.9375rem', fontWeight:700, margin:0 }}>Gate Pass Details</h3></div>
+            <div className="card-body" style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'1rem' }}>
+              <div><label className="form-label">Date</label><input type="date" className="input-field" value={date} onChange={e => setDate(e.target.value)} required /></div>
+              <div><label className="form-label">Gate Pass No</label><input type="text" className="input-field" value={gatePassNo} disabled /></div>
+              <div><label className="form-label">Vehicle Number</label><input type="text" className="input-field" placeholder="LHR-123" value={vehicleNo} onChange={e => setVehicleNo(e.target.value)} required /></div>
+              <div><label className="form-label">Driver Name</label><input type="text" className="input-field" placeholder="Driver name" value={driverName} onChange={e => setDriverName(e.target.value)} required /></div>
+              <div><label className="form-label">Driver Mobile</label><input type="tel" className="input-field" placeholder="+92 300 0000000" value={driverMobile} onChange={e => setDriverMobile(e.target.value)} required /></div>
+              <div><label className="form-label">Notes</label><input type="text" className="input-field" placeholder="Optional notes" value={notes} onChange={e => setNotes(e.target.value)} /></div>
+            </div>
+          </div>
+
+          {/* DO Table */}
           <div className="card">
             <div className="card-header">
-              <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--gray-900)', margin: 0 }}>
-                Gate Pass Details
-              </h3>
-            </div>
-            <form onSubmit={handleSave} className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                {formField('Date',
-                  <input
-                    type="date"
-                    className="input-field"
-                    value={date}
-                    onChange={e => setDate(e.target.value)}
-                    required
-                  />
-                )}
-                {formField('Gate Pass No',
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={gatePassNo}
-                    placeholder="Generating..."
-                    disabled
-                  />
-                )}
-              </div>
-
-              {formField('Delivery Order Reference',
-                <div style={{ position: 'relative' }}>
-                  <select
-                    className="input-field"
-                    value={selectedDO?.id || ''}
-                    onChange={e => {
-                      const selectedId = Number(e.target.value);
-                      const order = deliveryOrders.find(o => o.id === selectedId);
-                      setSelectedDO(order || null);
-                    }}
+              <h3 style={{ fontSize:'0.9375rem', fontWeight:700, margin:0 }}>Delivery Orders ({doRows.length})</h3>
+              {/* DO search dropdown */}
+              <div style={{ position:'relative', width:'280px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, background:'var(--gray-50)', border:'1px solid var(--gray-200)', borderRadius:'var(--radius-md)', padding:'6px 12px', cursor:'pointer' }}
+                  onClick={() => setDoDropdownOpen(v => !v)}>
+                  <Search size={14} style={{ color:'var(--gray-400)' }} />
+                  <input type="text" placeholder="Search & add DO..." value={doSearch}
+                    style={{ border:'none', background:'transparent', outline:'none', fontSize:'0.875rem', width:'100%' }}
+                    onChange={e => { setDoSearch(e.target.value); setDoDropdownOpen(true); }}
+                    onClick={e => { e.stopPropagation(); setDoDropdownOpen(true); }}
                     disabled={loadingOrders}
-                    required
-                  >
-                    <option value="">
-                      {loadingOrders ? 'Loading delivery orders...' : 'Select delivery order...'}
-                    </option>
-                    {availableDOs.map(order => (
-                      <option key={order.id} value={order.id}>
-                        {order.order_no} — {order.customer?.name}
-                      </option>
+                  />
+                </div>
+                {doDropdownOpen && filteredAvailable.length > 0 && (
+                  <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'white', border:'1px solid var(--gray-200)', borderRadius:'var(--radius-md)', boxShadow:'0 8px 24px rgba(0,0,0,.12)', zIndex:50, maxHeight:220, overflowY:'auto', marginTop:4 }}>
+                    {filteredAvailable.map(o => (
+                      <div key={o.id} onClick={() => addDOToRows(o)}
+                        style={{ padding:'8px 12px', cursor:'pointer', borderBottom:'1px solid var(--gray-50)' }}
+                        onMouseEnter={e => (e.currentTarget.style.background='var(--brand-50)')}
+                        onMouseLeave={e => (e.currentTarget.style.background='white')}>
+                        <div style={{ fontWeight:600, fontFamily:'monospace', fontSize:'0.85rem' }}>{o.order_no}</div>
+                        <div style={{ fontSize:'0.75rem', color:'var(--gray-500)' }}>{o.customer?.name} — {Number(o.total_gray_gazana || 0)} GZ</div>
+                      </div>
                     ))}
-                  </select>
-                  {loadingOrders && (
-                    <div style={{
-                      position: 'absolute',
-                      right: '10px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}>
-                      <Loader2 className="animate-spin text-blue-600" size={18} />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {selectedDO && (
-                <div style={{
-                  padding: '0.875rem 1rem',
-                  background: 'var(--brand-50)',
-                  border: '1.5px solid var(--brand-100)',
-                  borderRadius: 'var(--radius-md)',
-                }}>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--gray-500)', marginBottom: '0.25rem' }}>Customer / Party Name</p>
-                  <p style={{ fontWeight: 700, color: 'var(--gray-800)' }}>{selectedDO.customer?.name || '—'}</p>
-                  <p style={{ fontSize: '0.8125rem', color: 'var(--brand-600)', fontWeight: 600, marginTop: '0.25rem' }}>
-                    Total Gazana: {Number(selectedDO.total_gray_gazana).toLocaleString()} GZ
-                  </p>
-                </div>
-              )}
-
-              {formField('Vehicle Number',
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="e.g. LHR-123-ABC"
-                  value={vehicleNo}
-                  onChange={e => setVehicleNo(e.target.value)}
-                  required
-                />
-              )}
-
-              {formField('Driver Name',
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="Enter driver name"
-                  value={driverName}
-                  onChange={e => setDriverName(e.target.value)}
-                  required
-                />
-              )}
-
-              {formField('Driver Mobile',
-                <input
-                  type="tel"
-                  className="input-field"
-                  placeholder="+92 300 0000000"
-                  value={driverMobile}
-                  onChange={e => setDriverMobile(e.target.value)}
-                  required
-                />
-              )}
-
-              {formField('Notes',
-                <textarea
-                  className="input-field"
-                  placeholder="Additional transport details..."
-                  rows={3}
-                  style={{ resize: 'vertical' }}
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                />
-              )}
-
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '0.25rem' }}>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  style={{ flex: 1 }}
-                  disabled={isSaving}
-                >
-                  {isSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-                  {isSaving ? 'Saving Gate Pass...' : 'Save Gate Pass'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handlePrintCurrent}
-                  disabled={!selectedDO}
-                >
-                  <Printer size={16} />
-                  Print
-                </button>
+                  </div>
+                )}
               </div>
-            </form>
-          </div>
-
-          {/* Print Preview */}
-          <div className="card">
-            <div className="card-header">
-              <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--gray-900)', margin: 0 }}>
-                Print Preview
-              </h3>
-              <span className="badge badge-blue">Preview</span>
             </div>
-            <div className="card-body">
-              <div style={{
-                border: '2px solid var(--gray-200)',
-                borderRadius: 'var(--radius-md)',
-                padding: '2rem',
-                background: 'white',
-              }}>
-                {/* Header */}
-                <div style={{ textAlign: 'center', borderBottom: '2px solid var(--gray-200)', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
-                  <h2 style={{ fontSize: '1.5rem', fontWeight: 900, letterSpacing: '0.1em', margin: 0, color: 'var(--gray-900)' }}>
-                    GATE PASS
-                  </h2>
-                  <p style={{ fontSize: '0.8125rem', color: 'var(--gray-500)', marginTop: '0.375rem' }}>
-                    Shan Dyeing — Textile Factory
-                  </p>
+            <div style={{ overflowX:'auto' }}>
+              {doRows.length === 0 ? (
+                <div style={{ padding:'2rem', textAlign:'center', color:'var(--gray-400)' }}>
+                  <ClipboardCheck size={32} style={{ margin:'0 auto 0.5rem', opacity:0.3 }} />
+                  <p style={{ fontSize:'0.875rem' }}>Search and add Delivery Orders above</p>
                 </div>
-
-                {/* Details grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
-                  <div>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--gray-500)' }}>Gate Pass No:</p>
-                    <p style={{ fontWeight: 700, color: 'var(--gray-800)' }}>{gatePassNo || '—'}</p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--gray-500)' }}>Date:</p>
-                    <p style={{ fontWeight: 700, color: 'var(--gray-800)' }}>
-                      {new Date(date).toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' })}
-                    </p>
-                  </div>
-                </div>
-
-                <div style={{ borderTop: '1px solid var(--gray-150)', paddingTop: '1rem', marginBottom: '1rem' }}>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--gray-500)' }}>Party Name / Customer:</p>
-                  <p style={{ fontWeight: 700, color: 'var(--gray-800)' }}>{selectedDO?.customer?.name || '—'}</p>
-                </div>
-
-                <div style={{ borderTop: '1px solid var(--gray-150)', paddingTop: '1rem', marginBottom: '1rem' }}>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--gray-500)' }}>DO Reference Number:</p>
-                  <p style={{ fontWeight: 700, color: 'var(--gray-800)', fontFamily: 'monospace' }}>{selectedDO?.order_no || '—'}</p>
-                </div>
-
-                <div style={{ borderTop: '1px solid var(--gray-150)', paddingTop: '1rem', marginBottom: '1rem' }}>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--gray-500)', marginBottom: '0.5rem' }}>Vehicle & Driver Details:</p>
-                  <p style={{ color: 'var(--gray-700)', marginBottom: '0.375rem' }}>Vehicle: <strong>{vehicleNo || '_______________________'}</strong></p>
-                  <p style={{ color: 'var(--gray-700)', marginBottom: '0.375rem' }}>Driver: <strong>{driverName || '_______________________'}</strong></p>
-                  <p style={{ color: 'var(--gray-700)' }}>Mobile: <strong>{driverMobile || '_______________________'}</strong></p>
-                </div>
-
-                <div style={{ borderTop: '1px solid var(--gray-150)', paddingTop: '1rem', marginBottom: '1rem' }}>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--gray-500)' }}>Notes:</p>
-                  <p style={{ color: 'var(--gray-700)', fontSize: '0.8125rem' }}>{notes || '—'}</p>
-                </div>
-
-                {/* Signatures */}
-                <div style={{
-                  borderTop: '1px solid var(--gray-150)',
-                  paddingTop: '3.5rem', marginTop: '2rem',
-                  display: 'flex', justifyContent: 'space-between',
-                }}>
-                  <div style={{ borderTop: '1px solid var(--gray-400)', paddingTop: '0.5rem', width: '40%', textAlign: 'center' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--gray-500)' }}>Security Signature</p>
-                  </div>
-                  <div style={{ borderTop: '1px solid var(--gray-400)', paddingTop: '0.5rem', width: '40%', textAlign: 'center' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--gray-500)' }}>Authorized Signature</p>
-                  </div>
-                </div>
-              </div>
+              ) : (
+                <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                  <thead>
+                    <tr style={{ background:'var(--gray-50)', fontSize:'0.75rem', fontWeight:700, textTransform:'uppercase', color:'var(--gray-500)' }}>
+                      <th style={{ padding:'10px 12px', textAlign:'left', borderBottom:'1px solid var(--gray-200)' }}>DO No</th>
+                      <th style={{ padding:'10px 12px', textAlign:'left', borderBottom:'1px solid var(--gray-200)' }}>Lot No</th>
+                      <th style={{ padding:'10px 12px', textAlign:'left', borderBottom:'1px solid var(--gray-200)' }}>Party Name</th>
+                      <th style={{ padding:'10px 12px', textAlign:'left', borderBottom:'1px solid var(--gray-200)' }}>Description</th>
+                      <th style={{ padding:'10px 12px', textAlign:'center', borderBottom:'1px solid var(--gray-200)' }}>Bundles</th>
+                      <th style={{ padding:'10px 12px', textAlign:'right', borderBottom:'1px solid var(--gray-200)' }}>Gazana Total</th>
+                      <th style={{ padding:'10px 12px', textAlign:'center', borderBottom:'1px solid var(--gray-200)' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {doRows.map((row, i) => (
+                      <tr key={row.delivery_order_id} style={{ borderBottom:'1px solid var(--gray-100)' }}>
+                        <td style={{ padding:'8px 12px', fontFamily:'monospace', fontWeight:600, color:'var(--brand-600)', fontSize:'0.875rem' }}>{row.order_no}</td>
+                        <td style={{ padding:'8px 12px', color:'var(--gray-600)', fontSize:'0.875rem' }}>{row.lot_no || '—'}</td>
+                        <td style={{ padding:'8px 12px', fontWeight:600, fontSize:'0.875rem' }}>{row.party_name || '—'}</td>
+                        <td style={{ padding:'6px 8px' }}>
+                          <input type="text" value={row.description} onChange={e => updateRow(i,'description',e.target.value)}
+                            placeholder="Optional desc..." style={{ border:'1px solid var(--gray-200)', borderRadius:6, padding:'4px 8px', fontSize:'0.8rem', width:'100%', outline:'none' }} />
+                        </td>
+                        <td style={{ padding:'6px 8px' }}>
+                          <input type="number" min="0" value={row.bundles} onChange={e => updateRow(i,'bundles',e.target.value)}
+                            style={{ border:'1px solid var(--gray-200)', borderRadius:6, padding:'4px 8px', fontSize:'0.8rem', width:70, textAlign:'center', outline:'none' }} />
+                        </td>
+                        <td style={{ padding:'6px 8px' }}>
+                          <input type="number" min="0" step="0.01" value={row.gazana_total} onChange={e => updateRow(i,'gazana_total',e.target.value)}
+                            style={{ border:'1px solid var(--gray-200)', borderRadius:6, padding:'4px 8px', fontSize:'0.8rem', width:100, textAlign:'right', outline:'none' }} />
+                        </td>
+                        <td style={{ padding:'6px 8px', textAlign:'center' }}>
+                          <button type="button" onClick={() => removeDORow(i)}
+                            style={{ background:'var(--error-50)', color:'var(--error-600)', border:'none', borderRadius:6, padding:'4px 8px', cursor:'pointer' }}>
+                            <X size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    <tr style={{ background:'var(--gray-50)', fontWeight:700 }}>
+                      <td colSpan={5} style={{ padding:'10px 12px', textAlign:'right', fontSize:'0.875rem', color:'var(--gray-600)' }}>Total Gazana:</td>
+                      <td style={{ padding:'10px 12px', textAlign:'right', fontFamily:'monospace', color:'var(--brand-700)' }}>
+                        {doRows.reduce((s, r) => s + (Number(r.gazana_total) || 0), 0).toLocaleString()} GZ
+                      </td>
+                      <td />
+                    </tr>
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div style={{ padding:'1rem 1.5rem', borderTop:'1px solid var(--gray-100)', display:'flex', gap:'0.75rem', justifyContent:'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={isSaving || doRows.length === 0}>
+                {isSaving ? <><Loader2 className="animate-spin" size={16} />Saving...</> : <><Save size={16} />Save Gate Pass</>}
+              </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* High Fidelity Centered PDF Viewer Modal */}
-      {selectedGatePassForView && org && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.65)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '2rem',
-          backdropFilter: 'blur(6px)',
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '24px',
-            width: '100%',
-            maxWidth: '1024px',
-            marginTop:'300px',
-            height: '80vh',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-          }}>
-            {/* Modal Header */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '1.25rem 2rem',
-              // marginTop:'100px',
-              borderBottom: '1px solid var(--gray-100)',
-              backgroundColor: 'var(--gray-25)',
-            }}>
-              <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--gray-900)', margin: 0 }}>
-                  GATE PASS VIEWER
-                </h3>
-                <p style={{ fontSize: '0.6875rem', color: 'var(--gray-500)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '0.25rem' }}>
-                  High Fidelity Document Preview
-                </p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <PDFDownloadLink
-                  document={<PDFGatePass gp={selectedGatePassForView} org={org} />}
-                  fileName={`GatePass-${selectedGatePassForView.gate_pass_no}.pdf`}
-                  style={{
-                    backgroundColor: 'var(--brand-600)',
-                    color: 'white',
-                    padding: '0.625rem 1.25rem',
-                    borderRadius: '12px',
-                    fontWeight: 700,
-                    fontSize: '0.875rem',
-                    textDecoration: 'none',
-                    boxShadow: 'var(--shadow-brand)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 200ms',
-                  }}
-                >
-                  {({ loading }) => (loading ? 'Preparing...' : 'Download PDF')}
-                </PDFDownloadLink>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
-                  onClick={() => handlePrintGatePass(selectedGatePassForView)}
-                >
-                  <Printer size={16} />
-                  Print
-                </button>
-                <button 
-                  onClick={() => setSelectedGatePassForView(null)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '2.5rem',
-                    height: '2.5rem',
-                    borderRadius: '12px',
-                    border: 'none',
-                    backgroundColor: 'var(--gray-100)',
-                    color: 'var(--gray-600)',
-                    cursor: 'pointer',
-                    transition: 'all 150ms',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.backgroundColor = 'var(--gray-200)';
-                    e.currentTarget.style.color = 'var(--gray-800)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.backgroundColor = 'var(--gray-100)';
-                    e.currentTarget.style.color = 'var(--gray-600)';
-                  }}
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Body (PDF Viewer) */}
-            <div style={{ flex: 1, backgroundColor: 'var(--gray-100)', padding: '1rem', overflow: 'hidden' }}>
-              <PDFViewer width="100%" height="100%" style={{ borderRadius: '12px', border: '1px solid var(--gray-200)' }} showToolbar={false}>
-                <PDFGatePass gp={selectedGatePassForView} org={org} />
-              </PDFViewer>
-            </div>
-          </div>
-        </div>
+        </form>
       )}
     </div>
   );

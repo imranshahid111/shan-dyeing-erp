@@ -3,6 +3,7 @@ import Layout from "./components/Layout";
 import Dashboard from "./components/Dashboard";
 import GrayLotManagement from "./components/GrayLotManagement";
 import GrayLotForm from "./components/GrayLotForm";
+import ReturnLots from "./components/ReturnLots";
 import CustomerForm from "./components/CustomerForm";
 import CustomerView from "./components/CustomerView";
 import DeliveryOrders from "./components/DeliveryOrders";
@@ -44,6 +45,7 @@ export const router = createHashRouter([
               { path: "view/:id", Component: GrayLotForm },
             ],
           },
+          { path: "return-lots", Component: ReturnLots },
           {
             path: "delivery-orders",
             children: [

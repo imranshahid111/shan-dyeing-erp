@@ -10,7 +10,9 @@ const Organization = require("./organization")(sequelize, DataTypes);
 const Quality = require("./quality")(sequelize, DataTypes);
 const ActivityLog = require("./activityLog")(sequelize, DataTypes);
 const GatePass = require("./gatePass")(sequelize, DataTypes);
+const GatePassItem = require("./gatePassItem")(sequelize, DataTypes);
 const Privilege = require("./privilege")(sequelize, DataTypes);
+const ReturnLot = require("./returnLot")(sequelize, DataTypes);
 
 Customer.hasMany(DeliveryOrder, { foreignKey: "customer_id" });
 DeliveryOrder.belongsTo(Customer, { foreignKey: "customer_id" });
@@ -24,8 +26,15 @@ DeliveryOrder.belongsTo(GrayLot, { foreignKey: "gray_lot_id" });
 Quality.hasMany(GrayLot, { foreignKey: "quality_id" });
 GrayLot.belongsTo(Quality, { foreignKey: "quality_id" });
 
-DeliveryOrder.hasOne(GatePass, { foreignKey: "delivery_order_id" });
-GatePass.belongsTo(DeliveryOrder, { foreignKey: "delivery_order_id" });
+GrayLot.hasMany(ReturnLot, { foreignKey: "gray_lot_id" });
+ReturnLot.belongsTo(GrayLot, { foreignKey: "gray_lot_id" });
+
+// GatePass <-> GatePassItems <-> DeliveryOrder
+GatePass.hasMany(GatePassItem, { foreignKey: "gate_pass_id", as: "items", onDelete: "CASCADE" });
+GatePassItem.belongsTo(GatePass, { foreignKey: "gate_pass_id" });
+
+GatePassItem.belongsTo(DeliveryOrder, { foreignKey: "delivery_order_id", as: "delivery_order" });
+DeliveryOrder.hasMany(GatePassItem, { foreignKey: "delivery_order_id", as: "gate_pass_items" });
 
 User.hasOne(Privilege, { foreignKey: "user_id", onDelete: "CASCADE" });
 Privilege.belongsTo(User, { foreignKey: "user_id" });
@@ -41,6 +50,9 @@ module.exports = {
   ActivityLog,
   Quality,
   GatePass,
+  GatePassItem,
   Privilege,
+  ReturnLot,
 };
+
 

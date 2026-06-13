@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, section: 'main', privilegeKey: 'can_view_dashboard' },
   { path: '/gray-lots', label: 'Gray Lots', icon: Package, section: 'operations', privilegeKey: 'can_view_gray_lots' },
+  { path: '/return-lots', label: 'Return Lots', icon: RefreshCw, section: 'operations', privilegeKey: 'can_view_gray_lots' },
   { path: '/delivery-orders', label: 'Delivery Orders', icon: Truck, section: 'operations', privilegeKey: 'can_view_delivery_orders' },
   { path: '/billing', label: 'Billing / Invoices', icon: FileText, section: 'operations', privilegeKey: 'can_view_billing' },
   { path: '/payments', label: 'Payments & Ledger', icon: Wallet, section: 'operations', privilegeKey: 'can_view_payments' },

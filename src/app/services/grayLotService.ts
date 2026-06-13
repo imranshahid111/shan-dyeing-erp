@@ -42,6 +42,7 @@ export interface DeliveryLotOption {
   process: string;
   totalGray: number;
   remaining: number;
+  returned?: number;
 }
 
 export const grayLotService = {

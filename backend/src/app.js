@@ -5,6 +5,7 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 const routes = require("./routes");
+const { logStream } = require("./utils/logger");
 const { notFound, errorHandler } = require("./middleware/errorHandler");
 const authMiddleware = require("./middleware/authMiddleware");
 
@@ -21,6 +22,7 @@ app.use(
 app.use(compression());
 app.use(express.json({ limit: "10mb" }));
 app.use(morgan("tiny"));
+app.use(morgan("combined", { stream: logStream }));
 app.use((req, _res, next) => {
 
   next();

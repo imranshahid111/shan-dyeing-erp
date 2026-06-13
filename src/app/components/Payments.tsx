@@ -19,6 +19,7 @@ export default function Payments() {
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [focusedCustomerIndex, setFocusedCustomerIndex] = useState(-1);
 
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerItem | null>(null);
   const [customerInvoices, setCustomerInvoices] = useState<DeliveryOrderItem[]>([]);
@@ -405,7 +406,31 @@ export default function Payments() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8">
+            <form 
+              onSubmit={handleSubmit} 
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const target = e.target as HTMLElement;
+                  if (target.tagName.toLowerCase() === 'textarea') return;
+                  if (target.tagName.toLowerCase() === 'button') return;
+                  
+                  e.preventDefault();
+                  
+                  const form = e.currentTarget;
+                  const focusableElements = Array.from(
+                    form.querySelectorAll<HTMLElement>(
+                      'input:not([type="hidden"]):not([disabled]):not(.hidden), select:not([disabled]), textarea:not([disabled]), button[type="submit"]:not([disabled])'
+                    )
+                  );
+                  
+                  const index = focusableElements.indexOf(target);
+                  if (index > -1 && index < focusableElements.length - 1) {
+                    focusableElements[index + 1].focus();
+                  }
+                }
+              }}
+              className="flex-1 overflow-y-auto p-8"
+            >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   {/* Customer Selection */}
@@ -423,6 +448,33 @@ export default function Payments() {
                           setCustomerSearch(e.target.value);
                           if (selectedCustomer) setSelectedCustomer(null);
                           setIsDropdownOpen(true);
+                          setFocusedCustomerIndex(-1);
+                        }}
+                        onKeyDown={(e) => {
+                          if (!isDropdownOpen) return;
+                          
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setFocusedCustomerIndex(prev => (prev < customers.length - 1 ? prev + 1 : prev));
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setFocusedCustomerIndex(prev => (prev > 0 ? prev - 1 : prev));
+                          } else if (e.key === 'Enter') {
+                            if (focusedCustomerIndex >= 0 && customers[focusedCustomerIndex]) {
+                              e.preventDefault();
+                              e.stopPropagation(); // prevent form from shifting focus automatically
+                              handleCustomerSelect(customers[focusedCustomerIndex]);
+                              // manually focus the amount field
+                              setTimeout(() => {
+                                const form = e.currentTarget.closest('form');
+                                if (form) {
+                                  const focusable = Array.from(form.querySelectorAll<HTMLElement>('input:not([type="hidden"]):not([disabled]):not(.hidden)'));
+                                  const amountInput = focusable[1]; 
+                                  if (amountInput) amountInput.focus();
+                                }
+                              }, 10);
+                            }
+                          }
                         }}
                       />
                       {loadingCustomers && (
@@ -451,12 +503,12 @@ export default function Payments() {
                           onClick={() => setIsDropdownOpen(false)}
                         />
                         <div className="absolute top-full left-0 w-full bg-white border border-gray-100 rounded-xl mt-2 shadow-2xl z-20 max-h-60 overflow-y-auto divide-y divide-gray-50">
-                          {customers.map(c => (
+                          {customers.map((c, index) => (
                             <button
                               key={c.id}
                               type="button"
                               onClick={() => handleCustomerSelect(c)}
-                              className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors font-semibold text-gray-700 flex justify-between items-center"
+                              className={`w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors font-semibold text-gray-700 flex justify-between items-center ${focusedCustomerIndex === index ? 'bg-blue-100' : ''}`}
                             >
                               <div>
                                 <p>{c.name}</p>

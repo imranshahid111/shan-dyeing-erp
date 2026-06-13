@@ -13,6 +13,7 @@ const qualityController = require("../controllers/qualityController");
 const activityLogController = require("../controllers/activityLogController")
 const gatePassController = require("../controllers/gatePassController");
 const databaseController = require("../controllers/databaseController");
+const returnLotRoutes = require("./returnLotRoutes");
 
 const router = express.Router();
 
@@ -57,6 +58,8 @@ router.get("/gray-lots/:id", grayLotController.getGrayLotById);
 router.post("/gray-lots", grayLotController.createGrayLot);
 router.put("/gray-lots/:id", grayLotController.updateGrayLot);
 router.delete("/gray-lots/:id", grayLotController.deleteGrayLot);
+
+router.use("/return-lots", returnLotRoutes);
 
 router.get("/dashboard/summary", dashboardController.getDashboardSummary);
 router.get("/dashboard/charts", dashboardController.getChartsData);

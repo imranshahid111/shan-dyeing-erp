@@ -1,4 +1,4 @@
-const { DeliveryOrder, Customer, GrayLot, Payment, GatePass, sequelize } = require("../models");
+const { DeliveryOrder, Customer, GrayLot, Payment, ReturnLot, sequelize } = require("../models");
 const { Op } = require("sequelize");
 const { getNextSequence } = require("../utils/numberGenerator");
 const { logActivity } = require("../utils/logger");
@@ -34,7 +34,6 @@ exports.getDeliveryOrders = async (req, res, next) => {
       include: [
         { model: Customer, attributes: ["id", "name", "customer_code"] },
         { model: GrayLot, attributes: ["lot_no"] },
-        { model: GatePass, attributes: ["id", "gate_pass_no"] }
       ],
       order: [["order_date", "DESC"], ["id", "DESC"]],
       attributes: ["id", "order_no", "invoice_no", "customer_id", "gray_lot_id", "order_date", "status", "total_amount", "paid_amount", "total_gray_gazana", "total_ready_gazana", "rate", "rate_unit", "input_unit", "kinar_cut_amount", "packing_amount", "grid_data"],
@@ -88,8 +87,10 @@ exports.createDeliveryOrder = async (req, res, next) => {
     if (!lot) return res.status(404).json({ message: "Gray lot not found" });
 
     const orders = await DeliveryOrder.findAll({ where: { gray_lot_id } });
+    const returns = await ReturnLot.findAll({ where: { gray_lot_id } });
     const delivered = orders.reduce((sum, o) => sum + Number(o.total_gray_gazana || 0), 0);
-    const balance = Number(lot.gazana || 0) - delivered;
+    const returnedQty = returns.reduce((sum, r) => sum + Number(r.returned_quantity || 0), 0);
+    const balance = Number(lot.gazana || 0) - delivered - returnedQty;
     const grayQty = Number(total_gray_gazana || 0);
 
     if (grayQty > balance) {
@@ -136,13 +137,15 @@ exports.updateDeliveryOrder = async (req, res, next) => {
 
     // Check balance
     let orders = await DeliveryOrder.findAll({ where: { gray_lot_id } });
+    let returns = await ReturnLot.findAll({ where: { gray_lot_id } });
     let delivered = orders.reduce((sum, o) => {
       // Exclude current DO from the delivered sum
       if (o.id === Number(doId)) return sum;
       return sum + Number(o.total_gray_gazana || 0);
     }, 0);
+    let returnedQty = returns.reduce((sum, r) => sum + Number(r.returned_quantity || 0), 0);
     
-    const balance = Number(lot.gazana || 0) - delivered;
+    const balance = Number(lot.gazana || 0) - delivered - returnedQty;
     const grayQty = Number(total_gray_gazana || 0);
 
     if (grayQty > balance) {
@@ -172,7 +175,7 @@ exports.generateInvoice = async (req, res, next) => {
   const t = await sequelize.transaction();
   try {
     const doId = req.params.id;
-    const { netAmount, rate, rateUnit, kinarCutAmount, packingAmount } = req.body;
+    const { netAmount, rate, rateUnit, kinarCutAmount, packingAmount, kinarCutQty, packingQty } = req.body;
 
     const deliveryOrder = await DeliveryOrder.findByPk(doId, { transaction: t });
     if (!deliveryOrder) {
@@ -200,7 +203,9 @@ exports.generateInvoice = async (req, res, next) => {
       rate: Number(rate || 0),
       rate_unit: rateUnit || 'meter',
       kinar_cut_amount: Number(kinarCutAmount || 0),
-      packing_amount: Number(packingAmount || 0)
+      packing_amount: Number(packingAmount || 0),
+      kinar_cut_qty: kinarCutQty != null ? Number(kinarCutQty) : null,
+      packing_qty: packingQty != null ? Number(packingQty) : null
     }, { transaction: t });
 
     await t.commit();

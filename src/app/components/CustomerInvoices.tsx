@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router';
 import { Eye, Wallet, MoreVertical, X, Calendar, DollarSign, ArrowLeft, Filter } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
@@ -265,7 +266,7 @@ export default function CustomerInvoices() {
       </div>
 
       {/* Invoice Viewer Modal — full-screen, header always visible */}
-      {selectedInvoice && org && (
+      {selectedInvoice && org && createPortal(
         <div
           style={{
             position: 'fixed',
@@ -347,10 +348,10 @@ export default function CustomerInvoices() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Payment Modal */}
-      {paymentInvoice && (
+      {paymentInvoice && createPortal(
         <div className="fixed inset-0 bg-transparent flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
           <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300 border border-gray-100">
             <div className="bg-slate-900 p-8 text-white relative">
@@ -458,7 +459,7 @@ export default function CustomerInvoices() {
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

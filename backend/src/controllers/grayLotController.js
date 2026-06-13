@@ -1,5 +1,5 @@
 const { Op } = require("sequelize");
-const { GrayLot, DeliveryOrder, Quality } = require("../models");
+const { GrayLot, DeliveryOrder, Quality, ReturnLot } = require("../models");
 const { getNextSequence } = require("../utils/numberGenerator");
 const { logActivity } = require("../utils/logger");
 
@@ -26,6 +26,7 @@ exports.createGrayLot = async (req, res, next) => {
     await logActivity("Gray Lots", `Created Lot #${payload.lot_no}`, `Party: ${payload.party_name}, Quality ID: ${payload.quality_id}`, req);
     return res.status(201).json(created);
   } catch (error) {
+    console.log(error);
     return next(error);
   }
 };
@@ -67,6 +68,10 @@ exports.getLotsWithBalance = async (req, res, next) => {
         {
           model: DeliveryOrder,
           attributes: ['total_gray_gazana'],
+        },
+        {
+          model: ReturnLot,
+          attributes: ['returned_quantity'],
         }
       ],
       order: [["id", "DESC"]]
@@ -74,6 +79,7 @@ exports.getLotsWithBalance = async (req, res, next) => {
 
     const results = lots.map((lot) => {
       const delivered = lot.delivery_orders ? lot.delivery_orders.reduce((sum, order) => sum + Number(order.total_gray_gazana || 0), 0) : 0;
+      const returned = lot.return_lots ? lot.return_lots.reduce((sum, rl) => sum + Number(rl.returned_quantity || 0), 0) : 0;
       const gazana = Number(lot.gazana || 0);
       return {
         id: lot.id,
@@ -81,7 +87,8 @@ exports.getLotsWithBalance = async (req, res, next) => {
         partyName: lot.party_name,
         process: lot.process_type,
         totalGray: gazana,
-        remaining: Math.max(gazana - delivered, 0)
+        remaining: Math.max(gazana - delivered - returned, 0),
+        returned: returned
       };
     });
 
