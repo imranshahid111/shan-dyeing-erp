@@ -1,12 +1,19 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Download, FileText, Filter, Loader2, Printer, List, CheckSquare, Package, DollarSign } from 'lucide-react';
+import { Download, Filter, Loader2, Printer, CalendarDays } from 'lucide-react';
 import { dashboardService, LedgerEntry, OutstandingEntry, StockEntry, QualityStockEntry, PaymentReportEntry, InvoiceReportEntry } from '../services/dashboardService';
 import { customerService, CustomerItem } from '../services/customerService';
+import { qualityService, QualityItem } from '../services/qualityService';
+import DeliveryChallanReport from './DeliveryChallanReport';
+import SubLedgerReportView from './SubLedgerReport';
+import CompletedLotsReportView from './CompletedLotsReport';
+import PartyWiseLotDeliveryReport from './PartyWiseLotDeliveryReport';
+import DateWiseSalesReportView from './DateWiseSalesReport';
+import { REPORT_CATEGORIES, SELF_CONTAINED_TABS, ReportTabId, getReportMeta } from '../config/reportsConfig';
 import * as XLSX from 'xlsx';
 import React from 'react';
 
 export default function Reports() {
-  const [activeTab, setActiveTab] = useState<'ledger' | 'outstanding' | 'stock' | 'payments' | 'invoices'>('ledger');
+  const [activeTab, setActiveTab] = useState<ReportTabId>('datesales');
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [fromDate, setFromDate] = useState(() => {
@@ -26,6 +33,9 @@ export default function Reports() {
   const [stockView, setStockView] = useState<'lots' | 'quality'>('lots');
   const [stockUnit, setStockUnit] = useState<'gaz' | 'meters'>('gaz');
   const [loading, setLoading] = useState(false);
+  const [salesCustomerId, setSalesCustomerId] = useState<number | ''>('');
+  const [salesQualityId, setSalesQualityId] = useState<number | ''>('');
+  const [qualities, setQualities] = useState<QualityItem[]>([]);
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -40,6 +50,10 @@ export default function Reports() {
       }
     };
     fetchCustomers();
+  }, []);
+
+  useEffect(() => {
+    qualityService.getQualities().then((res: any) => setQualities(Array.isArray(res) ? res : [])).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -161,131 +175,194 @@ export default function Reports() {
     window.print();
   };
 
+  const activeMeta = getReportMeta(activeTab);
+  const isSelfContained = SELF_CONTAINED_TABS.includes(activeTab);
+  const showDateFilters = activeTab !== 'outstanding' && activeTab !== 'stock';
+
   return (
-    <div className="space-y-6 pb-20 print:pb-0 max-w-[1600px] mx-auto fade-in">
-      
-      {/* Header - Hidden on Print */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <Filter size={24} />
-          </div>
-          <div>
-            <h2 className="text-2xl font-black bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">System Reports</h2>
-            <p className="text-sm text-gray-500 mt-1 font-medium">Export customized reports and analyze business metrics</p>
-          </div>
-        </div>
-        <div className="flex gap-3 w-full md:w-auto">
-          <button
-            onClick={handlePrint}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm font-bold text-sm"
-          >
-            <Printer size={16} />
-            Print PDF
-          </button>
-          <button
-            onClick={exportToExcel}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all shadow-md shadow-emerald-500/20 font-bold text-sm"
-          >
-            <Download size={16} />
-            Export Excel
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="bg-white rounded-2xl p-1.5 shadow-sm border border-gray-100 flex flex-wrap gap-1 print:hidden">
-        {[
-          { id: 'ledger', label: 'Customer Ledger', icon: List },
-          { id: 'outstanding', label: 'Outstanding', icon: DollarSign },
-          { id: 'stock', label: 'Stock Report', icon: Package },
-          { id: 'invoices', label: 'Invoices', icon: FileText },
-          { id: 'payments', label: 'Payments', icon: CheckSquare },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`flex items-center gap-2 px-4 py-3 rounded-xl transition-all font-bold text-sm flex-1 justify-center ${
-              activeTab === tab.id
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-            }`}
-          >
-            <tab.icon size={16} className={activeTab === tab.id ? 'text-blue-100' : 'text-gray-400'} />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Filters */}
-      {activeTab !== 'outstanding' && activeTab !== 'stock' && (
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 print:hidden flex flex-col md:flex-row gap-6 items-start md:items-center">
-          <div className="flex-1 w-full flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px] relative group">
-              <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-blue-600 uppercase tracking-wider transition-colors">From Date</label>
-              <input
-                type="date"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-bold text-gray-700 text-sm transition-all bg-gray-50 focus:bg-white"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-              />
-            </div>
-            <div className="flex-1 min-w-[200px] relative group">
-              <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-blue-600 uppercase tracking-wider transition-colors">To Date</label>
-              <input
-                type="date"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-bold text-gray-700 text-sm transition-all bg-gray-50 focus:bg-white"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-              />
-            </div>
-            {activeTab === 'ledger' && (
-              <div className="flex-1 min-w-[250px] relative group">
-                <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-blue-600 uppercase tracking-wider transition-colors">Select Customer</label>
-                <select
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-bold text-gray-700 text-sm transition-all bg-gray-50 focus:bg-white appearance-none cursor-pointer"
-                  value={selectedCustomerId || ''}
-                  onChange={(e) => setSelectedCustomerId(Number(e.target.value))}
-                >
-                  {customers.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+    <div className="pb-20 print:pb-0 max-w-[1680px] mx-auto fade-in">
+      <div className="flex flex-col lg:flex-row gap-5 min-h-[calc(100vh-8rem)] print:block">
+        {/* Sidebar Navigation */}
+        <aside className="lg:w-64 shrink-0 print:hidden">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden sticky top-4">
+            <div className="p-4 bg-gradient-to-br from-slate-800 to-slate-900 text-white">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center">
+                  <Filter size={20} />
                 </div>
+                <div>
+                  <h2 className="text-base font-black tracking-wide">Reports</h2>
+                  <p className="text-[11px] text-slate-300">ERP Analytics Center</p>
+                </div>
+              </div>
+            </div>
+            <nav className="p-2 max-h-[calc(100vh-12rem)] overflow-y-auto">
+              {REPORT_CATEGORIES.map((category) => (
+                <div key={category.id} className="mb-3">
+                  <p className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    {category.label}
+                  </p>
+                  <div className="space-y-0.5">
+                    {category.tabs.map((tab) => {
+                      const Icon = tab.icon;
+                      const isActive = activeTab === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveTab(tab.id)}
+                          className={`w-full flex items-start gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all ${
+                            isActive
+                              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
+                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          }`}
+                        >
+                          <Icon size={16} className={`mt-0.5 shrink-0 ${isActive ? 'text-indigo-100' : 'text-gray-400'}`} />
+                          <div className="min-w-0">
+                            <p className={`text-sm font-bold truncate ${isActive ? 'text-white' : ''}`}>{tab.label}</p>
+                            <p className={`text-[10px] truncate ${isActive ? 'text-indigo-100' : 'text-gray-400'}`}>{tab.description}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </nav>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 min-w-0 space-y-4 print:w-full">
+          {/* Top Bar */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 print:hidden">
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-xl font-black text-gray-900">{activeMeta?.label || 'Report'}</h1>
+                <p className="text-sm text-gray-500 mt-0.5">{activeMeta?.description}</p>
+              </div>
+              {!isSelfContained && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={handlePrint}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-bold text-sm"
+                  >
+                    <Printer size={16} />
+                    Print
+                  </button>
+                  <button
+                    onClick={exportToExcel}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-bold text-sm"
+                  >
+                    <Download size={16} />
+                    Excel
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {showDateFilters && (
+              <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-4 items-end">
+                <div className="flex items-center gap-2 text-gray-400 mr-2">
+                  <CalendarDays size={18} />
+                  <span className="text-xs font-bold uppercase tracking-wider">Period</span>
+                </div>
+                <div className="relative min-w-[160px]">
+                  <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-indigo-600 uppercase">From</label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2.5 rounded-lg border border-gray-200 font-bold text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                  />
+                </div>
+                <div className="relative min-w-[160px]">
+                  <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-indigo-600 uppercase">To</label>
+                  <input
+                    type="date"
+                    className="w-full px-3 py-2.5 rounded-lg border border-gray-200 font-bold text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                  />
+                </div>
+                {activeTab === 'ledger' && (
+                  <div className="relative min-w-[220px] flex-1">
+                    <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-indigo-600 uppercase">Customer</label>
+                    <select
+                      className="w-full px-3 py-2.5 rounded-lg border border-gray-200 font-bold text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                      value={selectedCustomerId || ''}
+                      onChange={(e) => setSelectedCustomerId(Number(e.target.value))}
+                    >
+                      {customers.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {activeTab === 'datesales' && (
+                  <>
+                    <div className="relative min-w-[200px]">
+                      <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-indigo-600 uppercase">Party</label>
+                      <select
+                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 font-bold text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                        value={salesCustomerId}
+                        onChange={(e) => setSalesCustomerId(e.target.value ? Number(e.target.value) : '')}
+                      >
+                        <option value="">All Parties</option>
+                        {customers.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="relative min-w-[220px]">
+                      <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-purple-600 uppercase">Quality Wise</label>
+                      <select
+                        className="w-full px-3 py-2.5 rounded-lg border border-purple-200 font-bold text-sm bg-purple-50/50 focus:bg-white focus:ring-2 focus:ring-purple-500/20 outline-none"
+                        value={salesQualityId}
+                        onChange={(e) => setSalesQualityId(e.target.value ? Number(e.target.value) : '')}
+                      >
+                        <option value="">All Qualities</option>
+                        {qualities.map((q) => (
+                          <option key={q.id} value={q.id}>{q.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
-        </div>
-      )}
 
-      {/* Print Header */}
-      <div className="hidden print:block mb-8 text-center border-b-2 border-black pb-6">
-        <h1 className="text-3xl font-black uppercase tracking-widest mb-2">Shan Dyeing ERP</h1>
-        <h2 className="text-xl font-bold text-gray-700 uppercase tracking-widest">
-          {activeTab === 'ledger' && `Customer Ledger: ${selectedCustomerName}`}
-          {activeTab === 'outstanding' && 'Outstanding Summary Report'}
-          {activeTab === 'stock' && `Stock Summary Report (${stockView})`}
-          {activeTab === 'invoices' && 'Invoices Log'}
-          {activeTab === 'payments' && 'Payments Receipt Log'}
-        </h2>
-        {activeTab !== 'outstanding' && activeTab !== 'stock' && (
-          <p className="text-sm font-bold text-gray-500 mt-2">Period: {fromDate} to {toDate}</p>
-        )}
-      </div>
-
-      {/* Report Tables Container */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 print:border-none print:shadow-none report-container relative min-h-[500px]">
-        {loading && (
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl">
-             <div className="bg-white p-4 rounded-full shadow-lg">
-               <Loader2 className="animate-spin text-blue-600" size={32} />
-             </div>
+          {/* Print Header */}
+          <div className="hidden print:block mb-6 text-center border-b-2 border-black pb-4">
+            <h1 className="text-2xl font-black uppercase tracking-widest">Shan Dyeing ERP</h1>
+            <h2 className="text-lg font-bold text-gray-700 uppercase mt-1">{activeMeta?.label}</h2>
+            {showDateFilters && (
+              <p className="text-sm font-bold text-gray-500 mt-1">Period: {fromDate} to {toDate}</p>
+            )}
           </div>
-        )}
 
-        {/* 1. Customer Ledger */}
+          {/* Report Body */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm print:border-none print:shadow-none report-container relative min-h-[480px] overflow-hidden">
+            {loading && !isSelfContained && (
+              <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center">
+                <Loader2 className="animate-spin text-indigo-600" size={32} />
+              </div>
+            )}
+
+            {activeTab === 'challan' && <DeliveryChallanReport fromDate={fromDate} toDate={toDate} />}
+            {activeTab === 'subledger' && <SubLedgerReportView fromDate={fromDate} toDate={toDate} />}
+            {activeTab === 'completedlots' && <CompletedLotsReportView fromDate={fromDate} toDate={toDate} />}
+            {activeTab === 'partylotdelivery' && <PartyWiseLotDeliveryReport fromDate={fromDate} toDate={toDate} />}
+            {activeTab === 'datesales' && (
+              <DateWiseSalesReportView
+                fromDate={fromDate}
+                toDate={toDate}
+                customerId={salesCustomerId}
+                qualityId={salesQualityId}
+                onCustomerIdChange={setSalesCustomerId}
+                onQualityIdChange={setSalesQualityId}
+              />
+            )}
         {activeTab === 'ledger' && (
           <>
             <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 print:hidden">
@@ -665,6 +742,8 @@ export default function Reports() {
           </div>
         )}
 
+          </div>
+        </main>
       </div>
 
       <style>{`

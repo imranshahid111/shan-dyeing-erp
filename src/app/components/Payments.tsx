@@ -281,6 +281,17 @@ export default function Payments() {
   const allocatedTotal = allocations.reduce((sum, a) => sum + a.amount, 0);
   const remainingSelectedDue = Math.max(0, selectedInvoiceTotalDue - allocatedTotal);
 
+  useEffect(() => {
+    if (selectedInvoiceIds.length === 0) {
+      setPaymentAmount('');
+    } else {
+      const currentAmt = Number.parseFloat(paymentAmount) || 0;
+      if (currentAmt > selectedInvoiceTotalDue) {
+        setPaymentAmount(selectedInvoiceTotalDue.toString());
+      }
+    }
+  }, [selectedInvoiceTotalDue, selectedInvoiceIds.length]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCustomer || isSubmitting) return;
@@ -531,7 +542,7 @@ export default function Payments() {
                     <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center justify-between">
                       <div>
                         <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Total Outstanding</p>
-                        <p className="text-xl font-black text-blue-900">Rs {Number(selectedCustomer.outstanding_amount).toLocaleString()}</p>
+                        <p className="text-xl font-black text-blue-900">Rs {totalOutstanding.toLocaleString()}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Pending Bills</p>
@@ -549,14 +560,24 @@ export default function Payments() {
                           type="number"
                           required
                           step="0.01"
-                          className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:outline-none font-black text-lg text-gray-900"
+                          disabled={selectedInvoiceIds.length === 0}
+                          className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:outline-none font-black text-lg text-gray-900 disabled:bg-gray-100 disabled:text-gray-400"
                           value={paymentAmount}
                           max={selectedInvoiceTotalDue || undefined}
-                          onChange={(e) => setPaymentAmount(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (Number(val) > selectedInvoiceTotalDue) {
+                               toast.error(`Amount cannot exceed Rs ${selectedInvoiceTotalDue.toLocaleString()}`);
+                               setPaymentAmount(selectedInvoiceTotalDue.toString());
+                            } else {
+                               setPaymentAmount(val);
+                            }
+                          }}
+                          placeholder={selectedInvoiceIds.length === 0 ? "Select invoice first" : "0"}
                         />
-                        {isPaymentAmountTooHigh && (
-                          <p className="mt-1 text-[10px] font-bold text-red-600">
-                            Amount cannot exceed selected invoices due: Rs {selectedInvoiceTotalDue.toLocaleString()}
+                        {selectedInvoiceIds.length === 0 && (
+                          <p className="mt-1 text-[10px] font-bold text-gray-400">
+                            Please select an invoice to enter amount.
                           </p>
                         )}
                       </div>

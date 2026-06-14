@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Printer, FileText, Calendar, User, Package, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Printer, Eye, EyeOff } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
 import React from 'react';
 
@@ -9,7 +9,7 @@ export default function ViewDeliveryOrder() {
   const navigate = useNavigate();
   const [order, setOrder] = useState<(DeliveryOrderItem & { grid_data: any }) | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showGrayInPrint, setShowGrayInPrint] = useState(true); // State for checkbox
+  const [showGrayInPrint, setShowGrayInPrint] = useState(true);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -257,7 +257,7 @@ export default function ViewDeliveryOrder() {
                     </tr>
                   );
                 })}
-                {/* Totals Row - Show Gray totals only if checkbox checked, but always show Finish totals */}
+                {/* Totals Row - Always show both Gray and Finish totals */}
                 <tr className="bg-gray-200 font-bold">
                   <td className="border border-gray-300 p-1 text-center">Total</td>
                   {colors.map(color => {
@@ -265,9 +265,8 @@ export default function ViewDeliveryOrder() {
                     const colorReadyTotal = getColorReadyTotal(color.id);
                     return (
                       <React.Fragment key={color.id}>
-                        {/* Gray total - Show actual total when checkbox checked, otherwise show dash */}
                         <td className="border border-gray-300 p-1 text-center">
-                          {shouldShowGrayValue() ? (colorGrayTotal || '—') : '—'}
+                          {colorGrayTotal || '—'}
                         </td>
                         <td className="border border-gray-300 p-1 text-center">{colorReadyTotal || '—'}</td>
                       </React.Fragment>
@@ -309,25 +308,29 @@ export default function ViewDeliveryOrder() {
                   <td className="border border-gray-300 p-1 text-center">{new Date(order.order_date).toLocaleDateString('en-PK')}</td>
                   <td className="border border-gray-300 p-1 text-center">{order.order_no}</td>
                   <td className="border border-gray-300 p-1 text-center">
-                    {shouldShowGrayValue() ? (order.total_pcs || order.pcs || '—') : '—'}
+                    {order.total_pcs || order.pcs || '—'}
                   </td>
                   <td className="border border-gray-300 p-1 text-center">
-                    {shouldShowGrayValue() ? primaryGrayQty.toFixed(2) : '—'}
+                    {primaryGrayQty.toFixed(2)}
                   </td>
                   <td className="border border-gray-300 p-1 text-center">{order.total_pcs_finish || order.finish_pcs || '—'}</td>
                   <td className="border border-gray-300 p-1 text-center">{primaryReadyQty.toFixed(2)}</td>
-                  <td className="border border-gray-300 p-1 text-center">—</td>
-                  <td className="border border-gray-300 p-1 text-center">0</td>
+                  <td className={`border border-gray-300 p-1 text-center font-bold ${Number(order.gray_lot?.balance || 0) > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                    {Number(order.gray_lot?.balance || 0) > 0 ? 'Incomplete' : 'Completed'}
+                  </td>
+                  <td className="border border-gray-300 p-1 text-center font-bold text-blue-600">
+                    {Number(order.gray_lot?.balance || 0).toFixed(2)}
+                  </td>
                 </tr>
               </tbody>
               <tfoot>
                 <tr className="bg-gray-100 font-bold">
                   <td colSpan={2} className="border border-gray-300 p-1 text-right">Total:</td>
                   <td className="border border-gray-300 p-1 text-center">
-                    {shouldShowGrayValue() ? (order.total_pcs || order.pcs || '—') : '—'}
+                    {order.total_pcs || order.pcs || '—'}
                   </td>
                   <td className="border border-gray-300 p-1 text-center">
-                    {shouldShowGrayValue() ? primaryGrayQty.toFixed(2) : '—'}
+                    {primaryGrayQty.toFixed(2)}
                   </td>
                   <td className="border border-gray-300 p-1 text-center">{order.total_pcs_finish || order.finish_pcs || '—'}</td>
                   <td className="border border-gray-300 p-1 text-center">{primaryReadyQty.toFixed(2)}</td>
@@ -363,9 +366,25 @@ export default function ViewDeliveryOrder() {
       
       {/* Print CSS Override */}
       <style>{`
+        @page {
+          size: A4 portrait;
+          margin: 10mm;
+        }
         @media print {
+          .app-sidebar, header {
+            display: none !important;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+          }
           body * {
             visibility: hidden;
+          }
+          .max-w-5xl {
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
           }
           .print-area, .print-area * {
             visibility: visible;
@@ -374,9 +393,10 @@ export default function ViewDeliveryOrder() {
             position: absolute;
             left: 0;
             top: 0;
-            width: 100%;
+            width: 100% !important;
+            max-width: 100% !important;
             margin: 0;
-            padding: 0.5in;
+            padding: 0;
           }
           .print\\:hidden {
             display: none !important;

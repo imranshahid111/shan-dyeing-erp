@@ -66,6 +66,10 @@ router.get("/dashboard/charts", dashboardController.getChartsData);
 router.get("/dashboard/activity", dashboardController.getRecentActivity);
 
 router.get("/reports/ledger", dashboardController.getLedgerReport);
+router.get("/reports/sub-ledger", dashboardController.getSubLedgerReport);
+router.get("/reports/completed-lots", dashboardController.getCompletedLotsReport);
+router.get("/reports/party-lot-delivery", dashboardController.getPartyWiseLotDeliveryReport);
+router.get("/reports/date-wise-sales", dashboardController.getDateWiseSalesReport);
 router.get("/reports/outstanding", dashboardController.getOutstandingReport);
 router.get("/reports/stock", dashboardController.getStockReport);
 router.get("/reports/stock/quality", dashboardController.getQualityStockReport);

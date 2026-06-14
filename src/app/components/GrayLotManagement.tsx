@@ -10,6 +10,7 @@ export default function GrayLotManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [canDelete, setCanDelete] = useState(true);
+  const [canEdit, setCanEdit] = useState(true);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -45,8 +46,10 @@ export default function GrayLotManagement() {
         const parsed = JSON.parse(saved);
         if (parsed.role === 'admin') {
           setCanDelete(true);
+          setCanEdit(true);
         } else {
           setCanDelete(parsed.privileges?.can_delete ?? false);
+          setCanEdit(false);
         }
       }
     } catch (e) {
@@ -179,13 +182,15 @@ export default function GrayLotManagement() {
                         >
                           <Eye size={15} />
                         </button>
-                        <button
-                          className="icon-btn primary"
-                          title="Edit Gray Lot"
-                          onClick={() => navigate(`/gray-lots/edit/${lot.id}`)}
-                        >
-                          <Edit size={15} />
-                        </button>
+                        {canEdit && (
+                          <button
+                            className="icon-btn primary"
+                            title="Edit Gray Lot"
+                            onClick={() => navigate(`/gray-lots/edit/${lot.id}`)}
+                          >
+                            <Edit size={15} />
+                          </button>
+                        )}
                         {canDelete && (
                           <button
                             className="icon-btn danger"

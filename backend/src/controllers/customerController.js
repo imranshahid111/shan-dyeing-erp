@@ -151,39 +151,80 @@ exports.addBulkPayment = async (req, res, next) => {
 
     const invoices = await DeliveryOrder.findAll({
       where,
-      order: [["order_date", "ASC"], ["id", "ASC"]],
       transaction: t,
     });
 
-    for (const inv of invoices) {
-      if (remainingAmount <= 0) break;
+    const allocations = req.body.allocations || [];
 
-      const total = Number(inv.total_amount);
-      const paid = Number(inv.paid_amount);
-      const due = Math.max(total - paid, 0);
-      
-      const allocation = Math.min(remainingAmount, due);
+    if (allocations && allocations.length > 0) {
+      // Use exact allocations provided by UI to guarantee sync
+      for (const alloc of allocations) {
+        if (remainingAmount <= 0) break;
 
-      if (allocation > 0) {
-        // 1. Create Payment Log
-        await Payment.create({
-          delivery_order_id: inv.id,
-          payment_date: paymentDate,
-          amount: allocation,
-          mode: method || "cash",
-          reference_no: reference,
-          notes: notes,
-          attachment: req.body.attachment || null,
-          attachment_name: req.body.attachmentName || null,
-        }, { transaction: t });
+        const inv = invoices.find(i => i.id === alloc.invoiceId);
+        if (!inv) continue;
 
-        // 2. Update Delivery Order
-        await inv.increment("paid_amount", {
-          by: allocation,
-          transaction: t,
-        });
+        const total = Number(inv.total_amount);
+        const paid = Number(inv.paid_amount);
+        const due = Math.max(total - paid, 0);
+        
+        const allocationAmount = Math.min(alloc.amount, remainingAmount, due);
 
-        remainingAmount -= allocation;
+        if (allocationAmount > 0) {
+          await Payment.create({
+            delivery_order_id: inv.id,
+            payment_date: paymentDate,
+            amount: allocationAmount,
+            mode: method || "cash",
+            reference_no: reference,
+            notes: notes,
+            attachment: req.body.attachment || null,
+            attachment_name: req.body.attachmentName || null,
+          }, { transaction: t });
+
+          await inv.increment("paid_amount", {
+            by: allocationAmount,
+            transaction: t,
+          });
+
+          remainingAmount -= allocationAmount;
+        }
+      }
+    } else {
+      // Fallback if allocations not provided
+      invoices.sort((a, b) => {
+        if (a.order_date === b.order_date) return a.id - b.id;
+        return new Date(a.order_date) - new Date(b.order_date);
+      });
+
+      for (const inv of invoices) {
+        if (remainingAmount <= 0) break;
+
+        const total = Number(inv.total_amount);
+        const paid = Number(inv.paid_amount);
+        const due = Math.max(total - paid, 0);
+        
+        const allocationAmount = Math.min(remainingAmount, due);
+
+        if (allocationAmount > 0) {
+          await Payment.create({
+            delivery_order_id: inv.id,
+            payment_date: paymentDate,
+            amount: allocationAmount,
+            mode: method || "cash",
+            reference_no: reference,
+            notes: notes,
+            attachment: req.body.attachment || null,
+            attachment_name: req.body.attachmentName || null,
+          }, { transaction: t });
+
+          await inv.increment("paid_amount", {
+            by: allocationAmount,
+            transaction: t,
+          });
+
+          remainingAmount -= allocationAmount;
+        }
       }
     }
 
@@ -195,13 +236,14 @@ exports.addBulkPayment = async (req, res, next) => {
     });
 
     await t.commit();
-    await logActivity("Payments", `Bulk Payment Received`, `Customer ID: ${customerId}, Total Amount: ${amount}`, req);
+    // await logActivity("Payments", `Bulk Payment Received`, `Customer ID: ${customerId}, Total Amount: ${amount}`, req);
     return res.json({ 
       success: true, 
       message: "Bulk payment processed successfully", 
       unallocatedAmount: remainingAmount 
     });
   } catch (error) {
+    console.log(error)
     await t.rollback();
     return next(error);
   }

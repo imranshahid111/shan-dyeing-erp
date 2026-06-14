@@ -1,10 +1,19 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
+import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Package, Truck, FileText, ClipboardCheck, Users, 
   CreditCard, BarChart3, Bell, Search, ArrowLeft, RefreshCw, 
-  LogOut, History, Wallet, ChevronRight, Database
+  LogOut, History, Wallet, ChevronRight, Database, PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from './ui/tooltip';
+
+const SIDEBAR_COLLAPSED_KEY = 'sidebar_collapsed';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, section: 'main', privilegeKey: 'can_view_dashboard' },
@@ -32,6 +41,22 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed));
+    } catch { /* silent */ }
+  }, [sidebarCollapsed]);
+
+  const toggleSidebar = () => setSidebarCollapsed((prev) => !prev);
 
   let userData = { name: 'Admin User', email: 'admin@textile.com', role: 'admin', privileges: {} as any };
   try {
@@ -67,11 +92,14 @@ export default function Layout() {
   const privileges: any = userData.privileges || {};
 
   return (
+    <TooltipProvider delayDuration={0}>
     <div style={{ display: 'flex', height: '100vh', background: 'var(--gray-50)' }}>
       
       {/* ── Sidebar ── */}
-      <aside style={{
-        width: 'var(--sidebar-width)',
+      <aside
+        className="app-sidebar"
+        data-collapsed={sidebarCollapsed}
+        style={{
         background: 'linear-gradient(180deg, var(--sidebar-bg-from) 0%, var(--sidebar-bg-to) 100%)',
         display: 'flex',
         flexDirection: 'column',
@@ -90,12 +118,12 @@ export default function Layout() {
 
         {/* Logo */}
         <div style={{
-          padding: '1.25rem 1.25rem 1rem',
+          padding: '1.25rem 1.25rem 0.75rem',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
           flexShrink: 0,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{
+          <div className="sidebar-logo-row" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div onClick={()=>navigate('/')} style={{
               width: '2.25rem', height: '2.25rem',
               background: 'linear-gradient(135deg, var(--brand-500) 0%, var(--accent-500) 100%)',
               borderRadius: '10px',
@@ -105,7 +133,7 @@ export default function Layout() {
             }}>
               <Package size={16} color="white" />
             </div>
-            <div>
+            <div onClick={()=>navigate('/')} className="sidebar-brand-text" style={{ flex: 1, minWidth: 0 }}>
               <p style={{
                 fontSize: '0.9375rem', fontWeight: 800, color: 'white',
                 letterSpacing: '-0.01em', lineHeight: 1.2,
@@ -115,11 +143,33 @@ export default function Layout() {
                 letterSpacing: '0.12em', textTransform: 'uppercase',
               }}>Enterprise ERP</p>
             </div>
+            {!sidebarCollapsed && (
+              <button
+                type="button"
+                className="sidebar-toggle-btn"
+                onClick={toggleSidebar}
+                title="Collapse sidebar"
+              >
+                <PanelLeftClose size={16} />
+              </button>
+            )}
           </div>
+          {sidebarCollapsed && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.75rem' }}>
+              <button
+                type="button"
+                className="sidebar-toggle-btn"
+                onClick={toggleSidebar}
+                title="Expand sidebar"
+              >
+                <PanelLeftOpen size={16} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Nav */}
-        <nav className="sidebar-scroll" style={{
+        <nav className="sidebar-scroll sidebar-nav" style={{
           flex: 1, overflowY: 'auto', padding: '0.75rem 0.75rem',
         }}>
           {sections.map(({ key, label }) => {
@@ -132,7 +182,7 @@ export default function Layout() {
             return (
               <div key={key} style={{ marginBottom: '0.25rem' }}>
                 {label && (
-                  <p style={{
+                  <p className="sidebar-section-label" style={{
                     fontSize: '0.5625rem', fontWeight: 700,
                     color: 'rgba(255,255,255,0.25)',
                     textTransform: 'uppercase', letterSpacing: '0.1em',
@@ -144,17 +194,33 @@ export default function Layout() {
                   const isActive = item.path === '/'
                     ? location.pathname === '/'
                     : location.pathname.startsWith(item.path);
-                  return (
+
+                  const linkEl = (
                     <Link
-                      key={item.path}
                       to={item.path}
                       className={`nav-item ${isActive ? 'active' : ''}`}
+                      title={sidebarCollapsed ? item.label : undefined}
                     >
                       <Icon size={17} style={{ flexShrink: 0 }} />
-                      <span style={{ flex: 1 }}>{item.label}</span>
-                      {isActive && <ChevronRight size={13} style={{ opacity: 0.5 }} />}
+                      <span className="nav-item-label" style={{ flex: 1 }}>{item.label}</span>
+                      {isActive && !sidebarCollapsed && (
+                        <ChevronRight size={13} className="nav-item-chevron" style={{ opacity: 0.5 }} />
+                      )}
                     </Link>
                   );
+
+                  if (sidebarCollapsed) {
+                    return (
+                      <Tooltip key={item.path}>
+                        <TooltipTrigger asChild>{linkEl}</TooltipTrigger>
+                        <TooltipContent side="right" sideOffset={8}>
+                          {item.label}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  }
+
+                  return <div key={item.path}>{linkEl}</div>;
                 })}
               </div>
             );
@@ -167,7 +233,7 @@ export default function Layout() {
           padding: '0.875rem',
           flexShrink: 0,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+          <div className="sidebar-user-row" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
             <div style={{
               width: '2.25rem', height: '2.25rem', flexShrink: 0,
               background: 'linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.08))',
@@ -176,7 +242,7 @@ export default function Layout() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '0.6875rem', fontWeight: 800, color: 'white',
             }}>{initials}</div>
-            <div style={{ flex: 1, overflow: 'hidden' }}>
+            <div className="sidebar-user-text" style={{ flex: 1, overflow: 'hidden' }}>
               <p style={{
                 fontSize: '0.8125rem', fontWeight: 700, color: 'white',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -187,6 +253,7 @@ export default function Layout() {
               }}>{userData.email}</p>
             </div>
             <button
+              className="sidebar-logout-btn"
               onClick={handleLogout}
               title="Logout"
               style={{
@@ -395,7 +462,12 @@ export default function Layout() {
             <div style={{ width: '1px', height: '1.5rem', background: 'var(--gray-200)' }} />
 
             {/* User badge */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <div 
+              style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', cursor: 'pointer', position: 'relative' }}
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              tabIndex={0}
+              onBlur={() => setTimeout(() => setIsProfileOpen(false), 150)}
+            >
               <div style={{ textAlign: 'right' }}>
                 <p style={{
                   fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-800)', lineHeight: 1.2,
@@ -414,6 +486,38 @@ export default function Layout() {
                 fontSize: '0.6875rem', fontWeight: 800, color: 'white',
                 boxShadow: 'var(--shadow-md)',
               }}>{initials}</div>
+              
+              {isProfileOpen && (
+                <div style={{
+                  position: 'absolute', top: '120%', right: 0,
+                  background: 'white', border: '1px solid var(--gray-200)',
+                  borderRadius: '10px', padding: '0.5rem',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+                  zIndex: 50, minWidth: '120px'
+                }}>
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                      padding: '0.5rem 0.75rem', background: 'transparent', border: 'none',
+                      borderRadius: '6px', cursor: 'pointer', color: 'var(--gray-700)',
+                      fontSize: '0.8125rem', fontWeight: 600, transition: 'all 0.2s',
+                      textAlign: 'left'
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLButtonElement).style.background = 'var(--gray-50)';
+                      (e.currentTarget as HTMLButtonElement).style.color = 'var(--gray-900)';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                      (e.currentTarget as HTMLButtonElement).style.color = 'var(--gray-700)';
+                    }}
+                  >
+                    <LogOut size={14} />
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -429,5 +533,6 @@ export default function Layout() {
         </main>
       </div>
     </div>
+    </TooltipProvider>
   );
 }

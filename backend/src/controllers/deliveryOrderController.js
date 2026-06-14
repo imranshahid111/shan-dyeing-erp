@@ -49,13 +49,13 @@ exports.getDeliveryOrders = async (req, res, next) => {
 
 exports.getDeliveryOrderById = async (req, res, next) => {
   try {
-    const { Quality } = require("../models");
+    const { Quality, ReturnLot } = require("../models");
     const order = await DeliveryOrder.findByPk(req.params.id, {
       include: [
         { model: Customer, attributes: ["id", "name", "customer_code", "phone", "city"] },
         { 
           model: GrayLot, 
-          attributes: ["id", "lot_no", "party_name", "measurement"],
+          attributes: ["id", "lot_no", "party_name", "measurement", "gazana"],
           include: [{ model: Quality, attributes: ["name"] }]
         }
       ]
@@ -70,6 +70,25 @@ exports.getDeliveryOrderById = async (req, res, next) => {
       orderData.gray_lot.quality = orderData.gray_lot.quality.name;
     } else if (orderData.GrayLot && orderData.GrayLot.Quality) {
       orderData.GrayLot.quality = orderData.GrayLot.Quality.name;
+    }
+
+    // Calculate Gray Lot Balance
+    if (orderData.gray_lot_id) {
+      const allDOs = await DeliveryOrder.findAll({ where: { gray_lot_id: orderData.gray_lot_id } });
+      const returns = await ReturnLot.findAll({ where: { gray_lot_id: orderData.gray_lot_id } });
+      const delivered = allDOs.reduce((sum, o) => sum + Number(o.total_gray_gazana || 0), 0);
+      const returnedQty = returns.reduce((sum, r) => sum + Number(r.returned_quantity || 0), 0);
+      const gazana = Number((orderData.gray_lot && orderData.gray_lot.gazana) ? orderData.gray_lot.gazana : (orderData.GrayLot ? orderData.GrayLot.gazana : 0));
+      const balance = Math.max(gazana - delivered - returnedQty, 0);
+      
+      if (orderData.gray_lot) {
+        orderData.gray_lot.balance = balance;
+        orderData.gray_lot.total_gazana = gazana;
+      }
+      if (orderData.GrayLot) {
+        orderData.GrayLot.balance = balance;
+        orderData.GrayLot.total_gazana = gazana;
+      }
     }
 
     return res.json(orderData);

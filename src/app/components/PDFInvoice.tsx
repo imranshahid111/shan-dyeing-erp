@@ -8,282 +8,294 @@ Font.register({
   src: 'https://cdn.jsdelivr.net/npm/open-sans-all@0.1.3/fonts/open-sans-700.woff'
 });
 
+// A fallback font for Urdu text if possible, but for now we'll rely on default/system or leave it as is.
+// NOTE: Proper Urdu rendering in @react-pdf/renderer requires a custom font like Noto Nastaliq Urdu 
+// and sometimes text direction handling. We'll include the text as requested.
+
 const styles = StyleSheet.create({
   page: {
-    padding: 40,
     fontFamily: 'Helvetica',
-    fontSize: 10,
-    color: '#333',
+    fontSize: 9,
+    color: '#000',
+    flexDirection: 'row',
+  },
+  halfPage: {
+    width: '50%',
+    padding: 20,
+    borderRightWidth: 1,
+    borderRightColor: '#ff9999',
+    borderRightStyle: 'dashed',
+    height: '100%',
+    position: 'relative',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 40,
-    borderBottomWidth: 2,
-    borderBottomColor: '#000',
-    paddingBottom: 20,
-  },
-  orgInfo: {
-    width: '60%',
+    alignItems: 'flex-start',
+    marginBottom: 20,
   },
   orgName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#000',
+    textAlign: 'center',
+    width: '100%',
     marginBottom: 5,
-  },
-  invoiceTitleArea: {
-    width: '35%',
-    textAlign: 'right',
   },
   invoiceTitle: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    color: '#999',
-    marginBottom: 10,
-  },
-  detailsGrid: {
-    flexDirection: 'row',
-    marginBottom: 30,
-  },
-  billTo: {
-    width: '50%',
-  },
-  invoiceInfo: {
-    width: '50%',
-    textAlign: 'right',
-  },
-  label: {
-    fontSize: 8,
-    color: '#999',
-    fontWeight: 'bold',
-    marginBottom: 2,
-    textTransform: 'uppercase',
-  },
-  value: {
     fontSize: 12,
     fontWeight: 'bold',
-    marginBottom: 5,
+    textAlign: 'center',
+    width: '100%',
+    marginBottom: 15,
   },
+  infoGrid: {
+    marginBottom: 10,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  infoCol1: { width: '22%', fontWeight: 'bold' },
+  infoCol2: { width: '33%' },
+  infoCol3: { width: '20%', fontWeight: 'bold' },
+  infoCol4: { width: '25%' },
+  
   table: {
-    marginTop: 20,
+    marginTop: 10,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: '#000',
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#f9f9f9',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#000',
     fontWeight: 'bold',
-    padding: 8,
   },
-  tableRow: {
+  th1: { width: '70%', padding: 4, borderRightWidth: 1, borderRightColor: '#000' },
+  th2: { width: '30%', padding: 4, textAlign: 'center' },
+  
+  tableBodyRow: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    padding: 8,
-    minHeight: 30,
   },
-  colDesc: { width: '70%' },
-  colAmt: { width: '30%', textAlign: 'right' },
-  summaryArea: {
-    marginTop: 30,
+  td1: { width: '70%', padding: 4, borderRightWidth: 1, borderRightColor: '#000' },
+  td2: { width: '30%', padding: 4, alignItems: 'flex-end', justifyContent: 'flex-start' },
+  
+  innerGrid: {
+    width: '100%',
+  },
+  innerRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    marginBottom: 6,
   },
-  summaryBox: {
-    width: '45%',
-    borderTopWidth: 2,
-    borderTopColor: '#000',
-    paddingTop: 10,
+  innerCol1: { width: '33%', alignItems: 'center' },
+  innerCol2: { width: '33%', alignItems: 'center' },
+  innerCol3: { width: '34%', alignItems: 'center' },
+  
+  labelSmall: { fontSize: 8, fontWeight: 'bold', marginBottom: 2 },
+  valueSmall: { fontSize: 8 },
+
+  amtValue: { fontSize: 8, marginBottom: 14 }, // Adjusted to match the visual spacing of innerRows
+
+  bottomSection: {
+    marginTop: 20,
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#000',
   },
-  summaryRow: {
+  balanceBox: {
+    width: '30%',
+    padding: 5,
+    borderRightWidth: 1,
+    borderRightColor: '#000',
+    alignItems: 'center',
+  },
+  conditionBox: {
+    width: '30%',
+    padding: 5,
+    borderRightWidth: 1,
+    borderRightColor: '#000',
+    alignItems: 'center',
+  },
+  totalBox: {
+    width: '40%',
+    padding: 5,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 5,
-    paddingHorizontal: 5,
+    alignItems: 'center',
   },
-  grandTotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#f9f9f9',
-    padding: 10,
-    marginTop: 5,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  totalLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  totalValue: {
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  grandTotalLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  grandTotalValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  remainingLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#e67e22',
-  },
-  remainingValue: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#e67e22',
-  },
-  footer: {
+  footerNote: {
     position: 'absolute',
-    bottom: 40,
-    left: 40,
-    right: 40,
+    bottom: 20,
+    left: 20,
+    right: 20,
+    fontSize: 9,
+    fontWeight: 'bold',
     textAlign: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    paddingTop: 10,
-    fontSize: 8,
-    color: '#999',
   }
 });
 
-/** Renders the inside of a single invoice page — reused by both single and multi PDF */
-const InvoicePage = ({ inv, org }: { inv: DeliveryOrderItem; org: Organization }) => {
-  const totalAmount = Number(inv.total_amount);
-  const paidAmount  = Number(inv.paid_amount || 0);
-  const dueAmount   = Math.max(totalAmount - paidAmount, 0);
-
+const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organization }) => {
+  const isRateMeter = inv.rate_unit !== 'yard';
   const readyMeter = Number(inv.total_ready_gazana || 0);
   const readyGaz   = readyMeter / 0.9144;
+  
+  const coraBundle = Number((inv as any).total_pcs || (inv as any).pcs || 0);
+  const coraGazana = Number(inv.total_gray_gazana || 0);
+  const finishBundle = Number((inv as any).total_pcs_finish || (inv as any).finish_pcs || 0);
+  
+  const processingAmount = (isRateMeter ? readyMeter : readyGaz) * Number(inv.rate || 0);
+  
+  const kinarCutQty = Number(inv.kinar_cut_qty || 0);
+  const kinarCutAmount = Number(inv.kinar_cut_amount || 0);
+  const kinarCutRate = kinarCutQty > 0 ? (kinarCutAmount / kinarCutQty).toFixed(2) : '-';
+  
+  const packingQty = Number(inv.packing_qty || 0);
+  const packingAmount = Number(inv.packing_amount || 0);
+  const packingRate = packingQty > 0 ? (packingAmount / packingQty).toFixed(2) : '-';
 
-  const isRateInMeter  = inv.rate_unit !== 'yard';
-  const primaryQty     = isRateInMeter ? readyMeter : readyGaz;
-  const secondaryQty   = isRateInMeter ? readyGaz   : readyMeter;
-  const primaryLabel   = isRateInMeter ? 'Meter'      : 'Gaz (Yard)';
-  const secondaryLabel = isRateInMeter ? 'Gaz (Yard)' : 'Meter';
-  const primaryShort   = isRateInMeter ? 'Mtr'  : 'Gaz';
+  const totalInvoiceAmount = Number(inv.total_amount || 0);
+  const balanceCora = 0.00;
 
-  const processingAmount = primaryQty * Number(inv.rate || 0);
+  // Typecasting to access nested quality properly if available
+  const productInfo: any = inv.gray_lot?.quality || '';
+  const product = typeof productInfo === 'object' ? productInfo.name : productInfo;
 
   return (
-    <Page size="A4" style={styles.page}>
-      <View style={styles.header}>
-        <View style={styles.orgInfo}>
-          <Text style={styles.orgName}>{org.name}</Text>
-          <Text>{org.address}</Text>
-          <Text>Phone: {org.phone}</Text>
-          <Text>Email: {org.email}</Text>
-        </View>
-        <View style={styles.invoiceTitleArea}>
-          <Text style={styles.invoiceTitle}>INVOICE</Text>
-          <Text style={styles.value}>#{inv.order_no}</Text>
-          <Text>Date: {new Date(inv.order_date).toLocaleDateString()}</Text>
-        </View>
+    <View style={styles.halfPage}>
+      <View>
+        <Text style={styles.orgName}>{org.name || 'SHAN DYEING'}</Text>
+        <Text style={styles.invoiceTitle}>INVOICE</Text>
       </View>
 
-      <View style={styles.detailsGrid}>
-        <View style={styles.billTo}>
-          <Text style={styles.label}>Bill To:</Text>
-          <Text style={styles.value}>{inv.customer?.name}</Text>
-          <Text>Customer Code: {inv.customer?.customer_code}</Text>
+      <View style={styles.infoGrid}>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoCol1}>Customer Name:</Text>
+          <Text style={[styles.infoCol2, { fontWeight: 'bold', fontSize: 10 }]}>{inv.customer?.name}</Text>
+          <Text style={styles.infoCol3}></Text>
+          <Text style={styles.infoCol4}></Text>
         </View>
-        <View style={styles.invoiceInfo}>
-          <Text style={styles.label}>Gray Lot Info:</Text>
-          <Text style={styles.value}>Lot # {inv.gray_lot?.lot_no}</Text>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoCol1}>Deliver At:</Text>
+          <Text style={styles.infoCol2}>{inv.customer?.city || ' '}</Text>
+          <Text style={styles.infoCol3}>Ref. DC No:</Text>
+          <Text style={styles.infoCol4}>{inv.order_no}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoCol1}>Invoice No:</Text>
+          <Text style={styles.infoCol2}>{inv.invoice_no}</Text>
+          <Text style={styles.infoCol3}>Date:</Text>
+          <Text style={styles.infoCol4}>{new Date().toLocaleDateString()}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoCol1}>Lot No:</Text>
+          <Text style={styles.infoCol2}>{inv.gray_lot?.lot_no}</Text>
+          <Text style={styles.infoCol3}>Dated:</Text>
+          <Text style={styles.infoCol4}>{new Date(inv.order_date).toLocaleDateString()}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoCol1}>Product:</Text>
+          <Text style={styles.infoCol2}>{product}</Text>
+          <Text style={styles.infoCol3}>Cora Gazana:</Text>
+          <Text style={styles.infoCol4}>{coraGazana.toLocaleString()}</Text>
         </View>
       </View>
 
       <View style={styles.table}>
         <View style={styles.tableHeader}>
-          <Text style={styles.colDesc}>Description</Text>
-          <Text style={styles.colAmt}>Amount</Text>
+          <Text style={styles.th1}>Detail is as Under:-</Text>
+          <Text style={styles.th2}>Amount</Text>
         </View>
+        
+        <View style={styles.tableBodyRow}>
+          <View style={styles.td1}>
+            <View style={styles.innerGrid}>
+              {/* Row 1 */}
+              <View style={styles.innerRow}>
+                <View style={styles.innerCol1}><Text style={styles.labelSmall}>Cora Bundle</Text><Text style={styles.valueSmall}>{coraBundle}</Text></View>
+                <View style={styles.innerCol2}><Text style={styles.labelSmall}>Cora Gazana</Text><Text style={styles.valueSmall}>{coraGazana.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
+                <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>-</Text></View>
+              </View>
+              
+              {/* Row 2 */}
+              <View style={styles.innerRow}>
+                <View style={styles.innerCol1}><Text style={styles.labelSmall}>Finish Bundle</Text><Text style={styles.valueSmall}>{finishBundle}</Text></View>
+                <View style={styles.innerCol2}><Text style={styles.labelSmall}>Finish Mtr</Text><Text style={styles.valueSmall}>{readyMeter.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
+                <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>{isRateMeter ? Number(inv.rate).toFixed(2) : '-'}</Text></View>
+              </View>
+              
+              {/* Row 3 */}
+              <View style={styles.innerRow}>
+                <View style={styles.innerCol1}><Text style={styles.labelSmall}> </Text><Text style={styles.valueSmall}> </Text></View>
+                <View style={styles.innerCol2}><Text style={styles.labelSmall}>Finish Yard</Text><Text style={styles.valueSmall}>{readyGaz.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
+                <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>{!isRateMeter ? Number(inv.rate).toFixed(2) : '-'}</Text></View>
+              </View>
 
-        {/* Gazana row */}
-        <View style={[styles.tableRow, { backgroundColor: '#f9f9f9' }]}>
-          <Text style={[styles.colDesc, { fontWeight: 'bold', color: '#333' }]}>Gazana (Ready Qty)</Text>
-          <Text style={[styles.colAmt, { fontWeight: 'bold', color: '#333' }]}>
-            {readyMeter.toFixed(2)} Mtr  /  {readyGaz.toFixed(2)} Gaz
-          </Text>
-        </View>
-
-        {/* Primary unit rate row */}
-        <View style={styles.tableRow}>
-          <Text style={styles.colDesc}>
-            {primaryLabel}:  {primaryQty.toFixed(2)} {primaryShort}  ×  Rs {inv.rate} / {primaryShort}
-          </Text>
-          <Text style={[styles.colAmt, { fontWeight: 'bold' }]}>
-            {processingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </Text>
-        </View>
-
-        {/* Secondary unit reference row */}
-        <View style={[styles.tableRow, { borderBottomWidth: 2, borderBottomColor: '#ddd' }]}>
-          <Text style={[styles.colDesc, { color: '#888', fontSize: 9 }]}>
-            {secondaryLabel} Equivalent:  {secondaryQty.toFixed(2)} {isRateInMeter ? 'Gaz' : 'Mtr'}
-          </Text>
-          <Text style={styles.colAmt}></Text>
-        </View>
-
-        {Number(inv.kinar_cut_amount) > 0 && (
-          <View style={styles.tableRow}>
-            <Text style={styles.colDesc}>Kinar Cut</Text>
-            <Text style={styles.colAmt}>{Number(inv.kinar_cut_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+              {/* Row 4: Packing */}
+              <View style={styles.innerRow}>
+                <View style={styles.innerCol1}><Text style={styles.labelSmall}>Packing Bundle</Text><Text style={styles.valueSmall}>{packingQty > 0 ? packingQty : ' '}</Text></View>
+                <View style={styles.innerCol2}><Text style={styles.labelSmall}> </Text><Text style={styles.valueSmall}> </Text></View>
+                <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>{packingRate}</Text></View>
+              </View>
+              
+              {/* Row 5: Kinar Cut */}
+              {kinarCutQty > 0 || kinarCutAmount > 0 ? (
+              <View style={styles.innerRow}>
+                <View style={styles.innerCol1}><Text style={styles.labelSmall}>Kinar Cut</Text><Text style={styles.valueSmall}>{kinarCutQty > 0 ? kinarCutQty : ' '}</Text></View>
+                <View style={styles.innerCol2}><Text style={styles.labelSmall}> </Text><Text style={styles.valueSmall}> </Text></View>
+                <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>{kinarCutRate}</Text></View>
+              </View>
+              ) : null}
+            </View>
           </View>
-        )}
-        {Number(inv.packing_amount) > 0 && (
-          <View style={styles.tableRow}>
-            <Text style={styles.colDesc}>Packing</Text>
-            <Text style={styles.colAmt}>{Number(inv.packing_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.summaryArea}>
-        <View style={styles.summaryBox}>
-          <View style={styles.summaryRow}>
-            <Text style={styles.totalLabel}>TOTAL BILL AMOUNT:</Text>
-            <Text style={styles.totalValue}>{org.currency} {totalAmount.toLocaleString()}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.totalLabel}>TOTAL PAID AMOUNT:</Text>
-            <Text style={styles.totalValue}>{org.currency} {paidAmount.toLocaleString()}</Text>
-          </View>
-          <View style={styles.grandTotalRow}>
-            <Text style={styles.remainingLabel}>BALANCE DUE:</Text>
-            <Text style={styles.remainingValue}>{org.currency} {dueAmount.toLocaleString()}</Text>
+          
+          <View style={styles.td2}>
+            <Text style={styles.amtValue}>-</Text>
+            <Text style={styles.amtValue}>{isRateMeter ? processingAmount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : '-'}</Text>
+            <Text style={styles.amtValue}>{!isRateMeter ? processingAmount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : '-'}</Text>
+            <Text style={styles.amtValue}>{packingAmount > 0 ? packingAmount.toLocaleString() : '-'}</Text>
+            {kinarCutQty > 0 || kinarCutAmount > 0 ? (
+              <Text style={styles.amtValue}>{kinarCutAmount > 0 ? kinarCutAmount.toLocaleString() : '-'}</Text>
+            ) : null}
           </View>
         </View>
       </View>
 
-      <Text style={styles.footer}>
-        This is a computer generated invoice and does not require a physical signature.
-        Generated by Shan Dyeing ERP Software.
+      <View style={styles.bottomSection}>
+        <View style={styles.balanceBox}>
+          <Text style={styles.labelSmall}>Balance Cora</Text>
+          <Text style={styles.valueSmall}>{balanceCora.toFixed(2)}</Text>
+        </View>
+        <View style={styles.conditionBox}>
+          <Text style={styles.labelSmall}>Condition:</Text>
+          <Text style={[styles.valueSmall, { color: 'blue' }]}>Complete</Text>
+        </View>
+        <View style={styles.totalBox}>
+          <Text style={styles.labelSmall}>Total Invoice Amount:</Text>
+          <Text style={{ fontWeight: 'bold', fontSize: 12 }}>{totalInvoiceAmount.toLocaleString()}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.footerNote}>
+        نوٹ:- ریٹ فرق یا بل میں کسی بھی قسم کی غلطی کی صورت میں 7 دن کے اندر فیکٹری پر رابطہ کریں اس کے بعد کوئی شکایت قابل قبول نہیں ہوگی۔
       </Text>
-    </Page>
+    </View>
   );
 };
 
-/** Single invoice PDF — wraps one InvoicePage in a Document */
 export const PDFInvoice = ({ inv, org }: { inv: DeliveryOrderItem; org: Organization }) => (
   <Document>
-    <InvoicePage inv={inv} org={org} />
+    <Page size="A4" orientation="landscape" style={styles.page}>
+      <InvoiceContent inv={inv} org={org} />
+    </Page>
   </Document>
 );
 
-/** Multi-invoice PDF — each invoice on its own separate page */
 export const PDFMultiInvoice = ({ invoices, org }: { invoices: DeliveryOrderItem[]; org: Organization }) => (
   <Document>
     {invoices.map(inv => (
-      <InvoicePage key={inv.id} inv={inv} org={org} />
+      <Page key={inv.id} size="A4" orientation="landscape" style={styles.page}>
+        <InvoiceContent inv={inv} org={org} />
+      </Page>
     ))}
   </Document>
 );
-
