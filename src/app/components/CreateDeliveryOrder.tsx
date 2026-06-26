@@ -33,6 +33,7 @@ export default function CreateDeliveryOrder() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [inputUnit, setInputUnit] = useState<'meter' | 'gaz'>('meter');
+  const [remarks, setRemarks] = useState('');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -105,6 +106,8 @@ export default function CreateDeliveryOrder() {
             lot.remaining += Number(doData.total_gray_gazana);
             setSelectedLot(lot);
           }
+          
+          if ((doData as any).remarks) setRemarks((doData as any).remarks);
           
           if (doData.grid_data) {
             if (doData.grid_data.colors && doData.grid_data.colors.length > 0) {
@@ -340,6 +343,7 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
       setSaving(true);
       const payload = {
         gray_lot_id: selectedLot.id,
+        remarks: remarks,
         // Totals always sent in meters to backend for lot balance tracking
         total_gray_gazana: convertToMeter(grayAmount),
         total_ready_gazana: convertToMeter(readyAmount),
@@ -489,6 +493,17 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                 {inputUnit === 'gaz' && (
                   <p className="text-[10px] text-blue-500 mt-1 font-bold italic">Note: Gaz entries will be auto-converted to Meters (x0.9144) on save.</p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-2">Remarks (Optional)</label>
+                <textarea
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  placeholder="Enter remarks..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  rows={2}
+                />
               </div>
 
               {selectedLot && (

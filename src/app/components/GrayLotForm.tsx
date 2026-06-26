@@ -1,6 +1,6 @@
 import { useState, useRef, KeyboardEvent, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router';
-import { Save, X, PlusCircle } from 'lucide-react';
+import { Save, X, PlusCircle, Search, ChevronDown } from 'lucide-react';
 import { grayLotService } from '../services/grayLotService';
 import { customerService, CustomerItem } from '../services/customerService';
 import { qualityService, QualityItem } from '../services/qualityService';
@@ -38,10 +38,24 @@ export default function GrayLotForm() {
   const [submitError, setSubmitError] = useState('');
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
   const [qualities, setQualities] = useState<QualityItem[]>([]);
+  const [isPartyDropdownOpen, setIsPartyDropdownOpen] = useState(false);
+  const [partySearchQuery, setPartySearchQuery] = useState('');
+  const [focusedPartyIndex, setFocusedPartyIndex] = useState(-1);
+  const partyDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (partyDropdownRef.current && !partyDropdownRef.current.contains(event.target as Node)) {
+        setIsPartyDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Refs for all form fields in order
   const entryDateRef = useRef<HTMLInputElement>(null);
-  const partyNameRef = useRef<HTMLInputElement>(null);
+  const partyNameRef = useRef<HTMLDivElement>(null);
   const processTypeRef = useRef<HTMLSelectElement>(null);
   const biltiNoRef = useRef<HTMLInputElement>(null);
   const qualityRef = useRef<HTMLSelectElement>(null);
@@ -119,7 +133,16 @@ export default function GrayLotForm() {
     }
   }, [id]);
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>, fieldIndex: number) => {
+  useEffect(() => {
+    if (!isView) {
+      // Auto focus the party name dropdown on mount
+      setTimeout(() => {
+        partyNameRef.current?.focus();
+      }, 100);
+    }
+  }, [isView]);
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLElement>, fieldIndex: number) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (fieldIndex < fieldRefs.length - 1) {
@@ -171,6 +194,8 @@ export default function GrayLotForm() {
     }
   };
 
+  const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(partySearchQuery.toLowerCase()));
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -211,24 +236,103 @@ export default function GrayLotForm() {
                   onKeyDown={(e) => handleKeyDown(e, 0)}
                 />
               </div>
-              <div>
+              <div ref={partyDropdownRef} className="relative z-50">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Party Name</label>
-                <input
-                  ref={partyNameRef}
-                  disabled={isView}
-                  list="party-list"
-                  type="text"
-                  placeholder="Search party..."
-                  value={formData.partyName || ''}
-                  onChange={(e) => setFormData({ ...formData, partyName: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:bg-gray-50 disabled:text-gray-500"
-                  onKeyDown={(e) => handleKeyDown(e, 1)}
-                />
-                <datalist id="party-list">
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.name} />
-                  ))}
-                </datalist>
+                <div 
+                  className={`w-full px-4 py-3 rounded-xl border ${isPartyDropdownOpen ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'} bg-white cursor-pointer flex justify-between items-center transition-all ${isView ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
+                  onClick={() => !isView && setIsPartyDropdownOpen(!isPartyDropdownOpen)}
+                  tabIndex={0}
+                  onKeyDown={(e: any) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (!isView) setIsPartyDropdownOpen(!isPartyDropdownOpen);
+                    } else {
+                      handleKeyDown(e, 1);
+                    }
+                  }}
+                  ref={partyNameRef as any}
+                >
+                  <span className={formData.partyName ? 'text-gray-800' : 'text-gray-500'}>
+                    {formData.partyName || 'Select Party...'}
+                  </span>
+                  <ChevronDown size={18} className={`text-gray-400 transition-transform duration-200 ${isPartyDropdownOpen ? 'rotate-180' : ''}`} />
+                </div>
+
+                {isPartyDropdownOpen && !isView && (
+                  <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] max-h-60 flex flex-col overflow-hidden">
+                    <div className="p-2 border-b border-gray-50 bg-gray-50/50">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={15} />
+                        <input
+                          type="text"
+                          className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-gray-400"
+                          placeholder="Search party..."
+                          value={partySearchQuery}
+                          onChange={(e) => {
+                            setPartySearchQuery(e.target.value);
+                            setFocusedPartyIndex(-1);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            if (e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              setFocusedPartyIndex(prev => (prev < filteredCustomers.length - 1 ? prev + 1 : prev));
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              setFocusedPartyIndex(prev => (prev > 0 ? prev - 1 : 0));
+                            } else if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (focusedPartyIndex >= 0 && focusedPartyIndex < filteredCustomers.length) {
+                                setFormData({ ...formData, partyName: filteredCustomers[focusedPartyIndex].name });
+                                setIsPartyDropdownOpen(false);
+                                setPartySearchQuery('');
+                                setFocusedPartyIndex(-1);
+                                processTypeRef.current?.focus();
+                              } else if (filteredCustomers.length === 1) {
+                                setFormData({ ...formData, partyName: filteredCustomers[0].name });
+                                setIsPartyDropdownOpen(false);
+                                setPartySearchQuery('');
+                                setFocusedPartyIndex(-1);
+                                processTypeRef.current?.focus();
+                              }
+                            }
+                          }}
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    <div className="p-1.5 overflow-y-auto">
+                      {filteredCustomers.length === 0 ? (
+                        <div className="p-4 text-sm text-gray-500 text-center flex flex-col items-center gap-2">
+                          <Search size={20} className="text-gray-300" />
+                          <p>No party found</p>
+                        </div>
+                      ) : (
+                        filteredCustomers.map((c, idx) => (
+                          <div
+                            key={c.id}
+                            className={`px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-all ${
+                              focusedPartyIndex === idx ? 'bg-blue-100 border border-blue-200' :
+                              formData.partyName === c.name ? 'bg-blue-50 border border-blue-100' : 'hover:bg-gray-50 border border-transparent'
+                            }`}
+                            onClick={() => {
+                              setFormData({ ...formData, partyName: c.name });
+                              setIsPartyDropdownOpen(false);
+                              setPartySearchQuery('');
+                              setFocusedPartyIndex(-1);
+                              processTypeRef.current?.focus();
+                            }}
+                            onMouseEnter={() => setFocusedPartyIndex(idx)}
+                          >
+                            <span className={`font-semibold ${formData.partyName === c.name ? 'text-blue-700' : 'text-gray-800'}`}>
+                              {c.name}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Process Type</label>
@@ -327,6 +431,9 @@ export default function GrayLotForm() {
                   onKeyPress={(e) => {
                     if (e.key === '-' || e.key === 'e') e.preventDefault();
                   }}
+                  onWheel={(e) => {
+                    (e.target as HTMLInputElement).blur();
+                  }}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:bg-gray-50 disabled:text-gray-500"
                   onKeyDown={(e) => handleKeyDown(e, 6)}
                 />
@@ -347,6 +454,9 @@ export default function GrayLotForm() {
                   }}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:bg-gray-50 disabled:text-gray-500"
                   onKeyDown={(e) => handleKeyDown(e, 7)}
+                  onWheel={(e) => {
+                    (e.target as HTMLInputElement).blur();
+                  }}
                 />
               </div>
             </div>

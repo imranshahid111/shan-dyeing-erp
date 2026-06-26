@@ -228,10 +228,13 @@ exports.generateInvoice = async (req, res, next) => {
     }, { transaction: t });
 
     await t.commit();
-    await logActivity("Invoices", `Generated Invoice #${nextInvNo}`, `Total Amount: ${netAmount}`, req);
+    // await logActivity("Invoices", `Generated Invoice #${nextInvNo}`, `Total Amount: ${netAmount}`, req);
     return res.json(deliveryOrder);
   } catch (err) {
+            console.log(err)
+
     await t.rollback();
+
     return next(err);
   }
 };

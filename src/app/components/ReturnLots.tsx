@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { RefreshCw, Plus, Search, Trash2, X, ChevronDown, Check } from 'lucide-react';
+import { RefreshCw, Plus, Search, Trash2, X, ChevronDown, Check, Edit } from 'lucide-react';
 import { useRef } from 'react';
 import { toast } from 'sonner';
 
@@ -13,12 +13,39 @@ export default function ReturnLots() {
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [unit, setUnit] = useState<'meter' | 'yard'>('meter');
+
   const [formData, setFormData] = useState({
     gray_lot_id: '',
     returned_quantity: '',
     return_date: new Date().toISOString().split('T')[0],
     reason: ''
   });
+
+  const resetForm = () => {
+    setIsModalOpen(false);
+    setEditingId(null);
+    setUnit('meter');
+    setFormData({
+      gray_lot_id: '',
+      returned_quantity: '',
+      return_date: new Date().toISOString().split('T')[0],
+      reason: ''
+    });
+  };
+
+  const handleEdit = (rl: any) => {
+    setEditingId(rl.id);
+    setFormData({
+      gray_lot_id: rl.gray_lot_id.toString(),
+      returned_quantity: rl.returned_quantity.toString(),
+      return_date: new Date(rl.return_date).toISOString().split('T')[0],
+      reason: rl.reason || ''
+    });
+    setUnit('meter');
+    setIsModalOpen(true);
+  };
 
   const fetchReturnLots = async () => {
     try {
@@ -71,30 +98,36 @@ export default function ReturnLots() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/return-lots`, {
-        method: 'POST',
+      const qty = parseFloat(formData.returned_quantity) || 0;
+      const finalQty = unit === 'yard' ? qty * 0.9144 : qty;
+
+      const payload = {
+        ...formData,
+        returned_quantity: finalQty
+      };
+
+      const url = editingId 
+        ? `${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/return-lots/${editingId}`
+        : `${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/return-lots`;
+        
+      const res = await fetch(url, {
+        method: editingId ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('erp_token')}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
       
-      if (!res.ok) throw new Error('Failed to create return lot');
+      if (!res.ok) throw new Error('Failed to save return lot');
       
-      toast.success('Return lot created successfully');
-      setIsModalOpen(false);
-      setFormData({
-        gray_lot_id: '',
-        returned_quantity: '',
-        return_date: new Date().toISOString().split('T')[0],
-        reason: ''
-      });
+      toast.success(`Return lot ${editingId ? 'updated' : 'created'} successfully`);
+      resetForm();
       fetchReturnLots();
       fetchGrayLots();
     } catch (err) {
       console.error(err);
-      toast.error('Failed to create return lot');
+      toast.error('Failed to save return lot');
     }
   };
 
@@ -128,7 +161,10 @@ export default function ReturnLots() {
           <p className="text-sm text-gray-500">Manage damaged and returned quantities from Gray Lots</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            resetForm();
+            setIsModalOpen(true);
+          }}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
         >
           <Plus size={18} />
@@ -178,6 +214,13 @@ export default function ReturnLots() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                       <button
+                        onClick={() => handleEdit(rl)}
+                        className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors mr-2"
+                        title="Edit"
+                      >
+                        <Edit size={18} />
+                      </button>
+                      <button
                         onClick={() => handleDelete(rl.id)}
                         className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
                         title="Delete"
@@ -197,9 +240,9 @@ export default function ReturnLots() {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900">Add Return Lot</h2>
+              <h2 className="text-xl font-bold text-gray-900">{editingId ? 'Edit Return Lot' : 'Add Return Lot'}</h2>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={resetForm}
                 className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-xl transition-colors"
               >
                 <X size={20} />
@@ -283,18 +326,31 @@ export default function ReturnLots() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Returned / Damaged Quantity</label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  step="0.01"
-                  value={formData.returned_quantity}
-                  onChange={(e) => setFormData({ ...formData, returned_quantity: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g. 50"
-                />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Returned / Damaged Quantity</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="0.01"
+                    value={formData.returned_quantity}
+                    onChange={(e) => setFormData({ ...formData, returned_quantity: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. 50"
+                  />
+                </div>
+                <div className="w-1/3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                  <select
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value as 'meter' | 'yard')}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="meter">Meter</option>
+                    <option value="yard">Yard</option>
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -321,7 +377,7 @@ export default function ReturnLots() {
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={resetForm}
                   className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
                 >
                   Cancel

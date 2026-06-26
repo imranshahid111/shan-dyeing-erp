@@ -23,7 +23,7 @@ exports.createGrayLot = async (req, res, next) => {
     }
 
     const created = await GrayLot.create(payload);
-    await logActivity("Gray Lots", `Created Lot #${payload.lot_no}`, `Party: ${payload.party_name}, Quality ID: ${payload.quality_id}`, req);
+    // await logActivity("Gray Lots", `Created Lot #${payload.lot_no}`, `Party: ${payload.party_name}, Quality ID: ${payload.quality_id}`, req);
     return res.status(201).json(created);
   } catch (error) {
     console.log(error);

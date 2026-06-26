@@ -183,10 +183,14 @@ export default function ViewDeliveryOrder() {
           </div>
 
           {/* Customer & Lot Info Row */}
-          <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+          <div className="grid grid-cols-3 gap-4 mb-6 text-sm">
             <div>
               <p className="font-bold">Customer:</p>
-              <p className="font-mono text-lg font-black">{order.customer?.name} / {order.customer?.customer_code}</p>
+              <p className="font-mono text-lg font-black">{order.customer?.name}</p>
+            </div>
+            <div className="text-center">
+              <p className="font-bold">Bilti No:</p>
+              <p className="font-mono text-lg font-black">{order.gray_lot?.bill_no || '—'}</p>
             </div>
             <div className="text-right">
               <p className="font-bold">Lot #:</p>
@@ -196,10 +200,20 @@ export default function ViewDeliveryOrder() {
               <p className="font-bold">Date:</p>
               <p>{new Date(order.order_date).toLocaleDateString('en-PK')}</p>
             </div>
+            <div className="text-center">
+              <p className="font-bold">Process Type:</p>
+              <p className="text-gray-800 font-semibold">{order.gray_lot?.process_type || 'Dyeing'}</p>
+            </div>
             <div className="text-right">
               <p className="font-bold">Quality / Finish:</p>
               <p>{quality} / {finishType}</p>
             </div>
+            {(order as any).remarks && (
+              <div className="col-span-3 mt-2 pt-2 border-t border-gray-200">
+                <p className="font-bold">Remarks:</p>
+                <p className="text-gray-700">{(order as any).remarks}</p>
+              </div>
+            )}
           </div>
 
           {/* Main Grid Table - Exactly like the physical challan */}

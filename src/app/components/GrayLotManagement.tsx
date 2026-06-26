@@ -132,7 +132,8 @@ export default function GrayLotManagement() {
                 {lots.map((lot) => (
                   <tr key={lot.id}>
                     <td>
-                      <span style={{
+                      <span onClick={() => navigate(`/gray-lots/view/${lot.id}`)} style={{
+                        cursor:'pointer',
                         fontFamily: 'monospace', fontWeight: 700,
                         color: 'var(--gray-900)', fontSize: '0.875rem',
                       }}>{lot.lot_no}</span>
