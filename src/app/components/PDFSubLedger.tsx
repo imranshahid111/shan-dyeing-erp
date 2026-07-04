@@ -214,13 +214,13 @@ export const PDFSubLedger = ({
             <Cell width={COL.date} bold>Date</Cell>
             <Cell width={COL.refType} variant="left" bold>Ref Type</Cell>
             <Cell width={COL.refNo} bold>Inv/DC #</Cell>
+            <Cell width={COL.lot} bold>Lot #</Cell>
             <Cell width={COL.desc} variant="left" bold>Description</Cell>
             <Cell width={COL.debit} variant="right" bold>Debit</Cell>
             <Cell width={COL.credit} variant="right" bold>Credit</Cell>
             <Cell width={COL.balance} variant="right" bold>Balance</Cell>
             <Cell width={COL.rate} variant="right" bold>Rate</Cell>
-            <Cell width={COL.lot} bold>Lot #</Cell>
-            <Cell width={COL.bundle} variant="right" bold>Bundle</Cell>
+            {/* <Cell width={COL.bundle} variant="right" bold>Bundle</Cell> */}
             <Cell width={COL.meter} variant="right" last bold>Meters</Cell>
           </View>
 
@@ -233,6 +233,7 @@ export const PDFSubLedger = ({
               <Cell width={COL.date}>{formatReportDate(row.date)}</Cell>
               <Cell width={COL.refType} variant="left">{row.referenceType}</Cell>
               <Cell width={COL.refNo}>{row.referenceNo}</Cell>
+               <Cell width={COL.lot}>{row.lotNo}</Cell>
               <Cell width={COL.desc} variant="left">{row.description}</Cell>
               <Cell width={COL.debit} variant="right">
                 {row.debit ? formatAmount(row.debit) : '—'}
@@ -246,10 +247,10 @@ export const PDFSubLedger = ({
               <Cell width={COL.rate} variant="right">
                 {row.rate ? formatAmount(row.rate) : '—'}
               </Cell>
-              <Cell width={COL.lot}>{row.lotNo}</Cell>
-              <Cell width={COL.bundle} variant="right">
+             
+              {/* <Cell width={COL.bundle} variant="right">
                 {row.bundleQty ? String(row.bundleQty) : '—'}
-              </Cell>
+              </Cell> */}
               <Cell width={COL.meter} variant="right" last>
                 {row.meterQty ? formatAmount(row.meterQty) : '—'}
               </Cell>

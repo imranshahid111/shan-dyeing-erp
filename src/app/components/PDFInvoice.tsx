@@ -136,22 +136,23 @@ const styles = StyleSheet.create({
 
 const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organization }) => {
   const isRateMeter = inv.rate_unit !== 'yard';
-  const readyMeter = Number(inv.total_ready_gazana || 0);
-  const readyGaz   = readyMeter / 0.9144;
+  const readyGaz   = Number(inv.total_ready_gazana || 0);
+  const readyMeter = readyGaz * 0.9144;
+  const effectiveQty = isRateMeter ? readyMeter : readyGaz;
   
   const coraBundle = Number((inv as any).total_pcs || (inv as any).pcs || 0);
   const coraGazana = Number(inv.total_gray_gazana || 0);
   const finishBundle = Number((inv as any).total_pcs_finish || (inv as any).finish_pcs || 0);
   
-  const processingAmount = (isRateMeter ? readyMeter : readyGaz) * Number(inv.rate || 0);
+  const processingAmount = effectiveQty * Number(inv.rate || 0);
   
-  const kinarCutQty = Number(inv.kinar_cut_qty || 0);
+  const kinarCutQty = Number((inv as any).kinar_cut_qty) || effectiveQty;
   const kinarCutAmount = Number(inv.kinar_cut_amount || 0);
-  const kinarCutRate = kinarCutQty > 0 ? (kinarCutAmount / kinarCutQty).toFixed(2) : '-';
+  const kinarCutRate = kinarCutAmount > 0 && kinarCutQty > 0 ? (kinarCutAmount / kinarCutQty).toFixed(2) : '-';
   
-  const packingQty = Number(inv.packing_qty || 0);
+  const packingQty = Number((inv as any).packing_qty) || effectiveQty;
   const packingAmount = Number(inv.packing_amount || 0);
-  const packingRate = packingQty > 0 ? (packingAmount / packingQty).toFixed(2) : '-';
+  const packingRate = packingAmount > 0 && packingQty > 0 ? (packingAmount / packingQty).toFixed(2) : '-';
 
   const totalInvoiceAmount = Number(inv.total_amount || 0);
   const balanceCora = 0.00;
@@ -232,15 +233,15 @@ const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organizatio
 
               {/* Row 4: Packing */}
               <View style={styles.innerRow}>
-                <View style={styles.innerCol1}><Text style={styles.labelSmall}>Packing Bundle</Text><Text style={styles.valueSmall}>{packingQty > 0 ? packingQty : ' '}</Text></View>
+                <View style={styles.innerCol1}><Text style={styles.labelSmall}>Packing Qty</Text><Text style={styles.valueSmall}>{packingAmount > 0 ? packingQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ' '}</Text></View>
                 <View style={styles.innerCol2}><Text style={styles.labelSmall}> </Text><Text style={styles.valueSmall}> </Text></View>
                 <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>{packingRate}</Text></View>
               </View>
               
               {/* Row 5: Kinar Cut */}
-              {kinarCutQty > 0 || kinarCutAmount > 0 ? (
+              {kinarCutAmount > 0 ? (
               <View style={styles.innerRow}>
-                <View style={styles.innerCol1}><Text style={styles.labelSmall}>Kinar Cut</Text><Text style={styles.valueSmall}>{kinarCutQty > 0 ? kinarCutQty : ' '}</Text></View>
+                <View style={styles.innerCol1}><Text style={styles.labelSmall}>Kinar Cut Qty</Text><Text style={styles.valueSmall}>{kinarCutQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
                 <View style={styles.innerCol2}><Text style={styles.labelSmall}> </Text><Text style={styles.valueSmall}> </Text></View>
                 <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>{kinarCutRate}</Text></View>
               </View>
@@ -253,7 +254,7 @@ const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organizatio
             <Text style={styles.amtValue}>{isRateMeter ? processingAmount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : '-'}</Text>
             <Text style={styles.amtValue}>{!isRateMeter ? processingAmount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : '-'}</Text>
             <Text style={styles.amtValue}>{packingAmount > 0 ? packingAmount.toLocaleString() : '-'}</Text>
-            {kinarCutQty > 0 || kinarCutAmount > 0 ? (
+            {kinarCutAmount > 0 ? (
               <Text style={styles.amtValue}>{kinarCutAmount > 0 ? kinarCutAmount.toLocaleString() : '-'}</Text>
             ) : null}
           </View>

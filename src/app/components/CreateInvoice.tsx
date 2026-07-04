@@ -15,18 +15,19 @@ export default function CreateInvoice() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   const [rate, setRate] = useState(0);
-  const [rateInput, setRateInput] = useState('0');
+  const [rateInput, setRateInput] = useState('');
   const [discountType, setDiscountType] = useState<'flat' | 'percentage'>('percentage');
   const [discountValue, setDiscountValue] = useState(0);
-  const [discountInput, setDiscountInput] = useState('0');
+  const [discountInput, setDiscountInput] = useState('');
   
   const [kinarCutAmount, setKinarCutAmount] = useState(0);
-  const [kinarCutInput, setKinarCutInput] = useState('0');
-  const [kinarCutType, setKinarCutType] = useState<'flat' | 'per_unit'>('flat');
+  const [kinarCutInput, setKinarCutInput] = useState('');
   
   const [packingAmount, setPackingAmount] = useState(0);
-  const [packingInput, setPackingInput] = useState('0');
-  const [packingType, setPackingType] = useState<'flat' | 'per_unit'>('flat');
+  const [packingInput, setPackingInput] = useState('');
+  
+  const [focusedDoIndex, setFocusedDoIndex] = useState(0);
+  const rateInputRef = useRef<HTMLInputElement>(null);
   
   const [kinarCutQtyInput, setKinarCutQtyInput] = useState('');
   const [packingQtyInput, setPackingQtyInput] = useState('');
@@ -58,6 +59,8 @@ export default function CreateInvoice() {
         if (preSelectedId) {
           const found = response.data.find((d: DeliveryOrderItem) => d.id === preSelectedId);
           if (found) setSelectedDO(found);
+        } else {
+          setIsDoDropdownOpen(true);
         }
       } catch (error) {
         console.error("Failed to fetch DOs", error);
@@ -68,9 +71,10 @@ export default function CreateInvoice() {
     fetchDOs();
   }, []);
 
-  const meterQuantity = selectedDO ? Number(selectedDO.total_ready_gazana || 0) : 0;
-  const grayMeterQuantity = selectedDO ? Number(selectedDO.total_gray_gazana || 0) : 0;
-  const yardQuantity = meterQuantity / 0.9144;
+  const yardQuantity = selectedDO ? Number(selectedDO.total_ready_gazana || 0) : 0;
+  const grayYardQuantity = selectedDO ? Number(selectedDO.total_gray_gazana || 0) : 0;
+  const meterQuantity = yardQuantity * 0.9144;
+  const grayMeterQuantity = grayYardQuantity * 0.9144;
   
   const effectiveQuantity = rateUnit === 'meter' ? meterQuantity : yardQuantity;
   const grossAmount = effectiveQuantity * rate;
@@ -79,10 +83,10 @@ export default function CreateInvoice() {
     discountType === 'percentage' ? (grossAmount * discountValue) / 100 : discountValue;
     
   const finalKinarCutQty = kinarCutQtyInput === '' ? effectiveQuantity : (parseFloat(kinarCutQtyInput) || 0);
-  const kinarCutTotal = kinarCutType === 'per_unit' ? kinarCutAmount * finalKinarCutQty : kinarCutAmount;
+  const kinarCutTotal = kinarCutAmount * finalKinarCutQty;
 
   const finalPackingQty = packingQtyInput === '' ? effectiveQuantity : (parseFloat(packingQtyInput) || 0);
-  const packingTotal = packingType === 'per_unit' ? packingAmount * finalPackingQty : packingAmount;
+  const packingTotal = packingAmount * finalPackingQty;
   
   const netAmount = grossAmount - discountAmount + kinarCutTotal + packingTotal;
 
@@ -134,8 +138,28 @@ export default function CreateInvoice() {
                     className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
                     placeholder="Search by DO number or party name..."
                     value={doSearch}
-                    onChange={(e) => setDoSearch(e.target.value)}
+                    onChange={(e) => {
+                      setDoSearch(e.target.value);
+                      setFocusedDoIndex(0);
+                    }}
                     onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setFocusedDoIndex((prev) => (prev < filteredDOs.length - 1 ? prev + 1 : prev));
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setFocusedDoIndex((prev) => (prev > 0 ? prev - 1 : 0));
+                      } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (filteredDOs[focusedDoIndex]) {
+                          setSelectedDO(filteredDOs[focusedDoIndex]);
+                          setIsDoDropdownOpen(false);
+                          setDoSearch('');
+                          setTimeout(() => document.getElementById('btn-meter')?.focus(), 100);
+                        }
+                      }
+                    }}
                     autoFocus
                   />
                 </div>
@@ -144,15 +168,17 @@ export default function CreateInvoice() {
                 {filteredDOs.length === 0 ? (
                   <div className="p-4 text-center text-sm text-gray-500">No delivery orders found</div>
                 ) : (
-                  filteredDOs.map((doItem) => (
+                  filteredDOs.map((doItem, index) => (
                     <div 
                       key={doItem.id} 
-                      className={`px-4 py-3 hover:bg-blue-50 cursor-pointer flex items-center justify-between border-b border-gray-50 last:border-0 ${selectedDO?.id === doItem.id ? 'bg-blue-50/50' : ''}`}
+                      className={`px-4 py-3 cursor-pointer flex items-center justify-between border-b border-gray-50 last:border-0 ${focusedDoIndex === index ? 'bg-blue-100' : selectedDO?.id === doItem.id ? 'bg-blue-50/50' : 'hover:bg-blue-50'}`}
                       onClick={() => {
                         setSelectedDO(doItem);
                         setIsDoDropdownOpen(false);
                         setDoSearch('');
+                        setTimeout(() => document.getElementById('btn-meter')?.focus(), 100);
                       }}
+                      onMouseEnter={() => setFocusedDoIndex(index)}
                     >
                       <div>
                         <div className="font-bold text-gray-800">{doItem.order_no}</div>
@@ -204,16 +230,30 @@ export default function CreateInvoice() {
                 <label className="block text-sm text-gray-600 mb-2">Apply Rate On</label>
                 <div className="flex gap-2">
                   <button
+                    id="btn-meter"
                     type="button"
-                    onClick={() => setRateUnit('meter')}
-                    className={`flex-1 py-2 px-4 rounded-xl border-2 transition-all font-bold ${rateUnit === 'meter' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                    onClick={() => {
+                      setRateUnit('meter');
+                      rateInputRef.current?.focus();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowRight') document.getElementById('btn-yard')?.focus();
+                    }}
+                    className={`flex-1 py-2 px-4 rounded-xl border-2 transition-all font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 ${rateUnit === 'meter' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}
                   >
                     Per Meter
                   </button>
                   <button
+                    id="btn-yard"
                     type="button"
-                    onClick={() => setRateUnit('yard')}
-                    className={`flex-1 py-2 px-4 rounded-xl border-2 transition-all font-bold ${rateUnit === 'yard' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}
+                    onClick={() => {
+                      setRateUnit('yard');
+                      rateInputRef.current?.focus();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowLeft') document.getElementById('btn-meter')?.focus();
+                    }}
+                    className={`flex-1 py-2 px-4 rounded-xl border-2 transition-all font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 ${rateUnit === 'yard' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}
                   >
                     Per Yard (Gaz)
                   </button>
@@ -222,6 +262,7 @@ export default function CreateInvoice() {
               <div className="flex-1">
                 <label className="block text-sm text-gray-600 mb-2">Rate (Rs)</label>
                 <input
+                  ref={rateInputRef}
                   type="number"
                   min="0"
                   step="0.01"
@@ -232,8 +273,14 @@ export default function CreateInvoice() {
                   }}
                   onBlur={() => {
                     if (rateInput === '' || isNaN(parseFloat(rateInput))) {
-                      setRateInput('0');
+                      setRateInput('');
                       setRate(0);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      document.getElementById('kinarCutInput')?.focus();
                     }
                   }}
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
@@ -252,28 +299,13 @@ export default function CreateInvoice() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <label className="block text-sm text-gray-600">Kinar Cut Amount</label>
-                  <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-                    <button 
-                      type="button"
-                      onClick={() => setKinarCutType('flat')}
-                      className={`text-[10px] px-2 py-1 rounded-md font-bold uppercase ${kinarCutType === 'flat' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                      Flat
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => setKinarCutType('per_unit')}
-                      className={`text-[10px] px-2 py-1 rounded-md font-bold uppercase ${kinarCutType === 'per_unit' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                      Per {rateUnit === 'meter' ? 'Mtr' : 'Gaz'}
-                    </button>
-                  </div>
+                  <label className="block text-sm text-gray-600">Kinar Cut Amount (Per {rateUnit === 'meter' ? 'Mtr' : 'Gaz'})</label>
                 </div>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-semibold">Rs</span>
                     <input
+                      id="kinarCutInput"
                       type="number"
                       min="0"
                       step="0.01"
@@ -284,55 +316,51 @@ export default function CreateInvoice() {
                       }}
                       onBlur={() => {
                         if (kinarCutInput === '' || isNaN(parseFloat(kinarCutInput))) {
-                          setKinarCutInput('0');
+                          setKinarCutInput('');
                           setKinarCutAmount(0);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          document.getElementById('kinarCutQtyInput')?.focus();
                         }
                       }}
                       className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="0.00"
                     />
                   </div>
-                  {kinarCutType === 'per_unit' && (
-                    <div className="relative flex-1">
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold uppercase">{rateUnit === 'meter' ? 'Mtr' : 'Gaz'}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={kinarCutQtyInput}
-                        onChange={(e) => setKinarCutQtyInput(e.target.value)}
-                        className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder={effectiveQuantity.toFixed(2)}
-                      />
-                    </div>
-                  )}
+                  <div className="relative flex-1">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold uppercase">{rateUnit === 'meter' ? 'Mtr' : 'Gaz'}</span>
+                    <input
+                      id="kinarCutQtyInput"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={kinarCutQtyInput}
+                      onChange={(e) => setKinarCutQtyInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          document.getElementById('packingInput')?.focus();
+                        }
+                      }}
+                      className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder=""
+                    />
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <label className="block text-sm text-gray-600">Packing Amount</label>
-                  <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-                    <button 
-                      type="button"
-                      onClick={() => setPackingType('flat')}
-                      className={`text-[10px] px-2 py-1 rounded-md font-bold uppercase ${packingType === 'flat' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                      Flat
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => setPackingType('per_unit')}
-                      className={`text-[10px] px-2 py-1 rounded-md font-bold uppercase ${packingType === 'per_unit' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                      Per {rateUnit === 'meter' ? 'Mtr' : 'Gaz'}
-                    </button>
-                  </div>
+                  <label className="block text-sm text-gray-600">Packing Amount (Per {rateUnit === 'meter' ? 'Mtr' : 'Gaz'})</label>
                 </div>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-semibold">Rs</span>
                     <input
+                      id="packingInput"
                       type="number"
                       min="0"
                       step="0.01"
@@ -343,28 +371,39 @@ export default function CreateInvoice() {
                       }}
                       onBlur={() => {
                         if (packingInput === '' || isNaN(parseFloat(packingInput))) {
-                          setPackingInput('0');
+                          setPackingInput('');
                           setPackingAmount(0);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          document.getElementById('packingQtyInput')?.focus();
                         }
                       }}
                       className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="0.00"
                     />
                   </div>
-                  {packingType === 'per_unit' && (
-                    <div className="relative flex-1">
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold uppercase">{rateUnit === 'meter' ? 'Mtr' : 'Gaz'}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={packingQtyInput}
-                        onChange={(e) => setPackingQtyInput(e.target.value)}
-                        className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder={effectiveQuantity.toFixed(2)}
-                      />
-                    </div>
-                  )}
+                  <div className="relative flex-1">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-bold uppercase">{rateUnit === 'meter' ? 'Mtr' : 'Gaz'}</span>
+                    <input
+                      id="packingQtyInput"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={packingQtyInput}
+                      onChange={(e) => setPackingQtyInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          document.getElementById('discountInput')?.focus();
+                        }
+                      }}
+                      className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder=""
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -394,6 +433,7 @@ export default function CreateInvoice() {
                 </div>
               </div>
               <input
+                id="discountInput"
                 type="number"
                 min="0"
                 step="0.01"
@@ -404,8 +444,14 @@ export default function CreateInvoice() {
                 }}
                 onBlur={() => {
                   if (discountInput === '' || isNaN(parseFloat(discountInput))) {
-                    setDiscountInput('0');
+                    setDiscountInput('');
                     setDiscountValue(0);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('saveInvoiceBtn')?.focus();
                   }
                 }}
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 mt-3"
@@ -431,6 +477,7 @@ export default function CreateInvoice() {
           {/* Action Buttons */}
           <div className="flex items-center gap-3 mt-6">
             <button 
+              id="saveInvoiceBtn"
               onClick={async () => {
                 if (!selectedDO || isSubmitting) return;
                 try {
@@ -442,8 +489,8 @@ export default function CreateInvoice() {
                     rateUnit, 
                     kinarCutTotal, 
                     packingTotal,
-                    kinarCutType === 'per_unit' ? finalKinarCutQty : undefined,
-                    packingType === 'per_unit' ? finalPackingQty : undefined
+                    finalKinarCutQty,
+                    finalPackingQty
                   );
                   toast.success("Invoice generated and customer ledger updated!");
                   navigate('/billing');

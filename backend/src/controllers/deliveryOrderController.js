@@ -33,10 +33,10 @@ exports.getDeliveryOrders = async (req, res, next) => {
       subQuery: false,
       include: [
         { model: Customer, attributes: ["id", "name", "customer_code"] },
-        { model: GrayLot, attributes: ["lot_no"] },
+        { model: GrayLot, attributes: ["lot_no", "measurement"] },
       ],
       order: [["order_date", "DESC"], ["id", "DESC"]],
-      attributes: ["id", "order_no", "invoice_no", "customer_id", "gray_lot_id", "order_date", "status", "total_amount", "paid_amount", "total_gray_gazana", "total_ready_gazana", "rate", "rate_unit", "input_unit", "kinar_cut_amount", "packing_amount", "grid_data"],
+      attributes: ["id", "order_no", "invoice_no", "customer_id", "gray_lot_id", "order_date", "status", "total_amount", "paid_amount", "total_gray_gazana", "total_ready_gazana", "rate", "rate_unit", "input_unit", "kinar_cut_amount", "kinar_cut_qty", "packing_amount", "packing_qty", "grid_data"],
       limit: pageSize,
       offset: (page - 1) * pageSize,
     });
@@ -79,7 +79,13 @@ exports.getDeliveryOrderById = async (req, res, next) => {
       const delivered = allDOs.reduce((sum, o) => sum + Number(o.total_gray_gazana || 0), 0);
       const returnedQty = returns.reduce((sum, r) => sum + Number(r.returned_quantity || 0), 0);
       const gazana = Number((orderData.gray_lot && orderData.gray_lot.gazana) ? orderData.gray_lot.gazana : (orderData.GrayLot ? orderData.GrayLot.gazana : 0));
-      const balance = Math.max(gazana - delivered - returnedQty, 0);
+      const isMeter = String(orderData.gray_lot?.measurement || orderData.GrayLot?.measurement || "").toLowerCase() === "meter";
+      let balance = 0;
+      if (isMeter) {
+        balance = Math.max(gazana - (delivered + returnedQty) * 0.9144, 0);
+      } else {
+        balance = Math.max(gazana - delivered - returnedQty, 0);
+      }
       
       if (orderData.gray_lot) {
         orderData.gray_lot.balance = balance;
@@ -109,11 +115,21 @@ exports.createDeliveryOrder = async (req, res, next) => {
     const returns = await ReturnLot.findAll({ where: { gray_lot_id } });
     const delivered = orders.reduce((sum, o) => sum + Number(o.total_gray_gazana || 0), 0);
     const returnedQty = returns.reduce((sum, r) => sum + Number(r.returned_quantity || 0), 0);
-    const balance = Number(lot.gazana || 0) - delivered - returnedQty;
+    
+    const isMeter = String(lot.measurement || "").toLowerCase() === "meter";
+    let balanceInYards = 0;
+    if (isMeter) {
+      balanceInYards = (Number(lot.gazana || 0) / 0.9144) - delivered - returnedQty;
+    } else {
+      balanceInYards = Number(lot.gazana || 0) - delivered - returnedQty;
+    }
     const grayQty = Number(total_gray_gazana || 0);
 
-    if (grayQty > balance) {
-      return res.status(400).json({ message: `Qty (${grayQty}) exceeds remaining gazana (${balance})` });
+    if (grayQty > balanceInYards) {
+      const balanceInLotUnit = isMeter ? balanceInYards * 0.9144 : balanceInYards;
+      const grayQtyInLotUnit = isMeter ? grayQty * 0.9144 : grayQty;
+      const unitName = isMeter ? "meters" : "yards";
+      return res.status(400).json({ message: `Qty (${grayQtyInLotUnit.toFixed(2)} ${unitName}) exceeds remaining balance (${balanceInLotUnit.toFixed(2)} ${unitName})` });
     }
 
     let customer = await Customer.findOne({ where: { name: lot.party_name } });
@@ -164,11 +180,20 @@ exports.updateDeliveryOrder = async (req, res, next) => {
     }, 0);
     let returnedQty = returns.reduce((sum, r) => sum + Number(r.returned_quantity || 0), 0);
     
-    const balance = Number(lot.gazana || 0) - delivered - returnedQty;
+    const isMeter = String(lot.measurement || "").toLowerCase() === "meter";
+    let balanceInYards = 0;
+    if (isMeter) {
+      balanceInYards = (Number(lot.gazana || 0) / 0.9144) - delivered - returnedQty;
+    } else {
+      balanceInYards = Number(lot.gazana || 0) - delivered - returnedQty;
+    }
     const grayQty = Number(total_gray_gazana || 0);
 
-    if (grayQty > balance) {
-      return res.status(400).json({ message: `Qty (${grayQty}) exceeds remaining gazana (${balance})` });
+    if (grayQty > balanceInYards) {
+      const balanceInLotUnit = isMeter ? balanceInYards * 0.9144 : balanceInYards;
+      const grayQtyInLotUnit = isMeter ? grayQty * 0.9144 : grayQty;
+      const unitName = isMeter ? "meters" : "yards";
+      return res.status(400).json({ message: `Qty (${grayQtyInLotUnit.toFixed(2)} ${unitName}) exceeds remaining balance (${balanceInLotUnit.toFixed(2)} ${unitName})` });
     }
 
     let customer = await Customer.findOne({ where: { name: lot.party_name } });

@@ -135,12 +135,15 @@ export default function GrayLotForm() {
 
   useEffect(() => {
     if (!isView) {
-      // Auto focus the party name dropdown on mount
-      setTimeout(() => {
-        partyNameRef.current?.focus();
-      }, 100);
+      if (!id) {
+        setIsPartyDropdownOpen(true);
+      } else {
+        setTimeout(() => {
+          partyNameRef.current?.focus();
+        }, 100);
+      }
     }
-  }, [isView]);
+  }, [isView, id]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLElement>, fieldIndex: number) => {
     if (e.key === 'Enter') {

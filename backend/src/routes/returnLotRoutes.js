@@ -7,6 +7,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 router.get("/", returnLotController.getAllReturnLots);
 router.post("/", returnLotController.createReturnLot);
+router.put("/:id", returnLotController.updateReturnLot);
 router.delete("/:id", returnLotController.deleteReturnLot);
 
 module.exports = router;

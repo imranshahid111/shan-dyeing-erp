@@ -1,4 +1,4 @@
-const { Payment, DeliveryOrder, Customer, sequelize } = require("../models");
+const { Payment, DeliveryOrder, Customer, CustomerLedger, sequelize } = require("../models");
 const { Op } = require("sequelize");
 
 exports.getAllPayments = async (req, res, next) => {
@@ -192,3 +192,55 @@ exports.updatePayment = async (req, res, next) => {
     return next(error);
   }
 };
+
+exports.addAdvancePayment = async (req, res, next) => {
+  const t = await sequelize.transaction();
+  try {
+    const { customerId, amount, paymentDate, method, bankName, reference, notes, attachment, attachmentName } = req.body;
+    const { logActivity } = require("../utils/logger");
+
+    if (!customerId || !amount || amount <= 0) {
+      return res.status(400).json({ message: "Valid Customer ID and Amount are required" });
+    }
+
+    const customer = await Customer.findByPk(customerId, { transaction: t });
+    if (!customer) {
+      await t.rollback();
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    const payment = await Payment.create({
+      payment_date: paymentDate || new Date().toISOString().slice(0, 10),
+      amount: amount,
+      mode: method || "cash",
+      bank_name: method === 'bank transfer' ? bankName : null,
+      reference_no: reference,
+      notes: notes,
+      attachment: attachment,
+      attachment_name: attachmentName,
+      is_advance: true,
+    }, { transaction: t });
+
+    const CustomerLedger = sequelize.models.customer_ledgers;
+    await CustomerLedger.create({
+      customer_id: customerId,
+      transaction_type: "Credit",
+      amount: amount,
+      reference_type: "Advance Payment",
+      reference_id: payment.id,
+      description: `Advance Payment Received (${method})`,
+      date: payment.payment_date,
+    }, { transaction: t });
+
+    await customer.increment("advance_balance", { by: amount, transaction: t });
+
+    await t.commit();
+    await logActivity("Payments", `Received Advance Payment`, `Amount: ${amount} for Customer ID ${customerId}`, req);
+
+    return res.status(201).json({ success: true, message: "Advance payment recorded successfully", data: payment });
+  } catch (error) {
+    await t.rollback();
+    return next(error);
+  }
+};
+

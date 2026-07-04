@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Plus, Edit, Trash2, Search, Eye, Phone, Users } from 'lucide-react';
 import { customerService } from '../services/customerService';
+import { toast } from 'sonner';
 
 interface Customer {
   id: string;
@@ -30,28 +31,29 @@ export default function Customers() {
     setCurrentPage(1);
   }, [searchTerm]);
 
+  const loadCustomers = async () => {
+    try {
+      setLoading(true);
+      const response = await customerService.getCustomers(searchTerm, currentPage, pageSize);
+      const mapped = response.data.map((item) => ({
+        id: String(item.id),
+        name: item.name,
+        mobile: item.phone,
+        address: item.city || '—',
+        outstanding: Number(item.outstanding_amount || 0),
+        customerCode: item.customer_code,
+      }));
+      setCustomers(mapped);
+      setTotalItems(response.total);
+      setTotalPages(Math.ceil(response.total / pageSize) || 1);
+    } catch (error) {
+      console.error('Failed to load customers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadCustomers = async () => {
-      try {
-        setLoading(true);
-        const response = await customerService.getCustomers(searchTerm, currentPage, pageSize);
-        const mapped = response.data.map((item) => ({
-          id: String(item.id),
-          name: item.name,
-          mobile: item.phone,
-          address: item.city || '—',
-          outstanding: Number(item.outstanding_amount || 0),
-          customerCode: item.customer_code,
-        }));
-        setCustomers(mapped);
-        setTotalItems(response.total);
-        setTotalPages(Math.ceil(response.total / pageSize) || 1);
-      } catch (error) {
-        console.error('Failed to load customers:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadCustomers();
 
     // Parse user privileges
@@ -69,6 +71,21 @@ export default function Customers() {
       console.error(e);
     }
   }, [searchTerm, currentPage]);
+
+  const handleDeleteCustomer = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete customer "${name}"? This will permanently delete all associated invoices, delivery orders, payments, gray lots, and returns!`)) {
+      return;
+    }
+
+    try {
+      await customerService.deleteCustomer(id);
+      toast.success(`Customer "${name}" and all associated records deleted successfully`);
+      loadCustomers();
+    } catch (error) {
+      console.error('Failed to delete customer:', error);
+      toast.error('Failed to delete customer');
+    }
+  };
 
   const filteredCustomers = useMemo(() => customers, [customers]);
 
@@ -183,7 +200,11 @@ export default function Customers() {
                           <Edit size={15} />
                         </button>
                         {canDelete && (
-                          <button className="icon-btn danger" title="Delete Customer">
+                          <button 
+                            className="icon-btn danger" 
+                            title="Delete Customer"
+                            onClick={() => handleDeleteCustomer(customer.id, customer.name)}
+                          >
                             <Trash2 size={15} />
                           </button>
                         )}

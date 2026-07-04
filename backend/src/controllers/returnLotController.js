@@ -13,7 +13,7 @@ exports.getAllReturnLots = async (req, res) => {
       include: [
         {
           model: GrayLot,
-          attributes: ["lot_no", "party_name"],
+          attributes: ["lot_no", "party_name", "measurement"],
         },
       ],
     });
@@ -50,6 +50,35 @@ exports.createReturnLot = async (req, res) => {
     console.log(error);
     logger.error(`Error creating return lot: ${error.message}`);
     res.status(500).json({ error: "Failed to create return lot." });
+  }
+};
+
+exports.updateReturnLot = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { gray_lot_id, returned_quantity, return_date, reason } = req.body;
+
+    const returnLot = await ReturnLot.findByPk(id);
+
+    if (!returnLot) {
+      return res.status(404).json({ error: "Return lot not found." });
+    }
+
+    if (!gray_lot_id || !returned_quantity || !return_date) {
+      return res.status(400).json({ error: "gray_lot_id, returned_quantity, and return_date are required." });
+    }
+
+    await returnLot.update({
+      gray_lot_id,
+      returned_quantity,
+      return_date,
+      reason,
+    });
+
+    res.json({ message: "Return lot updated successfully.", data: returnLot });
+  } catch (error) {
+    logger.error(`Error updating return lot: ${error.message}`);
+    res.status(500).json({ error: "Failed to update return lot." });
   }
 };
 

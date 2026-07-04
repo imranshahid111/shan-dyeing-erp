@@ -1,5 +1,5 @@
 const { Op } = require("sequelize");
-const { Customer, DeliveryOrder, Payment, sequelize } = require("../models");
+const { Customer, DeliveryOrder, Payment, CustomerLedger, GatePassItem, ReturnLot, GrayLot, sequelize } = require("../models");
 const { getNextSequence } = require("../utils/numberGenerator");
 const { logActivity } = require("../utils/logger");
 
@@ -22,7 +22,7 @@ exports.getCustomers = async (req, res, next) => {
     const { count, rows } = await Customer.findAndCountAll({
       where,
       order: [["id", "DESC"]],
-      attributes: ["id", "customer_code", "name", "phone", "city", "outstanding_amount"],
+      attributes: ["id", "customer_code", "name", "phone", "city", "outstanding_amount", "advance_balance"],
       limit: pageSize,
       offset: (page - 1) * pageSize,
     });
@@ -155,6 +155,7 @@ exports.addBulkPayment = async (req, res, next) => {
     });
 
     const allocations = req.body.allocations || [];
+    let firstPaymentId = null;
 
     if (allocations && allocations.length > 0) {
       // Use exact allocations provided by UI to guarantee sync
@@ -171,7 +172,7 @@ exports.addBulkPayment = async (req, res, next) => {
         const allocationAmount = Math.min(alloc.amount, remainingAmount, due);
 
         if (allocationAmount > 0) {
-          await Payment.create({
+          const p = await Payment.create({
             delivery_order_id: inv.id,
             payment_date: paymentDate,
             amount: allocationAmount,
@@ -181,6 +182,8 @@ exports.addBulkPayment = async (req, res, next) => {
             attachment: req.body.attachment || null,
             attachment_name: req.body.attachmentName || null,
           }, { transaction: t });
+
+          if (!firstPaymentId) firstPaymentId = p.id;
 
           await inv.increment("paid_amount", {
             by: allocationAmount,
@@ -207,7 +210,7 @@ exports.addBulkPayment = async (req, res, next) => {
         const allocationAmount = Math.min(remainingAmount, due);
 
         if (allocationAmount > 0) {
-          await Payment.create({
+          const p = await Payment.create({
             delivery_order_id: inv.id,
             payment_date: paymentDate,
             amount: allocationAmount,
@@ -218,6 +221,8 @@ exports.addBulkPayment = async (req, res, next) => {
             attachment_name: req.body.attachmentName || null,
           }, { transaction: t });
 
+          if (!firstPaymentId) firstPaymentId = p.id;
+
           await inv.increment("paid_amount", {
             by: allocationAmount,
             transaction: t,
@@ -226,6 +231,30 @@ exports.addBulkPayment = async (req, res, next) => {
           remainingAmount -= allocationAmount;
         }
       }
+    }
+
+    if (method === 'advance') {
+      const customer = await Customer.findByPk(customerId, { transaction: t });
+      if (!customer || customer.advance_balance < Number(amount)) {
+        await t.rollback();
+        return res.status(400).json({ message: "Insufficient advance balance" });
+      }
+
+      await customer.decrement("advance_balance", {
+        by: Number(amount),
+        transaction: t,
+      });
+
+      const CustomerLedger = sequelize.models.customer_ledgers;
+      await CustomerLedger.create({
+        customer_id: customerId,
+        transaction_type: "Debit",
+        amount: Number(amount),
+        reference_type: "Invoice Payment",
+        reference_id: firstPaymentId, // Reference the first payment ID
+        description: `Advance Balance Deducted for Invoices`,
+        date: paymentDate || new Date().toISOString().slice(0, 10),
+      }, { transaction: t });
     }
 
     // 3. Update Customer Ledger (Decrement by full amount received)
@@ -272,6 +301,86 @@ exports.updateCustomer = async (req, res, next) => {
     await logActivity("Customers", `Updated Customer: ${payload.name}`, `ID: ${id}`, req);
     return res.json(customer);
   } catch (error) {
+    return next(error);
+  }
+};
+
+exports.deleteCustomer = async (req, res, next) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const customer = await Customer.findByPk(id, { transaction: t });
+    
+    if (!customer) {
+      await t.rollback();
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    // 1. Find all Delivery Orders for this customer
+    const orders = await DeliveryOrder.findAll({
+      where: { customer_id: id },
+      attributes: ["id"],
+      transaction: t
+    });
+    const doIds = orders.map(o => o.id);
+
+    if (doIds.length > 0) {
+      // Delete Payments associated with these DOs
+      await Payment.destroy({
+        where: { delivery_order_id: { [Op.in]: doIds } },
+        transaction: t
+      });
+
+      // Delete Gate Pass Items associated with these DOs
+      await GatePassItem.destroy({
+        where: { delivery_order_id: { [Op.in]: doIds } },
+        transaction: t
+      });
+
+      // Delete Delivery Orders
+      await DeliveryOrder.destroy({
+        where: { id: { [Op.in]: doIds } },
+        transaction: t
+      });
+    }
+
+    // 2. Find all Gray Lots for this customer by party_name
+    const lots = await GrayLot.findAll({
+      where: { party_name: customer.name },
+      attributes: ["id"],
+      transaction: t
+    });
+    const lotIds = lots.map(l => l.id);
+
+    if (lotIds.length > 0) {
+      // Delete Return Lots associated with these Gray Lots
+      await ReturnLot.destroy({
+        where: { gray_lot_id: { [Op.in]: lotIds } },
+        transaction: t
+      });
+
+      // Delete Gray Lots
+      await GrayLot.destroy({
+        where: { id: { [Op.in]: lotIds } },
+        transaction: t
+      });
+    }
+
+    // 3. Delete Customer Ledger entries
+    await CustomerLedger.destroy({
+      where: { customer_id: id },
+      transaction: t
+    });
+
+    // 4. Delete the Customer
+    await customer.destroy({ transaction: t });
+
+    await t.commit();
+    await logActivity("Customers", `Deleted Customer: ${customer.name}`, `ID: ${id}`, req);
+
+    return res.json({ success: true, message: "Customer and all associated records deleted successfully." });
+  } catch (error) {
+    await t.rollback();
     return next(error);
   }
 };

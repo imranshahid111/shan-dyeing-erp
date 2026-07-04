@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router';
-import { Eye, Wallet, MoreVertical, X, Calendar, DollarSign, ArrowLeft, Filter } from 'lucide-react';
+import { Eye, Wallet, MoreVertical, X, Calendar, DollarSign, ArrowLeft, Filter, Printer } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
 import { organizationService, Organization } from '../services/organizationService';
 import { customerService, CustomerItem } from '../services/customerService';
-import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
+import { PDFDownloadLink, PDFViewer, pdf } from '@react-pdf/renderer';
 import { toast } from 'sonner';
 import { PDFInvoice } from './PDFInvoice';
 
@@ -309,6 +309,30 @@ export default function CustomerInvoices() {
                 <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Order #{selectedInvoice.order_no}</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <button
+                  onClick={async () => {
+                    try {
+                      const blob = await pdf(<PDFInvoice inv={selectedInvoice} org={org} />).toBlob();
+                      const url = URL.createObjectURL(blob);
+                      const printWindow = window.open(url, '_blank', 'width=1200,height=800');
+                      if (printWindow) {
+                        printWindow.onload = () => printWindow.print();
+                      }
+                    } catch (e) {
+                      toast.error("Failed to generate PDF for printing");
+                    }
+                  }}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                    padding: '0.5rem 1.25rem',
+                    background: '#f8fafc', color: '#475569',
+                    borderRadius: '10px', fontWeight: 700,
+                    fontSize: '0.875rem', border: '1px solid #cbd5e1', cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                  }}
+                >
+                  <Printer size={16} /> Print
+                </button>
                 <PDFDownloadLink
                   document={<PDFInvoice inv={selectedInvoice} org={org} />}
                   fileName={`Invoice-${selectedInvoice.order_no}.pdf`}

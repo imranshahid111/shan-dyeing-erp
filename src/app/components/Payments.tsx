@@ -286,11 +286,19 @@ export default function Payments() {
       setPaymentAmount('');
     } else {
       const currentAmt = Number.parseFloat(paymentAmount) || 0;
-      if (currentAmt > selectedInvoiceTotalDue) {
-        setPaymentAmount(selectedInvoiceTotalDue.toString());
+      let maxLimit = selectedInvoiceTotalDue;
+      if (paymentMethod === 'advance') {
+        maxLimit = Math.min(selectedInvoiceTotalDue, Number(selectedCustomer?.advance_balance || 0));
+        if (maxLimit > 0) {
+          setPaymentAmount(maxLimit.toString());
+        }
+      } else {
+        if (currentAmt > maxLimit) {
+          setPaymentAmount(maxLimit.toString());
+        }
       }
     }
-  }, [selectedInvoiceTotalDue, selectedInvoiceIds.length]);
+  }, [selectedInvoiceTotalDue, selectedInvoiceIds.length, paymentMethod, selectedCustomer]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -563,12 +571,20 @@ export default function Payments() {
                           disabled={selectedInvoiceIds.length === 0}
                           className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:outline-none font-black text-lg text-gray-900 disabled:bg-gray-100 disabled:text-gray-400"
                           value={paymentAmount}
-                          max={selectedInvoiceTotalDue || undefined}
+                          max={
+                            paymentMethod === 'advance'
+                              ? Math.min(selectedInvoiceTotalDue, Number(selectedCustomer?.advance_balance || 0))
+                              : selectedInvoiceTotalDue || undefined
+                          }
                           onChange={(e) => {
                             const val = e.target.value;
-                            if (Number(val) > selectedInvoiceTotalDue) {
-                               toast.error(`Amount cannot exceed Rs ${selectedInvoiceTotalDue.toLocaleString()}`);
-                               setPaymentAmount(selectedInvoiceTotalDue.toString());
+                            let maxLimit = selectedInvoiceTotalDue;
+                            if (paymentMethod === 'advance') {
+                               maxLimit = Math.min(selectedInvoiceTotalDue, Number(selectedCustomer?.advance_balance || 0));
+                            }
+                            if (Number(val) > maxLimit) {
+                               toast.error(paymentMethod === 'advance' ? `Amount cannot exceed available Advance Balance (Rs ${maxLimit.toLocaleString()})` : `Amount cannot exceed Rs ${maxLimit.toLocaleString()}`);
+                               setPaymentAmount(maxLimit.toString());
                             } else {
                                setPaymentAmount(val);
                             }
@@ -603,12 +619,27 @@ export default function Payments() {
                       <select
                         className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:outline-none bg-white font-bold text-gray-800"
                         value={paymentMethod}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        onChange={(e) => {
+                          const newMethod = e.target.value;
+                          setPaymentMethod(newMethod);
+                          if (newMethod === 'advance' && selectedCustomer) {
+                            const available = Number(selectedCustomer.advance_balance || 0);
+                            const populateAmount = Math.min(selectedInvoiceTotalDue, available);
+                            if (populateAmount > 0) {
+                              setPaymentAmount(populateAmount.toString());
+                            }
+                          }
+                        }}
                       >
                         <option value="cash">Cash</option>
                         <option value="bank">Bank Transfer</option>
                         <option value="cheque">Cheque</option>
                         <option value="online">Online</option>
+                        {selectedCustomer && Number(selectedCustomer.advance_balance || 0) > 0 && (
+                          <option value="advance">
+                            Advance Balance (Available: Rs {Number(selectedCustomer.advance_balance).toLocaleString()})
+                          </option>
+                        )}
                       </select>
                     </div>
                     <div>

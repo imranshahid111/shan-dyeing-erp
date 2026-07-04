@@ -30,6 +30,7 @@ router.get("/customers", customerController.getCustomers);
 router.get("/customers/:id", customerController.getCustomerById);
 router.post("/customers", customerController.createCustomer);
 router.put("/customers/:id", customerController.updateCustomer);
+router.delete("/customers/:id", customerController.deleteCustomer);
 router.post("/customers/:id/bulk-payment", customerController.addBulkPayment);
 
 router.get("/delivery-orders", deliveryOrderController.getDeliveryOrders);
@@ -47,6 +48,7 @@ router.post("/gate-passes", gatePassController.createGatePass);
 router.delete("/gate-passes/:id", gatePassController.deleteGatePass);
 
 router.get("/payments", paymentController.getAllPayments);
+router.post("/payments/advance", paymentController.addAdvancePayment);
 router.get("/payments/stats", paymentController.getPaymentStats);
 router.put("/payments/:id", paymentController.updatePayment);
 router.delete("/payments/:id", paymentController.deletePayment);

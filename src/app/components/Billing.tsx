@@ -6,7 +6,7 @@ import { FileText, Plus, Eye, Wallet, MoreVertical, X, Download, Printer, Calend
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
 import { organizationService, Organization } from '../services/organizationService';
 import { customerService, CustomerItem } from '../services/customerService';
-import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
+import { PDFDownloadLink, PDFViewer, pdf } from '@react-pdf/renderer';
 import { PDFInvoice, PDFMultiInvoice } from './PDFInvoice';
 import { PDFStatement } from './PDFStatement';
 import { toast } from 'sonner';
@@ -477,6 +477,23 @@ export default function Billing() {
                   <p className="text-sm text-gray-500 font-semibold uppercase tracking-widest text-[10px] mt-1">High fidelity document preview</p>
                </div>
                <div className="flex items-center gap-3">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const blob = await pdf(<PDFInvoice inv={selectedInvoice} org={org} />).toBlob();
+                        const url = URL.createObjectURL(blob);
+                        const printWindow = window.open(url, '_blank', 'width=1200,height=800');
+                        if (printWindow) {
+                          printWindow.onload = () => printWindow.print();
+                        }
+                      } catch (e) {
+                        toast.error("Failed to generate PDF for printing");
+                      }
+                    }}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-bold shadow-sm"
+                  >
+                    <Printer size={16} /> Print
+                  </button>
                   <PDFDownloadLink
                     document={<PDFInvoice inv={selectedInvoice} org={org} />}
                     fileName={`Invoice-${selectedInvoice.order_no}.pdf`}

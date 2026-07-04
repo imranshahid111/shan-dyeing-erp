@@ -103,7 +103,9 @@ export default function CreateDeliveryOrder() {
           const lot = response.find(l => l.id === doData.gray_lot_id);
           if (lot) {
             // Add back the current DO's amount to the remaining balance so we can edit it freely
-            lot.remaining += Number(doData.total_gray_gazana);
+            const isLotMeter = lot.measurement?.toLowerCase() === 'meter';
+            const addedQty = isLotMeter ? Number(doData.total_gray_gazana) * 0.9144 : Number(doData.total_gray_gazana);
+            lot.remaining += addedQty;
             setSelectedLot(lot);
           }
           
@@ -311,12 +313,13 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
 
   const calculateShortage = () => calculateTotalGray() - calculateTotalReady();
 
-  // Conversion factor: 1 Gaz (Yard) = 0.9144 Meters
+  // Base unit in database is Gaz.
+  // 1 Gaz (Yard) = 0.9144 Meters. So to convert meters to gaz, we divide by 0.9144.
   const CONVERSION_FACTOR = 0.9144;
 
-  const convertToMeter = (val: number) => {
-    if (inputUnit === 'meter') return val;
-    return parseFloat((val * CONVERSION_FACTOR).toFixed(2));
+  const convertToGaz = (val: number) => {
+    if (inputUnit === 'gaz') return val;
+    return parseFloat((val / CONVERSION_FACTOR).toFixed(2));
   };
 
   const [saving, setSaving] = useState(false);
@@ -327,10 +330,14 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
     const grayAmount = calculateTotalGray();
     const readyAmount = calculateTotalReady();
 
-    // lot.remaining is always in meters; convert entered amount to meters before comparing
-    const grayAmountInMeters = convertToMeter(grayAmount);
-    if (grayAmountInMeters > selectedLot.remaining) {
-      toast.error('Gray gazana exceeds lot remaining quantity.');
+    // Check balance in the lot's measurement unit
+    const isLotMeter = selectedLot.measurement?.toLowerCase() === 'meter';
+    const enteredQtyInLotUnit = isLotMeter 
+      ? (inputUnit === 'meter' ? grayAmount : grayAmount * 0.9144)
+      : (inputUnit === 'gaz' ? grayAmount : grayAmount / 0.9144);
+
+    if (enteredQtyInLotUnit > selectedLot.remaining) {
+      toast.error(`Gray quantity (${enteredQtyInLotUnit.toFixed(2)} ${isLotMeter ? 'meters' : 'yards'}) exceeds lot remaining quantity (${selectedLot.remaining.toFixed(2)} ${isLotMeter ? 'meters' : 'yards'}).`);
       return;
     }
 
@@ -344,9 +351,9 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
       const payload = {
         gray_lot_id: selectedLot.id,
         remarks: remarks,
-        // Totals always sent in meters to backend for lot balance tracking
-        total_gray_gazana: convertToMeter(grayAmount),
-        total_ready_gazana: convertToMeter(readyAmount),
+        // Totals always sent in gaz to backend for lot balance tracking
+        total_gray_gazana: convertToGaz(grayAmount),
+        total_ready_gazana: convertToGaz(readyAmount),
         input_unit: inputUnit,
         grid_data: { 
           inputUnit: inputUnit,
@@ -490,8 +497,8 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                     GAZ (YARDS)
                   </button>
                 </div>
-                {inputUnit === 'gaz' && (
-                  <p className="text-[10px] text-blue-500 mt-1 font-bold italic">Note: Gaz entries will be auto-converted to Meters (x0.9144) on save.</p>
+                {inputUnit === 'meter' && (
+                  <p className="text-[10px] text-blue-500 mt-1 font-bold italic">Note: Meter entries will be auto-converted to Gaz (/0.9144) on save.</p>
                 )}
               </div>
 
@@ -518,17 +525,23 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Total Gray Qty</span>
-                    <span className="text-sm font-medium text-gray-800">{selectedLot.totalGray}</span>
+                    <span className="text-sm font-medium text-gray-800">
+                      {Number(selectedLot.totalGray || 0).toFixed(2)} {selectedLot.measurement?.toLowerCase() === 'meter' ? 'Meters' : 'Yards'}
+                    </span>
                   </div>
                   {(selectedLot.returned || 0) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-sm text-red-600 font-medium">Returned / Damaged</span>
-                      <span className="text-sm font-bold text-red-600">{selectedLot.returned}</span>
+                      <span className="text-sm font-bold text-red-600">
+                        {Number(selectedLot.returned || 0).toFixed(2)} {selectedLot.measurement?.toLowerCase() === 'meter' ? 'Meters' : 'Yards'}
+                      </span>
                     </div>
                   )}
                   <div className="flex justify-between border-t border-blue-100 pt-2 mt-2">
                     <span className="text-sm text-gray-600">Available Ready Qty</span>
-                    <span className="text-sm font-semibold text-blue-600">{selectedLot.remaining}</span>
+                    <span className="text-sm font-semibold text-blue-600">
+                      {Number(selectedLot.remaining || 0).toFixed(2)} {selectedLot.measurement?.toLowerCase() === 'meter' ? 'Meters' : 'Yards'}
+                    </span>
                   </div>
                 </div>
               )}

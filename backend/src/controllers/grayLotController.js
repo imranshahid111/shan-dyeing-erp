@@ -81,14 +81,26 @@ exports.getLotsWithBalance = async (req, res, next) => {
       const delivered = lot.delivery_orders ? lot.delivery_orders.reduce((sum, order) => sum + Number(order.total_gray_gazana || 0), 0) : 0;
       const returned = lot.return_lots ? lot.return_lots.reduce((sum, rl) => sum + Number(rl.returned_quantity || 0), 0) : 0;
       const gazana = Number(lot.gazana || 0);
+      const isMeter = String(lot.measurement || "").toLowerCase() === "meter";
+
+      let remaining = 0;
+      let returnedInLotUnit = returned;
+      if (isMeter) {
+        remaining = Math.max(gazana - (delivered + returned) * 0.9144, 0);
+        returnedInLotUnit = returned * 0.9144;
+      } else {
+        remaining = Math.max(gazana - delivered - returned, 0);
+      }
+
       return {
         id: lot.id,
         lotNo: lot.lot_no,
         partyName: lot.party_name,
         process: lot.process_type,
         totalGray: gazana,
-        remaining: Math.max(gazana - delivered - returned, 0),
-        returned: returned
+        remaining: Number(remaining.toFixed(4)),
+        returned: Number(returnedInLotUnit.toFixed(4)),
+        measurement: lot.measurement
       };
     });
 

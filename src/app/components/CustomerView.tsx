@@ -24,6 +24,41 @@ export default function CustomerView() {
   const [activeTab, setActiveTab] = useState<'overview' | 'ledger' | 'history'>('overview');
   const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Advance Payment Modal State
+  const [isAdvanceModalOpen, setIsAdvanceModalOpen] = useState(false);
+  const [advanceForm, setAdvanceForm] = useState({ amount: '', method: 'cash', bankName: '', reference: '' });
+  const [isSubmittingAdvance, setIsSubmittingAdvance] = useState(false);
+
+  const handleAdvanceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!advanceForm.amount || Number(advanceForm.amount) <= 0) return alert('Enter a valid amount');
+    setIsSubmittingAdvance(true);
+    try {
+      const { apiClient } = await import('../services/apiClient');
+      
+      const payload = {
+        customerId: customer.id,
+        amount: Number(advanceForm.amount),
+        method: advanceForm.method,
+        bankName: advanceForm.method === 'bank transfer' ? advanceForm.bankName : null,
+        reference: advanceForm.method === 'bank transfer' ? advanceForm.reference : null
+      };
+      
+      await apiClient.post('/payments/advance', payload);
+      
+      setCustomer({ ...customer, advance_balance: Number(customer.advance_balance || 0) + Number(advanceForm.amount) });
+      setIsAdvanceModalOpen(false);
+      setAdvanceForm({ amount: '', method: 'cash', bankName: '', reference: '' });
+      alert('Advance payment added successfully!');
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Error adding advance payment. Please make sure the server is running.');
+    } finally {
+      setIsSubmittingAdvance(false);
+    }
+  };
+
 
   useEffect(() => {
     if (!id) return;
@@ -69,6 +104,12 @@ export default function CustomerView() {
           >
             Edit Profile
           </button>
+          <button 
+            onClick={() => setIsAdvanceModalOpen(true)}
+            className="px-6 py-2.5 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-colors font-medium shadow-sm shadow-emerald-500/20"
+          >
+            Add Advance
+          </button>
           <button className="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium shadow-sm shadow-blue-500/20">
             Create Invoice
           </button>
@@ -76,7 +117,7 @@ export default function CustomerView() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-500">Total Outstanding</span>
@@ -86,6 +127,16 @@ export default function CustomerView() {
           <div className="flex items-center gap-1 text-xs text-red-600 mt-2">
             <ArrowUpRight size={14} />
             <span>Balance due</span>
+          </div>
+        </div>
+        <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-2xl shadow-sm border border-transparent text-white">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-green-100">Advance Balance</span>
+            <Wallet className="text-white" size={20} />
+          </div>
+          <p className="text-2xl font-bold text-white">Rs {Number(customer.advance_balance || 0).toLocaleString()}</p>
+          <div className="flex items-center gap-1 text-xs text-green-100 mt-2 font-medium">
+            <span>Available for adjustments</span>
           </div>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -294,6 +345,90 @@ export default function CustomerView() {
           )}
         </div>
       </div>
+      {/* Advance Payment Modal */}
+      {isAdvanceModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Add Advance Payment</h3>
+            <form onSubmit={handleAdvanceSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (Rs)</label>
+                <input 
+                  type="number" 
+                  value={advanceForm.amount}
+                  onChange={(e) => setAdvanceForm({ ...advanceForm, amount: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter amount"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                <select 
+                  value={advanceForm.method}
+                  onChange={(e) => setAdvanceForm({ ...advanceForm, method: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="bank transfer">Bank Transfer</option>
+                </select>
+              </div>
+
+              {advanceForm.method === 'bank transfer' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                    <input 
+                      type="text" 
+                      value={advanceForm.bankName}
+                      onChange={(e) => setAdvanceForm({ ...advanceForm, bankName: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., HBL, Meezan"
+                      required={advanceForm.method === 'bank transfer'}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Transaction ID (Reference)</label>
+                    <input 
+                      type="text" 
+                      value={advanceForm.reference}
+                      onChange={(e) => setAdvanceForm({ ...advanceForm, reference: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Txn Reference ID"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Proof Image</label>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                  </div>
+                </>
+              )}
+              <div className="flex items-center gap-3 mt-6">
+                <button 
+                  type="button"
+                  onClick={() => setIsAdvanceModalOpen(false)}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  disabled={isSubmittingAdvance}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors font-medium flex items-center justify-center"
+                  disabled={isSubmittingAdvance}
+                >
+                  {isSubmittingAdvance ? 'Saving...' : 'Save Advance'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

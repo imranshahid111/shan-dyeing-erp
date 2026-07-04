@@ -13,9 +13,14 @@ const GatePass = require("./gatePass")(sequelize, DataTypes);
 const GatePassItem = require("./gatePassItem")(sequelize, DataTypes);
 const Privilege = require("./privilege")(sequelize, DataTypes);
 const ReturnLot = require("./returnLot")(sequelize, DataTypes);
+const CustomerLedger = require("./customerLedger")(sequelize, DataTypes);
 
 Customer.hasMany(DeliveryOrder, { foreignKey: "customer_id" });
 DeliveryOrder.belongsTo(Customer, { foreignKey: "customer_id" });
+
+Customer.hasMany(CustomerLedger, { foreignKey: "customer_id" });
+CustomerLedger.belongsTo(Customer, { foreignKey: "customer_id" });
+
 
 DeliveryOrder.hasMany(Payment, { foreignKey: "delivery_order_id" });
 Payment.belongsTo(DeliveryOrder, { foreignKey: "delivery_order_id" });
@@ -53,6 +58,7 @@ module.exports = {
   GatePassItem,
   Privilege,
   ReturnLot,
+  CustomerLedger,
 };
 
 

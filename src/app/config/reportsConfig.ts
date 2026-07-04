@@ -42,8 +42,8 @@ export const REPORT_CATEGORIES: ReportCategory[] = [
     id: 'financial',
     label: 'Financial',
     tabs: [
-      { id: 'ledger', label: 'Customer Ledger', icon: List, description: 'Account statement by customer' },
-      { id: 'subledger', label: 'Sub Ledger', icon: BookOpen, description: 'Detailed sub-ledger with running balance' },
+      // { id: 'ledger', label: 'Customer Ledger', icon: List, description: 'Account statement by customer' },
+      { id: 'subledger', label: 'Customer Ledger', icon: BookOpen, description: 'Detailed sub-ledger with running balance' },
       { id: 'outstanding', label: 'Outstanding', icon: DollarSign, description: 'Customer dues summary' },
       { id: 'payments', label: 'Payments', icon: CheckSquare, description: 'Payment receipts log' },
       { id: 'invoices', label: 'Invoices', icon: FileText, description: 'Billing & invoice register' },

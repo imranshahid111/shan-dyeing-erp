@@ -127,23 +127,14 @@ export function computeDeliveryChallan(order: DeliveryOrderWithGrid): DeliveryCh
   const primaryUnit = isGaz ? 'Gaz' : 'Mtr';
   const primaryUnitFull = isGaz ? 'Gaz (Yard)' : 'Meter';
 
-  let totalGrayMeters =
-    gridGrayTotal > 0
-      ? gridGrayTotal
-      : isGaz
-        ? Number(order.total_gray_gazana) / 0.9144
-        : Number(order.total_gray_gazana);
-
-  let totalFinishMeters =
-    gridReadyTotal > 0
-      ? gridReadyTotal
-      : isGaz
-        ? Number(order.total_ready_gazana) / 0.9144
-        : Number(order.total_ready_gazana);
-
+  let totalGrayMeters = gridGrayTotal;
   if (gridGrayTotal === 0) {
-    totalGrayMeters = Number(order.total_gray_gazana);
-    totalFinishMeters = Number(order.total_ready_gazana);
+    totalGrayMeters = isGaz ? Number(order.total_gray_gazana || 0) : Number(order.total_gray_gazana || 0) * 0.9144;
+  }
+
+  let totalFinishMeters = gridReadyTotal;
+  if (gridReadyTotal === 0) {
+    totalFinishMeters = isGaz ? Number(order.total_ready_gazana || 0) : Number(order.total_ready_gazana || 0) * 0.9144;
   }
 
   const shortageMeters = (totalGrayMeters - totalFinishMeters).toFixed(2);

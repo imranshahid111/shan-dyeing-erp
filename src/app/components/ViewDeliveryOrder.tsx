@@ -76,22 +76,11 @@ export default function ViewDeliveryOrder() {
   const secondaryUnit = isGaz ? 'Meters' : 'Gaz (Yards)';
 
   // Quantities for display
-  let primaryGrayQty = gridGrayTotal > 0 ? gridGrayTotal : (isGaz ? (Number(order.total_gray_gazana) / 0.9144) : Number(order.total_gray_gazana));
-  let primaryReadyQty = gridReadyTotal > 0 ? gridReadyTotal : (isGaz ? (Number(order.total_ready_gazana) / 0.9144) : Number(order.total_ready_gazana));
+  const primaryGrayQty = gridGrayTotal > 0 ? gridGrayTotal : (isGaz ? Number(order.total_gray_gazana || 0) : Number(order.total_gray_gazana || 0) * 0.9144);
+  const primaryReadyQty = gridReadyTotal > 0 ? gridReadyTotal : (isGaz ? Number(order.total_ready_gazana || 0) : Number(order.total_ready_gazana || 0) * 0.9144);
   
-  // If grid has values but we need to show numbers properly
-  if (gridGrayTotal === 0) {
-    if (isGaz) {
-      primaryGrayQty = Number(order.total_gray_gazana);
-      primaryReadyQty = Number(order.total_ready_gazana);
-    } else {
-      primaryGrayQty = Number(order.total_gray_gazana);
-      primaryReadyQty = Number(order.total_ready_gazana);
-    }
-  }
-  
-  const secondaryGrayQty = isGaz ? (Number(order.total_gray_gazana) / 0.9144).toFixed(2) : (Number(order.total_gray_gazana) * 1.09361).toFixed(2);
-  const secondaryReadyQty = isGaz ? (Number(order.total_ready_gazana) / 0.9144).toFixed(2) : (Number(order.total_ready_gazana) * 1.09361).toFixed(2);
+  const secondaryGrayQty = (isGaz ? (primaryGrayQty * 0.9144) : (primaryGrayQty / 0.9144)).toFixed(2);
+  const secondaryReadyQty = (isGaz ? (primaryReadyQty * 0.9144) : (primaryReadyQty / 0.9144)).toFixed(2);
   
   const shortagePercent = ((primaryGrayQty - primaryReadyQty) / primaryGrayQty * 100).toFixed(2);
   const shortageMeters = (primaryGrayQty - primaryReadyQty).toFixed(2);

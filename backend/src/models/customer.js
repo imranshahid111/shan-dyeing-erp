@@ -9,6 +9,7 @@ module.exports = (sequelize, DataTypes) =>
       city: { type: DataTypes.STRING(80), allowNull: true },
       credit_limit: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
       outstanding_amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
+      advance_balance: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
     },
     {
       indexes: [

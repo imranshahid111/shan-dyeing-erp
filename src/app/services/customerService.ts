@@ -7,6 +7,7 @@ export interface CustomerItem {
   phone: string;
   city: string | null;
   outstanding_amount: string | number;
+  advance_balance?: string | number;
 }
 
 export interface CustomersResponse {
@@ -42,5 +43,8 @@ export const customerService = {
   },
   addBulkPayment: (id: number | string, payload: any) => {
     return apiClient.post<unknown, any>(`/customers/${id}/bulk-payment`, payload);
+  },
+  deleteCustomer: (id: number | string) => {
+    return apiClient.delete(`/customers/${id}`);
   },
 };

@@ -406,6 +406,10 @@ function toMeters(value, measurement) {
   return parseFloat(v.toFixed(2));
 }
 
+function dbValueToMeters(value) {
+  return parseFloat((Number(value || 0) * GAZ_TO_METER).toFixed(2));
+}
+
 function getProductionYear(dateStr) {
   const year = new Date(dateStr).getFullYear();
   return year % 100;
@@ -489,7 +493,10 @@ exports.getCompletedLotsReport = async (req, res, next) => {
         const readyProduced = orders.reduce((s, o) => s + Number(o.total_ready_gazana || 0), 0);
         const kWapsiRaw = returns.reduce((s, r) => s + Number(r.returned_quantity || 0), 0);
         const gazana = Number(lot.gazana || 0);
-        const remainingRaw = Math.max(gazana - grayDispatched - kWapsiRaw, 0);
+        const isMeter = String(lot.measurement || "").toLowerCase() === "meter";
+        const remainingRaw = isMeter
+          ? Math.max(gazana - (grayDispatched + kWapsiRaw) * 0.9144, 0)
+          : Math.max(gazana - grayDispatched - kWapsiRaw, 0);
 
         const isComplete = gazana > 0 && remainingRaw <= 0.01;
         if (!isComplete) return null;
@@ -501,10 +508,10 @@ exports.getCompletedLotsReport = async (req, res, next) => {
           new Date(d) > new Date(max) ? d : max, allDates[0]);
 
         const metersIn = toMeters(gazana, measurement);
-        const metersOut = toMeters(grayDispatched, measurement);
-        const totalMeters = toMeters(readyProduced, measurement);
-        const doQty = toMeters(readyProduced, measurement);
-        const kWapsi = toMeters(kWapsiRaw, measurement);
+        const metersOut = dbValueToMeters(grayDispatched);
+        const totalMeters = dbValueToMeters(readyProduced);
+        const doQty = dbValueToMeters(readyProduced);
+        const kWapsi = dbValueToMeters(kWapsiRaw);
         const balance = toMeters(remainingRaw, measurement);
         const percentage = metersIn > 0
           ? parseFloat((((totalMeters - metersIn) / metersIn) * 100).toFixed(2))
@@ -618,6 +625,10 @@ function getLotRemaining(lot) {
   const returns = lot.return_lots || [];
   const dispatched = orders.reduce((s, o) => s + Number(o.total_gray_gazana || 0), 0);
   const returned = returns.reduce((s, r) => s + Number(r.returned_quantity || 0), 0);
+  const isMeter = String(lot.measurement || "").toLowerCase() === "meter";
+  if (isMeter) {
+    return Math.max(Number(lot.gazana || 0) - (dispatched + returned) * 0.9144, 0);
+  }
   return Math.max(Number(lot.gazana || 0) - dispatched - returned, 0);
 }
 
@@ -701,8 +712,8 @@ exports.getPartyWiseLotDeliveryReport = async (req, res, next) => {
       const customer = order.customer || order.Customer || {};
       const measurement = lot.measurement || "Meter";
       const partyLabel = lot.party_name || customer.name || "Unknown";
-      const metersSent = toMeters(order.total_gray_gazana, measurement);
-      const metersDelivered = toMeters(order.total_ready_gazana, measurement);
+      const metersSent = dbValueToMeters(order.total_gray_gazana);
+      const metersDelivered = dbValueToMeters(order.total_ready_gazana);
 
       return {
         lotNo: lot.lot_no,
