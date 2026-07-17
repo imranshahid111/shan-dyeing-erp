@@ -142,10 +142,15 @@ exports.getLedgerReport = async (req, res, next) => {
       Payment.findAll({
         include: [{
           model: DeliveryOrder,
-          where: { customer_id: customerId },
-          attributes: []
+          attributes: ['customer_id']
         }],
-        where: fromDate && toDate ? { payment_date: { [Op.between]: [fromDate, toDate] } } : {},
+        where: {
+          [Op.or]: [
+            { customer_id: customerId },
+            { '$delivery_order.customer_id$': customerId }
+          ],
+          ...(fromDate && toDate ? { payment_date: { [Op.between]: [fromDate, toDate] } } : {})
+        },
         order: [["payment_date", "ASC"]],
       }),
     ]);
@@ -266,19 +271,29 @@ exports.getSubLedgerReport = async (req, res, next) => {
       Payment.findAll({
         include: [{
           model: DeliveryOrder,
-          where: { customer_id: customerId },
-          attributes: ["id", "order_no"],
+          attributes: ["id", "order_no", "customer_id"],
         }],
-        where: { payment_date: { [Op.lt]: fromDate } },
+        where: {
+          [Op.or]: [
+            { customer_id: customerId },
+            { '$delivery_order.customer_id$': customerId }
+          ],
+          payment_date: { [Op.lt]: fromDate }
+        },
         order: [["payment_date", "ASC"]],
       }),
       Payment.findAll({
         include: [{
           model: DeliveryOrder,
-          where: { customer_id: customerId },
-          attributes: ["id", "order_no", "invoice_no"],
+          attributes: ["id", "order_no", "invoice_no", "customer_id"],
         }],
-        where: { payment_date: { [Op.between]: [fromDate, toDate] } },
+        where: {
+          [Op.or]: [
+            { customer_id: customerId },
+            { '$delivery_order.customer_id$': customerId }
+          ],
+          payment_date: { [Op.between]: [fromDate, toDate] }
+        },
         order: [["payment_date", "ASC"], ["id", "ASC"]],
       }),
     ]);

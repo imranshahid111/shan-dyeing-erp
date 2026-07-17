@@ -65,6 +65,9 @@ exports.getCustomerById = async (req, res, next) => {
         {
           model: DeliveryOrder,
           include: [Payment]
+        },
+        {
+          model: Payment,
         }
       ]
     });
@@ -73,7 +76,9 @@ exports.getCustomerById = async (req, res, next) => {
       return res.status(404).json({ message: "Customer not found" });
     }
 
-    const deliveryOrders = customer.delivery_orders || [];
+    const deliveryOrders = customer.delivery_orders || customer.DeliveryOrders || [];
+    const directPayments = customer.payments || customer.Payments || [];
+
     const totalBilled = deliveryOrders
       .filter(doItem => doItem.status === 'billed')
       .reduce((sum, doItem) => sum + Number(doItem.total_amount || 0), 0);
@@ -95,7 +100,7 @@ exports.getCustomerById = async (req, res, next) => {
       }
 
       // Add payments to ledger
-      (doItem.payments || []).forEach(p => {
+      (doItem.payments || doItem.Payments || []).forEach(p => {
         const amt = Number(p.amount);
         totalPaid += amt;
         ledger.push({
@@ -106,6 +111,23 @@ exports.getCustomerById = async (req, res, next) => {
           debit: 0,
           credit: amt
         });
+      });
+    });
+
+    // Add direct payments (advances) to ledger
+    directPayments.forEach(p => {
+      // Avoid double counting if a payment is linked to both a DO and the Customer
+      if (p.delivery_order_id) return;
+      
+      const amt = Number(p.amount);
+      totalPaid += amt;
+      ledger.push({
+        id: `pay-adv-${p.id}`,
+        date: p.payment_date,
+        type: 'Payment',
+        reference: p.reference_no || `Payment`,
+        debit: 0,
+        credit: amt
       });
     });
 
@@ -134,142 +156,57 @@ exports.addBulkPayment = async (req, res, next) => {
   const t = await sequelize.transaction();
   try {
     const customerId = req.params.id;
-    const { amount, paymentDate, method, reference, notes, selectedInvoiceIds } = req.body;
-    let remainingAmount = Number(amount || 0);
-
-    // Find invoices for this customer that are billed and not fully paid
-    const where = {
-      customer_id: customerId,
-      status: "billed",
-      paid_amount: { [Op.lt]: sequelize.col("total_amount") },
-    };
+    const { amount, paymentDate, method, reference, notes } = req.body;
     
-    // If specific invoices were selected, filter by them
-    if (selectedInvoiceIds && selectedInvoiceIds.length > 0) {
-      where.id = { [Op.in]: selectedInvoiceIds };
+    if (!amount || Number(amount) <= 0) {
+      await t.rollback();
+      return res.status(400).json({ message: "Invalid amount" });
     }
 
-    const invoices = await DeliveryOrder.findAll({
-      where,
-      transaction: t,
-    });
-
-    const allocations = req.body.allocations || [];
-    let firstPaymentId = null;
-
-    if (allocations && allocations.length > 0) {
-      // Use exact allocations provided by UI to guarantee sync
-      for (const alloc of allocations) {
-        if (remainingAmount <= 0) break;
-
-        const inv = invoices.find(i => i.id === alloc.invoiceId);
-        if (!inv) continue;
-
-        const total = Number(inv.total_amount);
-        const paid = Number(inv.paid_amount);
-        const due = Math.max(total - paid, 0);
-        
-        const allocationAmount = Math.min(alloc.amount, remainingAmount, due);
-
-        if (allocationAmount > 0) {
-          const p = await Payment.create({
-            delivery_order_id: inv.id,
-            payment_date: paymentDate,
-            amount: allocationAmount,
-            mode: method || "cash",
-            reference_no: reference,
-            notes: notes,
-            attachment: req.body.attachment || null,
-            attachment_name: req.body.attachmentName || null,
-          }, { transaction: t });
-
-          if (!firstPaymentId) firstPaymentId = p.id;
-
-          await inv.increment("paid_amount", {
-            by: allocationAmount,
-            transaction: t,
-          });
-
-          remainingAmount -= allocationAmount;
-        }
-      }
-    } else {
-      // Fallback if allocations not provided
-      invoices.sort((a, b) => {
-        if (a.order_date === b.order_date) return a.id - b.id;
-        return new Date(a.order_date) - new Date(b.order_date);
-      });
-
-      for (const inv of invoices) {
-        if (remainingAmount <= 0) break;
-
-        const total = Number(inv.total_amount);
-        const paid = Number(inv.paid_amount);
-        const due = Math.max(total - paid, 0);
-        
-        const allocationAmount = Math.min(remainingAmount, due);
-
-        if (allocationAmount > 0) {
-          const p = await Payment.create({
-            delivery_order_id: inv.id,
-            payment_date: paymentDate,
-            amount: allocationAmount,
-            mode: method || "cash",
-            reference_no: reference,
-            notes: notes,
-            attachment: req.body.attachment || null,
-            attachment_name: req.body.attachmentName || null,
-          }, { transaction: t });
-
-          if (!firstPaymentId) firstPaymentId = p.id;
-
-          await inv.increment("paid_amount", {
-            by: allocationAmount,
-            transaction: t,
-          });
-
-          remainingAmount -= allocationAmount;
-        }
-      }
+    const customer = await Customer.findByPk(customerId, { transaction: t });
+    if (!customer) {
+      await t.rollback();
+      return res.status(404).json({ message: "Customer not found" });
     }
 
-    if (method === 'advance') {
-      const customer = await Customer.findByPk(customerId, { transaction: t });
-      if (!customer || customer.advance_balance < Number(amount)) {
-        await t.rollback();
-        return res.status(400).json({ message: "Insufficient advance balance" });
-      }
+    const paymentAmount = Number(amount);
 
-      await customer.decrement("advance_balance", {
-        by: Number(amount),
-        transaction: t,
-      });
+    const p = await Payment.create({
+      customer_id: customerId,
+      payment_date: paymentDate || new Date().toISOString().slice(0, 10),
+      amount: paymentAmount,
+      mode: method || "cash",
+      reference_no: reference,
+      notes: notes,
+      is_advance: true,
+      attachment: req.body.attachment || null,
+      attachment_name: req.body.attachmentName || null,
+    }, { transaction: t });
+    
+    await customer.increment("advance_balance", { by: paymentAmount, transaction: t });
+    
+    const CustomerLedger = sequelize.models.customer_ledgers;
+    await CustomerLedger.create({
+      customer_id: customerId,
+      transaction_type: "Credit",
+      amount: paymentAmount,
+      reference_type: "Payment Received",
+      reference_id: p.id,
+      description: `Payment Received (${method || 'cash'})`,
+      date: p.payment_date,
+    }, { transaction: t });
 
-      const CustomerLedger = sequelize.models.customer_ledgers;
-      await CustomerLedger.create({
-        customer_id: customerId,
-        transaction_type: "Debit",
-        amount: Number(amount),
-        reference_type: "Invoice Payment",
-        reference_id: firstPaymentId, // Reference the first payment ID
-        description: `Advance Balance Deducted for Invoices`,
-        date: paymentDate || new Date().toISOString().slice(0, 10),
-      }, { transaction: t });
-    }
-
-    // 3. Update Customer Ledger (Decrement by full amount received)
-    await Customer.decrement("outstanding_amount", {
-      by: Number(amount),
-      where: { id: customerId },
+    // Update Customer Ledger outstanding (Decrement by full amount received)
+    await customer.decrement("outstanding_amount", {
+      by: paymentAmount,
       transaction: t,
     });
 
     await t.commit();
-    // await logActivity("Payments", `Bulk Payment Received`, `Customer ID: ${customerId}, Total Amount: ${amount}`, req);
     return res.json({ 
       success: true, 
-      message: "Bulk payment processed successfully", 
-      unallocatedAmount: remainingAmount 
+      message: "Payment processed successfully", 
+      data: p
     });
   } catch (error) {
     console.log(error)

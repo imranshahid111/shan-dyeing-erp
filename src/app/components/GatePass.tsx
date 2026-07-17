@@ -68,6 +68,21 @@ export default function GatePass() {
 
   const handleOpenAddForm = () => { fetchDOsAndGPNo(); setShowAddForm(true); };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (e.key === 'Enter') e.preventDefault();
+      const form = e.currentTarget.closest('form');
+      if (!form) return;
+      const elements = Array.from(form.querySelectorAll('input:not([disabled]), button:not([disabled]), textarea:not([disabled]), select:not([disabled])')) as HTMLElement[];
+      const index = elements.indexOf(e.currentTarget);
+      if (e.key === 'Enter' || e.key === 'ArrowDown') {
+        if (index > -1 && index < elements.length - 1) elements[index + 1].focus();
+      } else if (e.key === 'ArrowUp') {
+        if (index > 0) elements[index - 1].focus();
+      }
+    }
+  };
+
   const resetForm = () => {
     setShowAddForm(false); setDoRows([]); setVehicleNo(''); setDriverName('');
     setDriverMobile(''); setNotes(''); setDoSearch('');
@@ -299,12 +314,12 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
           <div className="card">
             <div className="card-header"><h3 style={{ fontSize:'0.9375rem', fontWeight:700, margin:0 }}>Gate Pass Details</h3></div>
             <div className="card-body" style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'1rem' }}>
-              <div><label className="form-label">Date</label><input type="date" className="input-field" value={date} onChange={e => setDate(e.target.value)} required /></div>
+              <div><label className="form-label">Date</label><input autoFocus type="date" className="input-field" value={date} onChange={e => setDate(e.target.value)} onKeyDown={handleKeyDown} required /></div>
               <div><label className="form-label">Gate Pass No</label><input type="text" className="input-field" value={gatePassNo} disabled /></div>
-              <div><label className="form-label">Vehicle Number</label><input type="text" className="input-field" placeholder="LHR-123" value={vehicleNo} onChange={e => setVehicleNo(e.target.value)} required /></div>
-              <div><label className="form-label">Driver Name</label><input type="text" className="input-field" placeholder="Driver name" value={driverName} onChange={e => setDriverName(e.target.value)} required /></div>
-              <div><label className="form-label">Driver Mobile</label><input type="tel" className="input-field" placeholder="+92 300 0000000" value={driverMobile} onChange={e => setDriverMobile(e.target.value)} required /></div>
-              <div><label className="form-label">Notes</label><input type="text" className="input-field" placeholder="Optional notes" value={notes} onChange={e => setNotes(e.target.value)} /></div>
+              <div><label className="form-label">Vehicle Number</label><input type="text" className="input-field" placeholder="LHR-123" value={vehicleNo} onChange={e => setVehicleNo(e.target.value)} onKeyDown={handleKeyDown} required /></div>
+              <div><label className="form-label">Driver Name</label><input type="text" className="input-field" placeholder="Driver name" value={driverName} onChange={e => setDriverName(e.target.value)} onKeyDown={handleKeyDown} required /></div>
+              <div><label className="form-label">Driver Mobile</label><input type="tel" className="input-field" placeholder="+92 300 0000000" value={driverMobile} onChange={e => setDriverMobile(e.target.value)} onKeyDown={handleKeyDown} /></div>
+              <div><label className="form-label">Notes</label><input type="text" className="input-field" placeholder="Optional notes" value={notes} onChange={e => setNotes(e.target.value)} onKeyDown={handleKeyDown} /></div>
             </div>
           </div>
 
@@ -320,6 +335,7 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
                   <input type="text" placeholder="Search & add DO..." value={doSearch}
                     style={{ border:'none', background:'transparent', outline:'none', fontSize:'0.875rem', width:'100%' }}
                     onChange={e => { setDoSearch(e.target.value); setDoDropdownOpen(true); }}
+                    onKeyDown={handleKeyDown}
                     onClick={e => { e.stopPropagation(); setDoDropdownOpen(true); }}
                     disabled={loadingOrders}
                   />
@@ -365,15 +381,15 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
                         <td style={{ padding:'8px 12px', color:'var(--gray-600)', fontSize:'0.875rem' }}>{row.lot_no || '—'}</td>
                         <td style={{ padding:'8px 12px', fontWeight:600, fontSize:'0.875rem' }}>{row.party_name || '—'}</td>
                         <td style={{ padding:'6px 8px' }}>
-                          <input type="text" value={row.description} onChange={e => updateRow(i,'description',e.target.value)}
+                          <input type="text" value={row.description} onChange={e => updateRow(i,'description',e.target.value)} onKeyDown={handleKeyDown}
                             placeholder="Optional desc..." style={{ border:'1px solid var(--gray-200)', borderRadius:6, padding:'4px 8px', fontSize:'0.8rem', width:'100%', outline:'none' }} />
                         </td>
                         <td style={{ padding:'6px 8px' }}>
-                          <input type="number" min="0" value={row.bundles} onChange={e => updateRow(i,'bundles',e.target.value)}
+                          <input type="number" min="0" value={row.bundles} onChange={e => updateRow(i,'bundles',e.target.value)} onKeyDown={handleKeyDown}
                             style={{ border:'1px solid var(--gray-200)', borderRadius:6, padding:'4px 8px', fontSize:'0.8rem', width:70, textAlign:'center', outline:'none' }} />
                         </td>
                         <td style={{ padding:'6px 8px' }}>
-                          <input type="number" min="0" step="0.01" value={row.gazana_total} onChange={e => updateRow(i,'gazana_total',e.target.value)}
+                          <input type="number" min="0" step="0.01" value={row.gazana_total} onChange={e => updateRow(i,'gazana_total',e.target.value)} onKeyDown={handleKeyDown}
                             style={{ border:'1px solid var(--gray-200)', borderRadius:6, padding:'4px 8px', fontSize:'0.8rem', width:100, textAlign:'right', outline:'none' }} />
                         </td>
                         <td style={{ padding:'6px 8px', textAlign:'center' }}>

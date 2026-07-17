@@ -4,6 +4,7 @@ module.exports = (sequelize, DataTypes) =>
     {
       id: { type: DataTypes.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true },
       delivery_order_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: true },
+      customer_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: true },
       payment_date: { type: DataTypes.DATEONLY, allowNull: false },
       amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
       mode: { type: DataTypes.STRING(30), allowNull: false, defaultValue: "cash" },

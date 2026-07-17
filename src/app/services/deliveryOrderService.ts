@@ -61,6 +61,9 @@ export const deliveryOrderService = {
   addPayment: (id: number, payload: any) => {
     return apiClient.post(`/delivery-orders/${id}/payment`, payload);
   },
+  markAsPaid: (id: number) => {
+    return apiClient.put(`/delivery-orders/${id}/paid`);
+  },
   deleteInvoice: (id: number) => {
     return apiClient.delete(`/delivery-orders/${id}/invoice`);
   },

@@ -39,6 +39,7 @@ router.put("/delivery-orders/:id", deliveryOrderController.updateDeliveryOrder);
 router.post("/delivery-orders", deliveryOrderController.createDeliveryOrder);
 router.put("/delivery-orders/:id/invoice", deliveryOrderController.generateInvoice);
 router.delete("/delivery-orders/:id/invoice", deliveryOrderController.deleteInvoice);
+router.put("/delivery-orders/:id/paid", deliveryOrderController.markAsPaid);
 router.post("/delivery-orders/:id/payment", deliveryOrderController.addPayment);
 router.delete("/delivery-orders/:id", deliveryOrderController.deleteOrder);
 

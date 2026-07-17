@@ -50,10 +50,10 @@ export default function CustomerView() {
       setCustomer({ ...customer, advance_balance: Number(customer.advance_balance || 0) + Number(advanceForm.amount) });
       setIsAdvanceModalOpen(false);
       setAdvanceForm({ amount: '', method: 'cash', bankName: '', reference: '' });
-      alert('Advance payment added successfully!');
+      alert('Payment added successfully!');
     } catch (err: any) {
       console.error(err);
-      alert(err.response?.data?.message || 'Error adding advance payment. Please make sure the server is running.');
+      alert(err.response?.data?.message || 'Error adding payment. Please make sure the server is running.');
     } finally {
       setIsSubmittingAdvance(false);
     }
@@ -349,7 +349,7 @@ export default function CustomerView() {
       {isAdvanceModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl border border-gray-100">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Add Advance Payment</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Record Payment</h3>
             <form onSubmit={handleAdvanceSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Amount (Rs)</label>

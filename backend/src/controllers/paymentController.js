@@ -23,6 +23,10 @@ exports.getAllPayments = async (req, res, next) => {
           model: DeliveryOrder,
           attributes: ["id", "order_no"],
           include: [{ model: Customer, attributes: ["id", "name"] }]
+        },
+        {
+          model: Customer,
+          attributes: ["id", "name"]
         }
       ],
       order: [["payment_date", "DESC"], ["id", "DESC"]],
@@ -77,6 +81,9 @@ exports.deletePayment = async (req, res, next) => {
         {
           model: DeliveryOrder,
           include: [Customer]
+        },
+        {
+          model: Customer
         }
       ],
       transaction: t
@@ -90,20 +97,47 @@ exports.deletePayment = async (req, res, next) => {
     const payAmount = Number(payment.amount || 0);
     const doItem = payment.delivery_order || payment.DeliveryOrder || payment.deliveryOrder;
 
+    // Determine the customer ID
+    let customerId = payment.customer_id;
+    if (!customerId && doItem) {
+      const customerItem = doItem.customer || doItem.Customer;
+      customerId = doItem.customer_id || (customerItem && customerItem.id);
+    }
+
     // 1. Decrement paid_amount on DeliveryOrder
     if (doItem) {
       await doItem.decrement("paid_amount", {
         by: payAmount,
         transaction: t
       });
+    }
 
-      // 2. Increment outstanding_amount on Customer
-      const customerItem = doItem.customer || doItem.Customer;
-      const customerId = doItem.customer_id || (customerItem && customerItem.id);
-      if (customerId) {
-        await Customer.increment("outstanding_amount", {
+    // 2. Update Customer Balances and Ledger
+    if (customerId) {
+      // Revert outstanding amount (increment it back)
+      await Customer.increment("outstanding_amount", {
+        by: payAmount,
+        where: { id: customerId },
+        transaction: t
+      });
+
+      // Revert advance_balance for standalone payments
+      if (payment.is_advance || !doItem) {
+        await Customer.decrement("advance_balance", {
           by: payAmount,
           where: { id: customerId },
+          transaction: t
+        });
+      }
+
+      // Delete the associated Ledger Entry
+      const CustomerLedger = sequelize.models.customer_ledgers;
+      if (CustomerLedger) {
+        await CustomerLedger.destroy({
+          where: {
+            reference_id: payment.id,
+            reference_type: "Payment Received"
+          },
           transaction: t
         });
       }
@@ -114,8 +148,8 @@ exports.deletePayment = async (req, res, next) => {
 
     await t.commit();
 
-    const doNo = doItem ? doItem.order_no : "N/A";
-    await logActivity("Payments", `Deleted Payment for DO #${doNo}`, `Amount: ${payAmount}`, req);
+    const doNo = doItem ? doItem.order_no : "Direct Credit";
+    await logActivity("Payments", `Deleted Payment for ${doNo}`, `Amount: ${payAmount}`, req);
 
     return res.json({ success: true, message: "Payment deleted successfully" });
   } catch (error) {
@@ -161,23 +195,56 @@ exports.updatePayment = async (req, res, next) => {
     await payment.save({ transaction: t });
 
     const doItem = payment.delivery_order || payment.DeliveryOrder || payment.deliveryOrder;
-
-    if (diff !== 0 && doItem) {
-      // 2. Adjust Delivery Order paid_amount
-      await doItem.increment("paid_amount", {
-        by: diff,
-        transaction: t
-      });
-
-      // 3. Adjust Customer outstanding_amount
+    let customerId = payment.customer_id;
+    if (!customerId && doItem) {
       const customerItem = doItem.customer || doItem.Customer;
-      const customerId = doItem.customer_id || (customerItem && customerItem.id);
+      customerId = doItem.customer_id || (customerItem && customerItem.id);
+    }
+
+    if (diff !== 0) {
+      if (doItem) {
+        // Legacy payment linked to a DO
+        await doItem.increment("paid_amount", {
+          by: diff,
+          transaction: t
+        });
+      }
+
       if (customerId) {
+        // All payments decrease outstanding amount (so when we update, we decrement by diff)
         await Customer.decrement("outstanding_amount", {
           by: diff,
           where: { id: customerId },
           transaction: t
         });
+
+        // Standalone payments (or advance) also increase advance_balance
+        if (payment.is_advance || !doItem) {
+          await Customer.increment("advance_balance", {
+            by: diff,
+            where: { id: customerId },
+            transaction: t
+          });
+        }
+        
+        // Update associated ledger entry
+        const CustomerLedger = sequelize.models.customer_ledgers;
+        if (CustomerLedger) {
+          await CustomerLedger.update(
+            {
+              amount: newAmount,
+              date: payment.payment_date,
+              description: `Payment Received (${payment.mode || 'cash'})`
+            },
+            {
+              where: {
+                reference_id: payment.id,
+                reference_type: "Payment Received"
+              },
+              transaction: t
+            }
+          );
+        }
       }
     }
 
@@ -226,18 +293,18 @@ exports.addAdvancePayment = async (req, res, next) => {
       customer_id: customerId,
       transaction_type: "Credit",
       amount: amount,
-      reference_type: "Advance Payment",
+      reference_type: "Payment",
       reference_id: payment.id,
-      description: `Advance Payment Received (${method})`,
+      description: `Payment Received (${method})`,
       date: payment.payment_date,
     }, { transaction: t });
 
     await customer.increment("advance_balance", { by: amount, transaction: t });
 
     await t.commit();
-    await logActivity("Payments", `Received Advance Payment`, `Amount: ${amount} for Customer ID ${customerId}`, req);
+    await logActivity("Payments", `Received Payment`, `Amount: ${amount} for Customer ID ${customerId}`, req);
 
-    return res.status(201).json({ success: true, message: "Advance payment recorded successfully", data: payment });
+    return res.status(201).json({ success: true, message: "Payment recorded successfully", data: payment });
   } catch (error) {
     await t.rollback();
     return next(error);

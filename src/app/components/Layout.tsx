@@ -21,7 +21,7 @@ const navItems = [
   { path: '/return-lots', label: 'Return Lots', icon: RefreshCw, section: 'operations', privilegeKey: 'can_view_gray_lots' },
   { path: '/delivery-orders', label: 'Delivery Orders', icon: Truck, section: 'operations', privilegeKey: 'can_view_delivery_orders' },
   { path: '/billing', label: 'Billing / Invoices', icon: FileText, section: 'operations', privilegeKey: 'can_view_billing' },
-  { path: '/payments', label: 'Payments & Ledger', icon: Wallet, section: 'operations', privilegeKey: 'can_view_payments' },
+  { path: '/payments', label: 'Payments', icon: Wallet, section: 'operations', privilegeKey: 'can_view_payments' },
   { path: '/customers', label: 'Customers', icon: Users, section: 'management', privilegeKey: 'can_view_customers' },
   { path: '/qualities', label: 'Fabric Qualities', icon: ClipboardCheck, section: 'management', privilegeKey: 'can_view_qualities' },
   { path: '/gate-pass', label: 'Gate Pass', icon: ClipboardCheck, section: 'management', privilegeKey: 'can_view_gate_pass' },

@@ -211,7 +211,7 @@ export default function ViewDeliveryOrder() {
               <thead>
                 {/* Color Header Row - Always show Gray & Finish headers (columns visible) */}
                 <tr className="bg-gray-100">
-                  <th rowSpan={2} className="border border-gray-300 p-1 align-middle">Sr. No</th>
+                  <th rowSpan={2} className="border border-gray-300 p-1 align-middle w-[10%]">Sr. No</th>
                   {colors.map(color => (
                     <th key={color.id} colSpan={2} className="border border-gray-300 p-1 text-center">
                       {color.name}
@@ -222,8 +222,8 @@ export default function ViewDeliveryOrder() {
                 <tr className="bg-gray-50">
                   {colors.map(color => (
                     <React.Fragment key={color.id}>
-                      <th className="border border-gray-300 p-1 text-center w-16">Gray</th>
-                      <th className="border border-gray-300 p-1 text-center w-16">Finish</th>
+                      <th className="border border-gray-300 p-1 text-center w-[10%]">Gray</th>
+                      <th className="border border-gray-300 p-1 text-center w-[10%]">Finish</th>
                     </React.Fragment>
                   ))}
                 </tr>
@@ -240,18 +240,18 @@ export default function ViewDeliveryOrder() {
                   
                   return (
                     <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="border border-gray-300 p-1 text-center font-bold">{rowIndex + 1}</td>
+                      <td className="border border-gray-300 p-1 text-center font-bold w-[10%]">{rowIndex + 1}</td>
                       {colors.map(color => {
                         const grayVal = getCellValue(rowIndex, color.id, 'gray');
                         const readyVal = getCellValue(rowIndex, color.id, 'ready');
                         return (
                           <React.Fragment key={color.id}>
                             {/* Gray column - Show blank/dash when checkbox is unchecked, otherwise show actual value */}
-                            <td className="border border-gray-300 p-1 text-center">
+                            <td className="border border-gray-300 p-1 text-center w-[10%]">
                               {shouldShowGrayValue() && grayVal !== null && grayVal !== undefined && grayVal !== '' ? grayVal : '—'}
                             </td>
                             {/* Finish column - Always show with actual value */}
-                            <td className="border border-gray-300 p-1 text-center">
+                            <td className="border border-gray-300 p-1 text-center w-[10%]">
                               {readyVal !== null && readyVal !== undefined && readyVal !== '' ? readyVal : '—'}
                             </td>
                           </React.Fragment>
@@ -262,16 +262,16 @@ export default function ViewDeliveryOrder() {
                 })}
                 {/* Totals Row - Always show both Gray and Finish totals */}
                 <tr className="bg-gray-200 font-bold">
-                  <td className="border border-gray-300 p-1 text-center">Total</td>
+                  <td className="border border-gray-300 p-1 text-center w-[10%]">Total</td>
                   {colors.map(color => {
                     const colorGrayTotal = getColorGrayTotal(color.id);
                     const colorReadyTotal = getColorReadyTotal(color.id);
                     return (
                       <React.Fragment key={color.id}>
-                        <td className="border border-gray-300 p-1 text-center">
+                        <td className="border border-gray-300 p-1 text-center w-[10%]">
                           {colorGrayTotal || '—'}
                         </td>
-                        <td className="border border-gray-300 p-1 text-center">{colorReadyTotal || '—'}</td>
+                        <td className="border border-gray-300 p-1 text-center w-[10%]">{colorReadyTotal || '—'}</td>
                       </React.Fragment>
                     );
                   })}
@@ -318,8 +318,8 @@ export default function ViewDeliveryOrder() {
                   </td>
                   <td className="border border-gray-300 p-1 text-center">{order.total_pcs_finish || order.finish_pcs || '—'}</td>
                   <td className="border border-gray-300 p-1 text-center">{primaryReadyQty.toFixed(2)}</td>
-                  <td className={`border border-gray-300 p-1 text-center font-bold ${Number(order.gray_lot?.balance || 0) > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                    {Number(order.gray_lot?.balance || 0) > 0 ? 'Incomplete' : 'Completed'}
+                  <td className={`border border-gray-300 p-1 text-center font-bold ${Number(order.gray_lot?.balance || 0) > 0.5 ? 'text-orange-600' : 'text-green-600'}`}>
+                    {Number(order.gray_lot?.balance || 0) > 0.5 ? 'Incomplete' : 'Completed'}
                   </td>
                   <td className="border border-gray-300 p-1 text-center font-bold text-blue-600">
                     {Number(order.gray_lot?.balance || 0).toFixed(2)}

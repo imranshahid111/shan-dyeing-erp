@@ -25,6 +25,9 @@ CustomerLedger.belongsTo(Customer, { foreignKey: "customer_id" });
 DeliveryOrder.hasMany(Payment, { foreignKey: "delivery_order_id" });
 Payment.belongsTo(DeliveryOrder, { foreignKey: "delivery_order_id" });
 
+Customer.hasMany(Payment, { foreignKey: "customer_id" });
+Payment.belongsTo(Customer, { foreignKey: "customer_id" });
+
 GrayLot.hasMany(DeliveryOrder, { foreignKey: "gray_lot_id" });
 DeliveryOrder.belongsTo(GrayLot, { foreignKey: "gray_lot_id" });
 

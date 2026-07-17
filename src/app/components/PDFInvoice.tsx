@@ -135,13 +135,16 @@ const styles = StyleSheet.create({
 });
 
 const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organization }) => {
+  const isDoMeter = inv.input_unit === 'meter';
   const isRateMeter = inv.rate_unit !== 'yard';
   const readyGaz   = Number(inv.total_ready_gazana || 0);
   const readyMeter = readyGaz * 0.9144;
   const effectiveQty = isRateMeter ? readyMeter : readyGaz;
   
   const coraBundle = Number((inv as any).total_pcs || (inv as any).pcs || 0);
-  const coraGazana = Number(inv.total_gray_gazana || 0);
+  const coraGazanaDB = Number(inv.total_gray_gazana || 0);
+  const displayCoraLabel = isDoMeter ? 'Cora Mtr:' : 'Cora Gazana:';
+  const displayCoraValue = isDoMeter ? (coraGazanaDB * 0.9144) : coraGazanaDB;
   const finishBundle = Number((inv as any).total_pcs_finish || (inv as any).finish_pcs || 0);
   
   const processingAmount = effectiveQty * Number(inv.rate || 0);
@@ -190,14 +193,14 @@ const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organizatio
         <View style={styles.infoRow}>
           <Text style={styles.infoCol1}>Lot No:</Text>
           <Text style={styles.infoCol2}>{inv.gray_lot?.lot_no}</Text>
-          <Text style={styles.infoCol3}>Dated:</Text>
-          <Text style={styles.infoCol4}>{new Date(inv.order_date).toLocaleDateString()}</Text>
+          <Text style={styles.infoCol3}>Bilti No:</Text>
+          <Text style={styles.infoCol4}>{inv.gray_lot?.bill_no || '-'}</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoCol1}>Product:</Text>
           <Text style={styles.infoCol2}>{product}</Text>
-          <Text style={styles.infoCol3}>Cora Gazana:</Text>
-          <Text style={styles.infoCol4}>{coraGazana.toLocaleString()}</Text>
+          <Text style={styles.infoCol3}>{displayCoraLabel}</Text>
+          <Text style={styles.infoCol4}>{displayCoraValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text>
         </View>
       </View>
 
@@ -213,7 +216,7 @@ const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organizatio
               {/* Row 1 */}
               <View style={styles.innerRow}>
                 <View style={styles.innerCol1}><Text style={styles.labelSmall}>Cora Bundle</Text><Text style={styles.valueSmall}>{coraBundle}</Text></View>
-                <View style={styles.innerCol2}><Text style={styles.labelSmall}>Cora Gazana</Text><Text style={styles.valueSmall}>{coraGazana.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
+                <View style={styles.innerCol2}><Text style={styles.labelSmall}>{isDoMeter ? 'Cora Mtr' : 'Cora Gazana'}</Text><Text style={styles.valueSmall}>{displayCoraValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
                 <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>-</Text></View>
               </View>
               

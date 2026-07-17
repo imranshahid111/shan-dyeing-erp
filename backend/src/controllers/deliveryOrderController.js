@@ -5,6 +5,7 @@ const { logActivity } = require("../utils/logger");
 
 exports.getDeliveryOrders = async (req, res, next) => {
   try {
+    const { Quality } = require("../models");
     const status = String(req.query.status || "");
     const page = Math.max(Number(req.query.page || 1), 1);
     const pageSize = Math.min(Math.max(Number(req.query.pageSize || 20), 1), 100);
@@ -33,7 +34,11 @@ exports.getDeliveryOrders = async (req, res, next) => {
       subQuery: false,
       include: [
         { model: Customer, attributes: ["id", "name", "customer_code"] },
-        { model: GrayLot, attributes: ["lot_no", "measurement"] },
+        { 
+          model: GrayLot, 
+          attributes: ["lot_no", "measurement", "bill_no"],
+          include: [{ model: Quality, attributes: ["name"] }]
+        },
       ],
       order: [["order_date", "DESC"], ["id", "DESC"]],
       attributes: ["id", "order_no", "invoice_no", "customer_id", "gray_lot_id", "order_date", "status", "total_amount", "paid_amount", "total_gray_gazana", "total_ready_gazana", "rate", "rate_unit", "input_unit", "kinar_cut_amount", "kinar_cut_qty", "packing_amount", "packing_qty", "grid_data"],
@@ -41,7 +46,17 @@ exports.getDeliveryOrders = async (req, res, next) => {
       offset: (page - 1) * pageSize,
     });
 
-    return res.json({ page, pageSize, total: count, data: rows });
+    const rowsWithQuality = rows.map(order => {
+      const orderData = order.toJSON();
+      if (orderData.gray_lot && orderData.gray_lot.quality) {
+        orderData.gray_lot.quality = orderData.gray_lot.quality.name;
+      } else if (orderData.GrayLot && orderData.GrayLot.Quality) {
+        orderData.GrayLot.quality = orderData.GrayLot.Quality.name;
+      }
+      return orderData;
+    });
+
+    return res.json({ page, pageSize, total: count, data: rowsWithQuality });
   } catch (error) {
     return next(error);
   }
@@ -55,7 +70,7 @@ exports.getDeliveryOrderById = async (req, res, next) => {
         { model: Customer, attributes: ["id", "name", "customer_code", "phone", "city"] },
         { 
           model: GrayLot, 
-          attributes: ["id", "lot_no", "party_name", "measurement", "gazana"],
+          attributes: ["id", "lot_no", "party_name", "measurement", "gazana", "bill_no", "process_type"],
           include: [{ model: Quality, attributes: ["name"] }]
         }
       ]
@@ -407,5 +422,21 @@ exports.deleteOrder = async (req, res, next) => {
   } catch (err) {
     await t.rollback();
     return next(err);
+  }
+};
+
+exports.markAsPaid = async (req, res, next) => {
+  try {
+    const doItem = await DeliveryOrder.findByPk(req.params.id);
+    if (!doItem) {
+      return res.status(404).json({ message: "Delivery Order not found" });
+    }
+    
+    // Set paid_amount to total_amount
+    await doItem.update({ paid_amount: doItem.total_amount });
+    
+    return res.json({ success: true, message: "Invoice marked as paid successfully" });
+  } catch (error) {
+    return next(error);
   }
 };

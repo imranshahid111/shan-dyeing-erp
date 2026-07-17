@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
-import { FileText, Plus, Eye, Wallet, MoreVertical, X, Download, Printer, Calendar, DollarSign, CreditCard, Hash, FileEdit, Search, User, Loader2, AlertCircle, Trash2 } from 'lucide-react';
+import { FileText, Plus, Eye, Wallet, MoreVertical, X, Download, Printer, Calendar, DollarSign, CreditCard, Hash, FileEdit, Search, User, Loader2, AlertCircle, Trash2, CheckCircle } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
 import { organizationService, Organization } from '../services/organizationService';
 import { customerService, CustomerItem } from '../services/customerService';
@@ -22,7 +22,6 @@ export default function Billing() {
   const [search, setSearch] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // all, paid, unpaid, partial
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [canDelete, setCanDelete] = useState(true);
 
@@ -133,24 +132,12 @@ export default function Billing() {
     setSelectedIds([]);
   };
 
-  const getPaymentStatus = (inv: DeliveryOrderItem) => {
-    const total = Number(inv.total_amount);
-    const paid = Number(inv.paid_amount || 0);
-    if (paid <= 0) return 'unpaid';
-    if (paid >= total) return 'paid';
-    return 'partial';
-  };
-
-  const filteredInvoices = invoices.filter(inv => {
-    if (statusFilter === 'all') return true;
-    return getPaymentStatus(inv) === statusFilter;
-  });
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === filteredInvoices.length) {
+    if (selectedIds.length === invoices.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(filteredInvoices.map(inv => inv.id));
+      setSelectedIds(invoices.map(inv => inv.id));
     }
   };
 
@@ -199,27 +186,35 @@ export default function Billing() {
                     <Loader2 className="animate-spin text-blue-600" size={18} />
                   </div>
                 )}
+                {selectedCustomer && (
+                  <button
+                    onClick={() => {
+                      setSelectedCustomer(null);
+                      setCustomerSearch('');
+                      setCustomers([]);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full text-gray-400 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               </div>
+              
+              {customers.length > 0 && !selectedCustomer && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 max-h-60 overflow-y-auto z-10 p-2">
+                  {customers.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => handleCustomerSelect(c)}
+                      className="w-full text-left px-4 py-3 rounded-lg hover:bg-blue-50 transition-colors text-sm font-semibold text-gray-700 flex justify-between items-center"
+                    >
+                      <span>{c.name}</span>
+                      <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">{c.customer_code}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
            </div>
-           
-           {customerSearch && !selectedCustomer && customers.length > 0 && (
-             <div className="absolute top-full left-0 w-full bg-white border border-gray-100 rounded-xl mt-2 shadow-2xl z-20 max-h-60 overflow-y-auto">
-               {customers.map(c => (
-                 <button
-                   key={c.id}
-                   type="button"
-                   onClick={() => handleCustomerSelect(c)}
-                   className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-50 last:border-0 transition-colors font-semibold text-gray-700 flex justify-between items-center"
-                 >
-                   <div>
-                     <p>{c.name}</p>
-                     <p className="text-[10px] text-gray-400 uppercase tracking-widest">{c.customer_code}</p>
-                   </div>
-                   <p className="text-xs font-bold text-blue-600">Rs {Number(c.outstanding_amount).toLocaleString()}</p>
-                 </button>
-               ))}
-             </div>
-           )}
         </div>
 
         {/* Filters */}
@@ -242,21 +237,9 @@ export default function Billing() {
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
-            <div className="flex-1 min-w-[150px]">
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</label>
-              <select 
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 outline-none text-sm font-bold text-gray-700 bg-white"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Invoices</option>
-                <option value="unpaid">Unpaid</option>
-                <option value="partial">Partial Paid</option>
-                <option value="paid">Fully Paid</option>
-              </select>
-            </div>
+
           <button 
-            onClick={() => { setStartDate(''); setEndDate(''); setStatusFilter('all'); setSearch(''); }}
+            onClick={() => { setStartDate(''); setEndDate(''); setSearch(''); }}
             className="p-2.5 hover:bg-gray-100 text-gray-500 rounded-xl transition-colors"
             title="Reset Filters"
           >
@@ -270,12 +253,12 @@ export default function Billing() {
           <div className="flex items-center gap-4">
             <span className="font-black text-sm uppercase tracking-widest">{selectedIds.length} Invoices Selected</span>
             <div className="h-4 w-px bg-white/20" />
-            <p className="text-xs font-bold">Total: Rs {filteredInvoices.filter(i => selectedIds.includes(i.id)).reduce((sum, i) => sum + Number(i.total_amount), 0).toLocaleString()}</p>
+            <p className="text-xs font-bold">Total: Rs {invoices.filter(i => selectedIds.includes(i.id)).reduce((sum, i) => sum + Number(i.total_amount), 0).toLocaleString()}</p>
           </div>
           <div className="flex gap-2">
              <button 
                onClick={() => {
-                 const selectedInvoices = filteredInvoices.filter(i => selectedIds.includes(i.id));
+                 const selectedInvoices = invoices.filter(i => selectedIds.includes(i.id));
                  toast.success(`Preparing statement for ${selectedIds.length} invoices...`);
                }}
                className="hidden"
@@ -287,7 +270,7 @@ export default function Billing() {
                <PDFDownloadLink
                  document={
                    <PDFStatement 
-                     invoices={filteredInvoices.filter(i => selectedIds.includes(i.id))} 
+                     invoices={invoices.filter(i => selectedIds.includes(i.id))} 
                      customer={selectedCustomer} 
                      org={org}
                      dateRange={startDate && endDate ? `${startDate} to ${endDate}` : ""}
@@ -310,7 +293,7 @@ export default function Billing() {
                <PDFDownloadLink
                  document={
                    <PDFMultiInvoice
-                     invoices={filteredInvoices.filter(i => selectedIds.includes(i.id))}
+                     invoices={invoices.filter(i => selectedIds.includes(i.id))}
                      org={org}
                    />
                  }
@@ -344,7 +327,7 @@ export default function Billing() {
                   <th className="px-6 py-4 w-10">
                     <input 
                       type="checkbox" 
-                      checked={selectedIds.length === filteredInvoices.length && filteredInvoices.length > 0}
+                      checked={selectedIds.length === invoices.length && invoices.length > 0}
                       onChange={toggleSelectAll}
                       className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
@@ -352,12 +335,9 @@ export default function Billing() {
                 <th className="px-6 py-4">Invoice No</th>
                 <th className="px-6 py-4">Customer</th>
                 <th className="px-6 py-4">Date</th>
-                  <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4 text-right">Gazana</th>
                   <th className="px-6 py-4 text-right">Rate</th>
                   <th className="px-6 py-4 text-right">Total (Rs)</th>
-                  <th className="px-6 py-4 text-right">Paid (Rs)</th>
-                  <th className="px-6 py-4 text-right">Due (Rs)</th>
                   <th className="px-6 py-4 text-center">Actions</th>
                 </tr>
               </thead>
@@ -380,9 +360,7 @@ export default function Billing() {
                     </td>
                   </tr>
                 )}
-                {filteredInvoices.map((inv) => {
-                  const due = Math.max(Number(inv.total_amount) - Number(inv.paid_amount || 0), 0);
-                  const status = getPaymentStatus(inv);
+                {invoices.map((inv) => {
                   const isSelected = selectedIds.includes(inv.id);
                   
                   return (
@@ -398,20 +376,9 @@ export default function Billing() {
                     <td className="px-6 py-4 font-bold text-gray-900 font-mono">#{inv.order_no}</td>
                     <td className="px-6 py-4 font-semibold text-gray-700">{inv.customer?.name}</td>
                     <td className="px-6 py-4 text-gray-500">{new Date(inv.order_date).toLocaleDateString()}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                          status === 'paid' ? 'bg-green-100 text-green-700' :
-                          status === 'partial' ? 'bg-orange-100 text-orange-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {status}
-                        </span>
-                      </td>
                       <td className="px-6 py-4 text-right">{inv.total_gray_gazana} GZ</td>
                       <td className="px-6 py-4 text-right font-bold text-gray-500">{inv.rate ? `Rs ${inv.rate}/${inv.rate_unit === 'yard' ? 'Gaz' : 'Mtr'}` : '-'}</td>
                       <td className="px-6 py-4 text-right font-bold text-gray-900">{Number(inv.total_amount).toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right font-bold text-gray-600">{Number(inv.paid_amount || 0).toLocaleString()}</td>
-                      <td className={`px-6 py-4 text-right font-bold ${status === 'paid' ? 'text-gray-300' : 'text-orange-600'}`}>{due.toLocaleString()}</td>
                       <td className="px-6 py-4 text-center relative">
                         <button 
                           onClick={() => setActiveDropdown(activeDropdown === String(inv.id) ? null : String(inv.id))}
@@ -426,16 +393,6 @@ export default function Billing() {
                               className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors font-semibold"
                             >
                               <Eye size={16} /> View Invoice
-                            </button>
-                            <button 
-                              onClick={() => { 
-                                setPaymentInvoice(inv); 
-                                setPaymentAmount('0');
-                                setActiveDropdown(null); 
-                              }}
-                              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors font-semibold"
-                            >
-                              <Wallet size={16} /> Add Payment
                             </button>
                             {canDelete && (
                               <button 

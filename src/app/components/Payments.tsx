@@ -7,11 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 
-interface Allocation {
-  invoiceId: number;
-  orderNo: string;
-  amount: number;
-}
+
 
 export default function Payments() {
   const [showModal, setShowModal] = useState(false);
@@ -22,11 +18,8 @@ export default function Payments() {
   const [focusedCustomerIndex, setFocusedCustomerIndex] = useState(-1);
 
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerItem | null>(null);
-  const [customerInvoices, setCustomerInvoices] = useState<DeliveryOrderItem[]>([]);
-  const [loadingInvoices, setLoadingInvoices] = useState(false);
-
-  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<number[]>([]);
-  const [paymentAmount, setPaymentAmount] = useState<string>('0');
+    
+    const [paymentAmount, setPaymentAmount] = useState<string>('0');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [reference, setReference] = useState('');
@@ -120,50 +113,11 @@ export default function Payments() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [customerSearch]);
-
-  // Fetch real payments history and stats
-  const loadData = async () => {
-    try {
-      setLoadingPayments(true);
-      const [pRes, sRes] = await Promise.all([
-        paymentService.getPayments(historySearch, currentPage, pageSize),
-        paymentService.getPaymentStats()
-      ]);
-      setPayments(pRes.data);
-      setTotalItems(pRes.total);
-      setTotalPages(Math.ceil(pRes.total / pageSize) || 1);
-      setStats(sRes);
-    } catch (error) {
-      console.error("Failed to load payment history/stats", error);
-    } finally {
-      setLoadingPayments(false);
-    }
+  const handleCustomerSelect = (customer: CustomerItem) => {
+    setSelectedCustomer(customer);
+    setCustomerSearch(customer.name);
+    setIsDropdownOpen(false);
   };
-
-  // Reset page when searching
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [historySearch]);
-
-  useEffect(() => {
-    loadData();
-  }, [historySearch, currentPage]);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('erp_user');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.role === 'admin') {
-          setCanDelete(true);
-        } else {
-          setCanDelete(parsed.privileges?.can_delete ?? false);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, [historySearch]);
 
   const handleDelete = async (id: number) => {
     if (!window.confirm("Are you sure you want to delete this payment? This will revert the allocation from the Delivery Order and increase the Customer's outstanding balance!")) return;
@@ -214,110 +168,14 @@ export default function Payments() {
     }
   };
 
-  // Fetch invoices when customer is selected
-  const handleCustomerSelect = async (customer: CustomerItem) => {
-    setSelectedCustomer(customer);
-    setCustomerSearch(customer.name);
-    setIsDropdownOpen(false);
-    try {
-      setLoadingInvoices(true);
-      // Fetch only billed invoices for this customer
-      const res = await deliveryOrderService.getDeliveryOrders('billed', 1, 100, customer.id);
-      const unpaidInvoices = res.data.filter(inv => Number(inv.paid_amount) < Number(inv.total_amount));
-      setCustomerInvoices(unpaidInvoices);
-      // Deselect all by default, so user has to click to auto-fill
-      setSelectedInvoiceIds([]);
-    } catch (error) {
-      console.error("Failed to fetch invoices", error);
-    } finally {
-      setLoadingInvoices(false);
-    }
-  };
-
-  // Selected invoice total due only. Do NOT overwrite paymentAmount here.
-  // User can type any amount, then selected invoices will be adjusted against that amount.
-  const selectedInvoiceTotalDue = useMemo(() => {
-    return selectedInvoiceIds.reduce((sum, id) => {
-      const inv = customerInvoices.find(i => i.id === id);
-      if (!inv) return sum;
-      const due = Math.max(0, Number(inv.total_amount) - Number(inv.paid_amount));
-      return sum + due;
-    }, 0);
-  }, [selectedInvoiceIds, customerInvoices]);
-
-  const enteredPaymentAmount = Number.parseFloat(paymentAmount) || 0;
-  const isPaymentAmountTooHigh =
-    selectedInvoiceIds.length > 0 && enteredPaymentAmount > selectedInvoiceTotalDue;
-
-  // Calculate allocations based on typed payment amount and selected invoices.
-  // Existing inv.paid_amount is not overwritten; allocation is only the NEW amount to add.
-  const allocations = useMemo(() => {
-    let remaining = Number.parseFloat(paymentAmount) || 0;
-    const result: Allocation[] = [];
-
-    const selectedInvoices = customerInvoices
-      .filter(inv => selectedInvoiceIds.includes(inv.id))
-      .sort((a, b) => new Date(a.order_date).getTime() - new Date(b.order_date).getTime());
-
-    for (const inv of selectedInvoices) {
-      if (remaining <= 0) break;
-
-      const due = Math.max(0, Number(inv.total_amount) - Number(inv.paid_amount));
-      const allocated = Math.min(remaining, due);
-
-      if (allocated > 0) {
-        result.push({
-          invoiceId: inv.id,
-          orderNo: inv.order_no,
-          amount: Number(allocated.toFixed(2))
-        });
-        remaining -= allocated;
-      }
-    }
-
-    return result;
-  }, [paymentAmount, selectedInvoiceIds, customerInvoices]);
-
-  const allocatedTotal = allocations.reduce((sum, a) => sum + a.amount, 0);
-  const remainingSelectedDue = Math.max(0, selectedInvoiceTotalDue - allocatedTotal);
-
-  useEffect(() => {
-    if (selectedInvoiceIds.length === 0) {
-      setPaymentAmount('');
-    } else {
-      const currentAmt = Number.parseFloat(paymentAmount) || 0;
-      let maxLimit = selectedInvoiceTotalDue;
-      if (paymentMethod === 'advance') {
-        maxLimit = Math.min(selectedInvoiceTotalDue, Number(selectedCustomer?.advance_balance || 0));
-        if (maxLimit > 0) {
-          setPaymentAmount(maxLimit.toString());
-        }
-      } else {
-        if (currentAmt > maxLimit) {
-          setPaymentAmount(maxLimit.toString());
-        }
-      }
-    }
-  }, [selectedInvoiceTotalDue, selectedInvoiceIds.length, paymentMethod, selectedCustomer]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCustomer || isSubmitting) return;
 
     const amount = Number.parseFloat(paymentAmount) || 0;
 
-    if (selectedInvoiceIds.length === 0) {
-      toast.error("Please select at least one invoice.");
-      return;
-    }
-
     if (amount <= 0) {
       toast.error("Payment amount must be greater than 0.");
-      return;
-    }
-
-    if (amount > selectedInvoiceTotalDue) {
-      toast.error(`Payment amount cannot be greater than selected invoices due: Rs ${selectedInvoiceTotalDue.toLocaleString()}`);
       return;
     }
 
@@ -329,15 +187,13 @@ export default function Payments() {
         method: paymentMethod,
         reference,
         notes,
-        selectedInvoiceIds,
-        allocations,
         attachment,
         attachmentName
       });
       toast.success("Payment recorded successfully!");
       setShowModal(false);
       resetForm();
-      loadData(); // Refresh history and stats
+      loadData();
     } catch (error) {
       console.error(error);
       toast.error("Failed to record payment");
@@ -349,8 +205,7 @@ export default function Payments() {
   const resetForm = () => {
     setSelectedCustomer(null);
     setCustomerSearch('');
-    setCustomerInvoices([]);
-    setSelectedInvoiceIds([]);
+    
     setPaymentAmount('0');
     setReference('');
     setNotes('');
@@ -358,8 +213,31 @@ export default function Payments() {
     setAttachmentName(null);
   };
 
-  const totalOutstanding = customerInvoices.reduce((sum, inv) => sum + (Number(inv.total_amount) - Number(inv.paid_amount)), 0);
+  const loadData = async () => {
+    try {
+      setLoadingPayments(true);
+      const [pRes, sRes] = await Promise.all([
+        paymentService.getPayments(historySearch, currentPage, pageSize),
+        paymentService.getPaymentStats()
+      ]);
+      setPayments(pRes.data);
+      setTotalItems(pRes.total);
+      setTotalPages(Math.ceil(pRes.total / pageSize) || 1);
+      setStats(sRes);
+    } catch (error) {
+      console.error("Failed to load payment history/stats", error);
+    } finally {
+      setLoadingPayments(false);
+    }
+  };
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [historySearch]);
+
+  useEffect(() => {
+    loadData();
+  }, [currentPage, historySearch]);
   return (
     <div className="space-y-6 min-h-[calc(100vh-140px)] flex flex-col">
       <div className="flex items-center justify-between">
@@ -450,7 +328,7 @@ export default function Payments() {
               }}
               className="flex-1 overflow-y-auto p-8"
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="max-w-2xl mx-auto space-y-6">
                 <div className="space-y-6">
                   {/* Customer Selection */}
                   <div className="relative">
@@ -481,17 +359,8 @@ export default function Payments() {
                           } else if (e.key === 'Enter') {
                             if (focusedCustomerIndex >= 0 && customers[focusedCustomerIndex]) {
                               e.preventDefault();
-                              e.stopPropagation(); // prevent form from shifting focus automatically
+                              e.stopPropagation();
                               handleCustomerSelect(customers[focusedCustomerIndex]);
-                              // manually focus the amount field
-                              setTimeout(() => {
-                                const form = e.currentTarget.closest('form');
-                                if (form) {
-                                  const focusable = Array.from(form.querySelectorAll<HTMLElement>('input:not([type="hidden"]):not([disabled]):not(.hidden)'));
-                                  const amountInput = focusable[1]; 
-                                  if (amountInput) amountInput.focus();
-                                }
-                              }, 10);
                             }
                           }
                         }}
@@ -507,7 +376,6 @@ export default function Payments() {
                           onClick={() => {
                             setSelectedCustomer(null);
                             setCustomerSearch('');
-                            setCustomerInvoices([]);
                           }}
                           className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full text-gray-400"
                         >
@@ -546,19 +414,6 @@ export default function Payments() {
                     )}
                   </div>
 
-                  {selectedCustomer && (
-                    <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Total Outstanding</p>
-                        <p className="text-xl font-black text-blue-900">Rs {totalOutstanding.toLocaleString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Pending Bills</p>
-                        <p className="text-xl font-black text-blue-900">{customerInvoices.length}</p>
-                      </div>
-                    </div>
-                  )}
-
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Payment Amount (Rs)</label>
@@ -568,34 +423,11 @@ export default function Payments() {
                           type="number"
                           required
                           step="0.01"
-                          disabled={selectedInvoiceIds.length === 0}
-                          className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:outline-none font-black text-lg text-gray-900 disabled:bg-gray-100 disabled:text-gray-400"
+                          className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:outline-none font-black text-lg text-gray-900"
                           value={paymentAmount}
-                          max={
-                            paymentMethod === 'advance'
-                              ? Math.min(selectedInvoiceTotalDue, Number(selectedCustomer?.advance_balance || 0))
-                              : selectedInvoiceTotalDue || undefined
-                          }
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            let maxLimit = selectedInvoiceTotalDue;
-                            if (paymentMethod === 'advance') {
-                               maxLimit = Math.min(selectedInvoiceTotalDue, Number(selectedCustomer?.advance_balance || 0));
-                            }
-                            if (Number(val) > maxLimit) {
-                               toast.error(paymentMethod === 'advance' ? `Amount cannot exceed available Advance Balance (Rs ${maxLimit.toLocaleString()})` : `Amount cannot exceed Rs ${maxLimit.toLocaleString()}`);
-                               setPaymentAmount(maxLimit.toString());
-                            } else {
-                               setPaymentAmount(val);
-                            }
-                          }}
-                          placeholder={selectedInvoiceIds.length === 0 ? "Select invoice first" : "0"}
+                          onChange={(e) => setPaymentAmount(e.target.value)}
+                          placeholder="0"
                         />
-                        {selectedInvoiceIds.length === 0 && (
-                          <p className="mt-1 text-[10px] font-bold text-gray-400">
-                            Please select an invoice to enter amount.
-                          </p>
-                        )}
                       </div>
                     </div>
                     <div>
@@ -611,35 +443,18 @@ export default function Payments() {
                         />
                       </div>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Method</label>
                       <select
                         className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-600 focus:outline-none bg-white font-bold text-gray-800"
                         value={paymentMethod}
-                        onChange={(e) => {
-                          const newMethod = e.target.value;
-                          setPaymentMethod(newMethod);
-                          if (newMethod === 'advance' && selectedCustomer) {
-                            const available = Number(selectedCustomer.advance_balance || 0);
-                            const populateAmount = Math.min(selectedInvoiceTotalDue, available);
-                            if (populateAmount > 0) {
-                              setPaymentAmount(populateAmount.toString());
-                            }
-                          }
-                        }}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
                       >
                         <option value="cash">Cash</option>
                         <option value="bank">Bank Transfer</option>
                         <option value="cheque">Cheque</option>
                         <option value="online">Online</option>
-                        {selectedCustomer && Number(selectedCustomer.advance_balance || 0) > 0 && (
-                          <option value="advance">
-                            Advance Balance (Available: Rs {Number(selectedCustomer.advance_balance).toLocaleString()})
-                          </option>
-                        )}
+                        
                       </select>
                     </div>
                     <div>
@@ -691,108 +506,12 @@ export default function Payments() {
                     </div>
                   </div>
                 </div>
-
-                {/* Invoice Selection & Allocation Preview */}
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Invoices to Pay</label>
-                    {customerInvoices.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedInvoiceIds(selectedInvoiceIds.length === customerInvoices.length ? [] : customerInvoices.map(i => i.id))}
-                        className="text-[10px] font-bold text-blue-600 hover:underline"
-                      >
-                        {selectedInvoiceIds.length === customerInvoices.length ? 'DESELECT ALL' : 'SELECT ALL'}
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="bg-gray-50 rounded-3xl border border-gray-100 overflow-hidden flex flex-col max-h-[400px]">
-                    <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                      {loadingInvoices ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
-                          <Loader2 className="animate-spin" size={24} />
-                          <p className="text-xs font-bold uppercase tracking-widest">Loading Invoices...</p>
-                        </div>
-                      ) : customerInvoices.length > 0 ? (
-                        customerInvoices.map(inv => {
-                          const isSelected = selectedInvoiceIds.includes(inv.id);
-                          const allocation = allocations.find(a => a.invoiceId === inv.id);
-                          const due = Number(inv.total_amount) - Number(inv.paid_amount);
-
-                          return (
-                            <div
-                              key={inv.id}
-                              onClick={() => {
-                                if (isSelected) setSelectedInvoiceIds(selectedInvoiceIds.filter(id => id !== inv.id));
-                                else setSelectedInvoiceIds([...selectedInvoiceIds, inv.id]);
-                              }}
-                              className={`p-4 rounded-2xl border-2 transition-all cursor-pointer ${isSelected ? 'bg-white border-blue-600 shadow-sm' : 'bg-transparent border-transparent hover:bg-gray-100'
-                                }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300'
-                                    }`}>
-                                    {isSelected && <Plus size={14} />}
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-black text-gray-900 font-mono">#{inv.order_no}</p>
-                                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">{new Date(inv.order_date).toLocaleDateString()}</p>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Due: Rs {due.toLocaleString()}</p>
-                                  {allocation && (
-                                    <p className="text-sm font-black text-green-600">Paying: Rs {allocation.amount.toLocaleString()}</p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="text-center py-12 text-gray-400">
-                          <AlertCircle className="mx-auto mb-2 opacity-20" size={48} />
-                          <p className="text-xs font-bold uppercase tracking-widest">No outstanding invoices</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {allocations.length > 0 && (
-                      <div className="p-6 bg-slate-900 text-white">
-                        <div className="flex items-center justify-between mb-4">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Allocation Summary</p>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{allocations.length} INVOICES</p>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-slate-400">Total Paying</span>
-                            <span className="font-black">Rs {allocatedTotal.toLocaleString()}</span>
-                          </div>
-                          {remainingSelectedDue > 0 && (
-                            <div className="flex justify-between text-sm text-blue-400">
-                              <span>Remaining Due</span>
-                              <span className="font-black">Rs {remainingSelectedDue.toLocaleString()}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
 
               <div className="mt-8 flex gap-4">
                 <button
                   type="submit"
-                  disabled={
-                    isSubmitting ||
-                    !selectedCustomer ||
-                    selectedInvoiceIds.length === 0 ||
-                    enteredPaymentAmount <= 0 ||
-                    isPaymentAmountTooHigh
-                  }
+                  disabled={isSubmitting || !selectedCustomer || (Number.parseFloat(paymentAmount) || 0) <= 0}
                   className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-black tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/30 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? (
@@ -859,8 +578,8 @@ export default function Payments() {
                       {new Date(p.payment_date).toLocaleDateString()}
                     </td>
                     <td className="px-8 py-4 whitespace-nowrap">
-                      <p className="text-sm font-black text-gray-800">{p.delivery_order?.customer?.name || 'Unknown'}</p>
-                      <p className="text-[10px] font-bold text-blue-600 font-mono">DO: {p.delivery_order?.order_no}</p>
+                      <p className="text-sm font-black text-gray-800">{p.customer?.name || p.delivery_order?.customer?.name || 'Unknown'}</p>
+                      <p className="text-[10px] font-bold text-blue-600 font-mono">{p.delivery_order ? `DO: ${p.delivery_order.order_no}` : 'Credit'}</p>
                     </td>
                     <td className="px-8 py-4 whitespace-nowrap text-sm text-gray-500 italic">
                       <div className="flex items-center gap-2">
@@ -975,13 +694,13 @@ export default function Payments() {
             <div className="p-8 space-y-6 overflow-y-auto flex-1">
               <div>
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Customer</span>
-                <p className="font-bold text-gray-800 text-lg">{selectedPaymentForView.delivery_order?.customer?.name || 'N/A'}</p>
+                <p className="font-bold text-gray-800 text-lg">{selectedPaymentForView.customer?.name || selectedPaymentForView.delivery_order?.customer?.name || 'N/A'}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">DO Number</span>
-                  <p className="font-mono font-bold text-blue-600 text-sm">#{selectedPaymentForView.delivery_order?.order_no || 'N/A'}</p>
+                  <p className="font-mono font-bold text-blue-600 text-sm">{selectedPaymentForView.delivery_order ? `#${selectedPaymentForView.delivery_order.order_no}` : 'Credit'}</p>
                 </div>
                 <div>
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Amount Paid</span>
@@ -1079,8 +798,8 @@ export default function Payments() {
               <div className="space-y-6 overflow-y-auto flex-1 pr-1">
                 <div>
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Customer / DO</span>
-                  <p className="font-bold text-gray-800">{selectedPaymentForEdit.delivery_order?.customer?.name || 'N/A'}</p>
-                  <p className="font-mono text-xs text-blue-600 font-bold">DO #{selectedPaymentForEdit.delivery_order?.order_no || 'N/A'}</p>
+                  <p className="font-bold text-gray-800">{selectedPaymentForEdit.customer?.name || selectedPaymentForEdit.delivery_order?.customer?.name || 'N/A'}</p>
+                  <p className="font-mono text-xs text-blue-600 font-bold">{selectedPaymentForEdit.delivery_order ? `DO #${selectedPaymentForEdit.delivery_order.order_no}` : 'Credit'}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
