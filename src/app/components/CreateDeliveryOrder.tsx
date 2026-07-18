@@ -298,11 +298,21 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
   const calculateColorTotal = (colorId: string, field: CellField) =>
     rows.reduce((sum, row) => sum + (row.values[colorId]?.[field] || 0), 0);
 
+  const isLotMeter = selectedLot?.measurement?.toLowerCase() === 'meter';
+
+  const getReadyInLotUnit = (readyQty: number) => {
+    if (isLotMeter && inputUnit === 'gaz') return readyQty * 0.9144;
+    if (!isLotMeter && inputUnit === 'meter') return readyQty / 0.9144;
+    return readyQty;
+  };
+
   const calculateColorPercentage = (colorId: string) => {
     const gray = calculateColorTotal(colorId, 'gray');
     const ready = calculateColorTotal(colorId, 'ready');
-    if (!gray) return 0;
-    return Math.round((ready / gray) * 100);
+    if (!gray) return '0.00';
+    
+    const readyInLotUnit = getReadyInLotUnit(ready);
+    return (((gray - readyInLotUnit) / gray) * 100).toFixed(2);
   };
 
   const calculateTotalGray = () =>
@@ -311,16 +321,15 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
   const calculateTotalReady = () =>
     colors.reduce((sum, color) => sum + calculateColorTotal(color.id, 'ready'), 0);
 
-  const calculateShortage = () => calculateTotalGray() - calculateTotalReady();
+  const calculateShortage = () => {
+    const gray = calculateTotalGray();
+    const ready = calculateTotalReady();
+    return gray - getReadyInLotUnit(ready);
+  };
 
   // Base unit in database is Gaz.
   // 1 Gaz (Yard) = 0.9144 Meters. So to convert meters to gaz, we divide by 0.9144.
   const CONVERSION_FACTOR = 0.9144;
-
-  const convertToGaz = (val: number) => {
-    if (inputUnit === 'gaz') return val;
-    return parseFloat((val / CONVERSION_FACTOR).toFixed(2));
-  };
 
   const [saving, setSaving] = useState(false);
 
@@ -330,30 +339,29 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
     const grayAmount = calculateTotalGray();
     const readyAmount = calculateTotalReady();
 
-    // Check balance in the lot's measurement unit
-    const isLotMeter = selectedLot.measurement?.toLowerCase() === 'meter';
-    const enteredQtyInLotUnit = isLotMeter 
-      ? (inputUnit === 'meter' ? grayAmount : grayAmount * 0.9144)
-      : (inputUnit === 'gaz' ? grayAmount : grayAmount / 0.9144);
-
-    if (enteredQtyInLotUnit > selectedLot.remaining) {
-      toast.error(`Gray quantity (${enteredQtyInLotUnit.toFixed(2)} ${isLotMeter ? 'meters' : 'yards'}) exceeds lot remaining quantity (${selectedLot.remaining.toFixed(2)} ${isLotMeter ? 'meters' : 'yards'}).`);
+    if (grayAmount > selectedLot.remaining) {
+      toast.error(`Gray quantity (${grayAmount.toFixed(2)} ${isLotMeter ? 'meters' : 'yards'}) exceeds lot remaining quantity (${selectedLot.remaining.toFixed(2)} ${isLotMeter ? 'meters' : 'yards'}).`);
       return;
     }
 
-    if (readyAmount > grayAmount) {
+    const readyInLotUnit = getReadyInLotUnit(readyAmount);
+    if (readyInLotUnit > grayAmount) {
       toast.error('Total Ready quantity cannot be greater than Total Gray quantity.');
       return;
     }
 
     try {
       setSaving(true);
+      
+      const totalGrayGazana = isLotMeter ? parseFloat((grayAmount / CONVERSION_FACTOR).toFixed(4)) : grayAmount;
+      const totalReadyGazana = inputUnit === 'gaz' ? readyAmount : parseFloat((readyAmount / CONVERSION_FACTOR).toFixed(4));
+
       const payload = {
         gray_lot_id: selectedLot.id,
         remarks: remarks,
         // Totals always sent in gaz to backend for lot balance tracking
-        total_gray_gazana: convertToGaz(grayAmount),
-        total_ready_gazana: convertToGaz(readyAmount),
+        total_gray_gazana: totalGrayGazana,
+        total_ready_gazana: totalReadyGazana,
         input_unit: inputUnit,
         grid_data: { 
           inputUnit: inputUnit,
@@ -552,10 +560,10 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                     <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">Total Gray</span>
                     <div className="text-right">
                       <p className="text-lg font-black text-gray-800 leading-none">
-                        {calculateTotalGray().toLocaleString()} <span className="text-[10px] uppercase">{inputUnit}</span>
+                        {calculateTotalGray().toLocaleString(undefined, {maximumFractionDigits: 2})} <span className="text-[10px] uppercase">{isLotMeter ? 'METERS' : 'GAZ'}</span>
                       </p>
                       <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">
-                        ≈ {inputUnit === 'gaz' ? (calculateTotalGray() * CONVERSION_FACTOR).toFixed(2) : (calculateTotalGray() / CONVERSION_FACTOR).toFixed(2)} {inputUnit === 'gaz' ? 'METERS' : 'GAZ'}
+                        ≈ {isLotMeter ? (calculateTotalGray() / CONVERSION_FACTOR).toFixed(2) : (calculateTotalGray() * CONVERSION_FACTOR).toFixed(2)} {isLotMeter ? 'GAZ' : 'METERS'}
                       </p>
                     </div>
                   </div>
@@ -565,7 +573,7 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                     <span className="text-xs text-green-600 font-bold uppercase tracking-wider">Total Ready</span>
                     <div className="text-right">
                       <p className="text-lg font-black text-green-700 leading-none">
-                        {calculateTotalReady().toLocaleString()} <span className="text-[10px] uppercase">{inputUnit}</span>
+                        {calculateTotalReady().toLocaleString(undefined, {maximumFractionDigits: 2})} <span className="text-[10px] uppercase">{inputUnit}</span>
                       </p>
                       <p className="text-[10px] font-bold text-green-400 mt-1 uppercase tracking-tighter">
                         ≈ {inputUnit === 'gaz' ? (calculateTotalReady() * CONVERSION_FACTOR).toFixed(2) : (calculateTotalReady() / CONVERSION_FACTOR).toFixed(2)} {inputUnit === 'gaz' ? 'METERS' : 'GAZ'}
@@ -578,10 +586,10 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                     <span className="text-xs text-red-600 font-bold uppercase tracking-wider">Shortage</span>
                     <div className="text-right">
                       <p className="text-lg font-black text-red-700 leading-none">
-                        {calculateShortage().toLocaleString()} <span className="text-[10px] uppercase">{inputUnit}</span>
+                        {calculateShortage().toLocaleString(undefined, {maximumFractionDigits: 2})} <span className="text-[10px] uppercase">{isLotMeter ? 'METERS' : 'GAZ'}</span>
                       </p>
                       <p className="text-[10px] font-bold text-red-400 mt-1 uppercase tracking-tighter">
-                        ≈ {inputUnit === 'gaz' ? (calculateShortage() * CONVERSION_FACTOR).toFixed(2) : (calculateShortage() / CONVERSION_FACTOR).toFixed(2)} {inputUnit === 'gaz' ? 'METERS' : 'GAZ'}
+                        ≈ {isLotMeter ? (calculateShortage() / CONVERSION_FACTOR).toFixed(2) : (calculateShortage() * CONVERSION_FACTOR).toFixed(2)} {isLotMeter ? 'GAZ' : 'METERS'}
                       </p>
                     </div>
                   </div>
@@ -592,7 +600,7 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
               <div className="pt-2">
                 <button
                   className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                  disabled={!selectedLot || calculateTotalGray() > (selectedLot?.remaining || 0) || calculateTotalReady() > calculateTotalGray() || saving}
+                  disabled={!selectedLot || calculateTotalGray() > (selectedLot?.remaining || 0) || getReadyInLotUnit(calculateTotalReady()) > calculateTotalGray() || saving}
                   onClick={handleSaveDO}
                 >
                   <Save size={18} />
@@ -603,7 +611,7 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                     Gray miqdar remaining ({selectedLot.remaining}) se zyada hai
                   </p>
                 )}
-                {calculateTotalReady() > calculateTotalGray() && (
+                {getReadyInLotUnit(calculateTotalReady()) > calculateTotalGray() && (
                   <p className="text-red-500 text-xs mt-2 text-center">
                     Ready miqdar Gray se zyada nahi ho sakti
                   </p>
@@ -673,8 +681,18 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                   <tr className="bg-gray-50">
                     {colors.map(color => (
                       <React.Fragment key={color.id}>
-                        <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-600 text-center">GRAY</th>
-                        <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-600 text-center">READY</th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">
+                          GRAY
+                          <span className="block text-[9px] text-gray-400 font-medium uppercase mt-0.5 tracking-wider">
+                            {selectedLot ? (selectedLot.measurement?.toLowerCase() === 'meter' ? '(Meters)' : '(Yards)') : ''}
+                          </span>
+                        </th>
+                        <th className="border border-gray-300 px-2 py-2 text-xs font-bold text-gray-700 text-center">
+                          READY
+                          <span className="block text-[9px] text-gray-400 font-medium uppercase mt-0.5 tracking-wider">
+                            ({inputUnit === 'meter' ? 'Meters' : 'Yards'})
+                          </span>
+                        </th>
                       </React.Fragment>
                     ))}
                   </tr>
@@ -775,15 +793,15 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                       </React.Fragment>
                     ))}
                   </tr>
-                  <tr className="bg-gray-50 font-semibold">
-                    <td className="border border-gray-300 px-2 py-2 text-center text-xs">%</td>
+                  <tr className="bg-gray-50 font-semibold text-gray-700">
+                    <td className="border border-gray-300 px-2 py-2 text-center text-xs">% Shortage</td>
                     {colors.map((color, index) => (
                       <React.Fragment key={color.id}>
                         <td className={`border border-gray-300 px-2 py-2 text-center text-xs ${index % 2 === 0 ? 'bg-yellow-50' : 'bg-green-50'}`}>
                           {calculateColorTotal(color.id, 'gray')}
                         </td>
-                        <td className={`border border-gray-300 px-2 py-2 text-center text-xs ${index % 2 === 0 ? 'bg-yellow-50' : 'bg-green-50'}`}>
-                          {calculateColorPercentage(color.id)}%
+                        <td className={`border border-gray-300 px-2 py-2 text-center text-xs text-red-600 font-bold ${index % 2 === 0 ? 'bg-yellow-50' : 'bg-green-50'}`}>
+                          {calculateColorTotal(color.id, 'gray') ? `${calculateColorPercentage(color.id)}%` : '—'}
                         </td>
                       </React.Fragment>
                     ))}

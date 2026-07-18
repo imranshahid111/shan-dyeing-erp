@@ -153,6 +153,16 @@ export default function DeliveryOrders() {
               <tbody>
                 {orders.map((order) => {
                   const sc = statusConfig[order.status] ?? statusConfig['completed'];
+                  
+                  const isLotMeter = order.gray_lot?.measurement?.toLowerCase() === 'meter';
+                  const grayQty = isLotMeter ? (Number(order.total_gray_gazana) * 0.9144) : Number(order.total_gray_gazana);
+                  const grayUnit = isLotMeter ? 'Mtr' : 'Gaz';
+
+                  let inputUnit = order.input_unit || (order as any).grid_data?.inputUnit || 'meter';
+                  const isReadyGaz = inputUnit === 'gaz';
+                  const readyQty = isReadyGaz ? Number(order.total_ready_gazana) : (Number(order.total_ready_gazana) * 0.9144);
+                  const readyUnit = isReadyGaz ? 'Gaz' : 'Mtr';
+
                   return (
                     <tr key={order.id}>
                       <td>
@@ -180,10 +190,12 @@ export default function DeliveryOrders() {
                           : '—'}
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 500, color: 'var(--gray-600)' }}>
-                        {Number(order.total_gray_gazana ?? 0).toLocaleString()}
+                        {Number(grayQty ?? 0).toLocaleString(undefined, {maximumFractionDigits: 2})}
+                        <span style={{ fontSize: '0.65rem', marginLeft: '4px', color: 'var(--gray-400)', textTransform: 'uppercase' }}>{grayUnit}</span>
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--brand-600)' }}>
-                        {Number(order.total_ready_gazana ?? 0).toLocaleString()}
+                        {Number(readyQty ?? 0).toLocaleString(undefined, {maximumFractionDigits: 2})}
+                        <span style={{ fontSize: '0.65rem', marginLeft: '4px', color: 'var(--brand-400)', textTransform: 'uppercase' }}>{readyUnit}</span>
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <span className={`badge ${sc.badge}`}>{sc.label}</span>

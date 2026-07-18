@@ -103,13 +103,23 @@ export default function GatePass() {
   );
 
   const addDOToRows = (o: DeliveryOrderItem) => {
+    let gPcsCount = 0;
+    if (o.grid_data) {
+      // Check if grid_data has a rows array (new format) or is a direct object (old format)
+      const rows = Array.isArray(o.grid_data.rows) ? o.grid_data.rows : (Array.isArray(o.grid_data) ? o.grid_data : Object.values(o.grid_data));
+      gPcsCount = rows.reduce((count: number, row: any) => {
+        const values = row.values || row || {};
+        return count + Object.values(values).filter((val: any) => val && val.gray && Number(val.gray) > 0).length;
+      }, 0);
+    }
+
     setDoRows(prev => [...prev, {
       delivery_order_id: o.id,
       order_no: o.order_no,
       party_name: o.customer?.name || '',
       lot_no: (o as any).gray_lot?.lot_no || '',
       description: '',
-      bundles: '0',
+      bundles: String(gPcsCount || 0),
       gazana_total: String(Number(o.total_gray_gazana || 0)),
     }]);
     setDoSearch(''); setDoDropdownOpen(false);

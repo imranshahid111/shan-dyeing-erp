@@ -1,7 +1,7 @@
 //@ts-nocheck
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { RefreshCw, Plus, Search, Trash2, X, ChevronDown, Check, Edit } from 'lucide-react';
+import { RefreshCw, Plus, Search, Trash2, X, ChevronDown, Check, Edit, Printer } from 'lucide-react';
 import { useRef } from 'react';
 import { toast } from 'sonner';
 
@@ -12,6 +12,7 @@ export default function ReturnLots() {
   const [grayLots, setGrayLots] = useState<any[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [previewLot, setPreviewLot] = useState<any>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -256,6 +257,13 @@ export default function ReturnLots() {
                         <Edit size={18} />
                       </button>
                       <button
+                        onClick={() => setPreviewLot(rl)}
+                        className="text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors mr-2"
+                        title="Print Preview"
+                      >
+                        <Printer size={18} />
+                      </button>
+                      <button
                         onClick={() => handleDelete(rl.id)}
                         className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
                         title="Delete"
@@ -482,6 +490,120 @@ export default function ReturnLots() {
         </div>,
         document.body
       )}
+
+      {/* Print Preview Modal */}
+      {previewLot && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:bg-white print:p-0">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden print:shadow-none print:max-w-full">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100 print:hidden">
+              <h2 className="text-xl font-bold text-gray-900">Return Lot Preview</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+                >
+                  <Printer size={18} />
+                  Print
+                </button>
+                <button
+                  onClick={() => setPreviewLot(null)}
+                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-xl transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-8 print:p-4 print-area">
+              <div className="text-center border-b-2 border-gray-200 pb-4 mb-6">
+                <h1 className="text-3xl font-black tracking-wider uppercase text-gray-900">SHAN DYEING</h1>
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Return Lot Challan</p>
+                <div className="flex justify-between items-center mt-2 text-xs text-gray-600">
+                  <span>Print Date: {new Date().toLocaleString('en-PK', { weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-y-4 gap-x-8 mb-8 text-sm">
+                <div>
+                  <p className="font-bold text-gray-500">Party Name:</p>
+                  <p className="font-bold text-lg">{previewLot.gray_lot?.party_name}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-gray-500">Lot #:</p>
+                  <p className="font-mono text-lg font-black">{previewLot.gray_lot?.lot_no}</p>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-500">Return Date:</p>
+                  <p className="font-medium">{new Date(previewLot.return_date).toLocaleDateString('en-PK')}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-gray-500">Process Type:</p>
+                  <p className="font-medium">{previewLot.gray_lot?.process_type || 'N/A'}</p>
+                </div>
+              </div>
+
+              <div className="border border-gray-300 rounded-xl overflow-hidden mb-8">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100 border-b border-gray-300">
+                      <th className="p-3 font-bold text-gray-800">Description</th>
+                      <th className="p-3 font-bold text-gray-800 text-right">Returned Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-gray-200">
+                      <td className="p-3 font-medium text-gray-800">Returned / Damaged Material</td>
+                      <td className="p-3 font-bold text-right text-red-600">
+                        {previewLot.gray_lot?.measurement?.toLowerCase() === 'meter' 
+                          ? `${(Number(previewLot.returned_quantity) * 0.9144).toFixed(2)} Meters` 
+                          : `${previewLot.returned_quantity} Yards`}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {previewLot.reason && (
+                <div className="mb-12 border p-4 rounded-xl border-gray-200 bg-gray-50">
+                  <p className="font-bold text-gray-700 mb-1">Reason / Notes:</p>
+                  <p className="text-gray-800 text-sm">{previewLot.reason}</p>
+                </div>
+              )}
+
+              <div className="flex justify-between mt-16 pt-8">
+                <div className="w-48 border-t-2 border-gray-800 text-center pt-2 font-bold text-gray-800">
+                  Authorized Signature
+                </div>
+                <div className="w-48 border-t-2 border-gray-800 text-center pt-2 font-bold text-gray-800">
+                  Receiver Signature
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Print CSS Override */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .print-area, .print-area * {
+            visibility: visible;
+          }
+          .print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

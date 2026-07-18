@@ -36,7 +36,7 @@ exports.getDeliveryOrders = async (req, res, next) => {
         { model: Customer, attributes: ["id", "name", "customer_code"] },
         { 
           model: GrayLot, 
-          attributes: ["lot_no", "measurement", "bill_no"],
+          attributes: ["lot_no", "measurement", "bill_no", "than"],
           include: [{ model: Quality, attributes: ["name"] }]
         },
       ],
@@ -70,7 +70,7 @@ exports.getDeliveryOrderById = async (req, res, next) => {
         { model: Customer, attributes: ["id", "name", "customer_code", "phone", "city"] },
         { 
           model: GrayLot, 
-          attributes: ["id", "lot_no", "party_name", "measurement", "gazana", "bill_no", "process_type"],
+          attributes: ["id", "lot_no", "party_name", "measurement", "gazana", "bill_no", "process_type", "than"],
           include: [{ model: Quality, attributes: ["name"] }]
         }
       ]
@@ -140,7 +140,10 @@ exports.createDeliveryOrder = async (req, res, next) => {
     }
     const grayQty = Number(total_gray_gazana || 0);
 
-    if (grayQty > balanceInYards) {
+    const roundedGrayQty = Number(grayQty.toFixed(4));
+    const roundedBalance = Number(balanceInYards.toFixed(4));
+
+    if (roundedGrayQty > roundedBalance) {
       const balanceInLotUnit = isMeter ? balanceInYards * 0.9144 : balanceInYards;
       const grayQtyInLotUnit = isMeter ? grayQty * 0.9144 : grayQty;
       const unitName = isMeter ? "meters" : "yards";
@@ -204,7 +207,10 @@ exports.updateDeliveryOrder = async (req, res, next) => {
     }
     const grayQty = Number(total_gray_gazana || 0);
 
-    if (grayQty > balanceInYards) {
+    const roundedGrayQty = Number(grayQty.toFixed(4));
+    const roundedBalance = Number(balanceInYards.toFixed(4));
+
+    if (roundedGrayQty > roundedBalance) {
       const balanceInLotUnit = isMeter ? balanceInYards * 0.9144 : balanceInYards;
       const grayQtyInLotUnit = isMeter ? grayQty * 0.9144 : grayQty;
       const unitName = isMeter ? "meters" : "yards";

@@ -50,40 +50,59 @@ export default function ViewDeliveryOrder() {
   // Calculate totals from grid
   let gridGrayTotal = 0;
   let gridReadyTotal = 0;
+  let gridGrayPcsCount = 0;
+  let gridReadyPcsCount = 0;
+
   for (let r = 0; r < rows.length; r++) {
     for (let c of colors) {
-      const grayVal = Number(getCellValue(r, c.id, 'gray')) || 0;
-      const readyVal = Number(getCellValue(r, c.id, 'ready')) || 0;
+      const grayValStr = getCellValue(r, c.id, 'gray');
+      const readyValStr = getCellValue(r, c.id, 'ready');
+      
+      const grayVal = Number(grayValStr) || 0;
+      const readyVal = Number(readyValStr) || 0;
+      
       gridGrayTotal += grayVal;
       gridReadyTotal += readyVal;
+
+      if (grayValStr !== null && grayValStr !== undefined && grayValStr !== '') {
+        gridGrayPcsCount++;
+      }
+      if (readyValStr !== null && readyValStr !== undefined && readyValStr !== '') {
+        gridReadyPcsCount++;
+      }
     }
   }
 
-  // Determine primary unit (Mtr or Gaz) based on order input_unit or grid vs DB comparison
-  let inputUnit = order.input_unit || order.grid_data?.inputUnit;
-  if (!inputUnit && gridGrayTotal > 0) {
-    const dbGray = Number(order.total_gray_gazana);
-    if (dbGray > 0 && Math.abs(gridGrayTotal - dbGray) > 1) {
-      inputUnit = 'gaz';  // grid shows Gaz, db also has Gaz-like values
-    } else {
-      inputUnit = 'meter';
-    }
-  }
-  if (!inputUnit) inputUnit = 'meter';
-  const isGaz = inputUnit === 'gaz';
-  const primaryUnit = isGaz ? 'Gaz' : 'Mtr';
-  const primaryUnitFull = isGaz ? 'Gaz (Yard)' : 'Meter';
-  const secondaryUnit = isGaz ? 'Meters' : 'Gaz (Yards)';
+  const isLotMeter = order.gray_lot?.measurement?.toLowerCase() === 'meter';
+  const grayUnitFull = isLotMeter ? 'Meter' : 'Gaz (Yard)';
+  const grayUnitShort = isLotMeter ? 'Mtr' : 'Gaz';
+  
+  let inputUnit = order.input_unit || order.grid_data?.inputUnit || 'meter';
+  const isReadyGaz = inputUnit === 'gaz';
+  const readyUnitFull = isReadyGaz ? 'Gaz (Yard)' : 'Meter';
+  const readyUnitShort = isReadyGaz ? 'Gaz' : 'Mtr';
 
-  // Quantities for display
-  const primaryGrayQty = gridGrayTotal > 0 ? gridGrayTotal : (isGaz ? Number(order.total_gray_gazana || 0) : Number(order.total_gray_gazana || 0) * 0.9144);
-  const primaryReadyQty = gridReadyTotal > 0 ? gridReadyTotal : (isGaz ? Number(order.total_ready_gazana || 0) : Number(order.total_ready_gazana || 0) * 0.9144);
+  const CONVERSION_FACTOR = 0.9144;
+
+  const getReadyInLotUnit = (readyQty: number) => {
+    if (isLotMeter && isReadyGaz) return readyQty * CONVERSION_FACTOR;
+    if (!isLotMeter && !isReadyGaz) return readyQty / CONVERSION_FACTOR;
+    return readyQty;
+  };
+
+  // If grid is empty, use backend gazana. Backend gazana is always GAZ.
+  // So if isLotMeter, convert backend Gazana back to Meter for display: gazana * 0.9144
+  const primaryGrayQty = gridGrayTotal > 0 
+      ? gridGrayTotal 
+      : (isLotMeter ? Number(order.total_gray_gazana || 0) * CONVERSION_FACTOR : Number(order.total_gray_gazana || 0));
+
+  const primaryReadyQty = gridReadyTotal > 0 
+      ? gridReadyTotal 
+      : (isReadyGaz ? Number(order.total_ready_gazana || 0) : Number(order.total_ready_gazana || 0) * CONVERSION_FACTOR);
   
-  const secondaryGrayQty = (isGaz ? (primaryGrayQty * 0.9144) : (primaryGrayQty / 0.9144)).toFixed(2);
-  const secondaryReadyQty = (isGaz ? (primaryReadyQty * 0.9144) : (primaryReadyQty / 0.9144)).toFixed(2);
+  const readyInLotUnit = getReadyInLotUnit(primaryReadyQty);
   
-  const shortagePercent = ((primaryGrayQty - primaryReadyQty) / primaryGrayQty * 100).toFixed(2);
-  const shortageMeters = (primaryGrayQty - primaryReadyQty).toFixed(2);
+  const shortagePercent = primaryGrayQty > 0 ? ((primaryGrayQty - readyInLotUnit) / primaryGrayQty * 100).toFixed(2) : "0.00";
 
   // Get lot info from gray_lot or fallback
   const lotNo = order.gray_lot?.lot_no || order.lot_no || '—';
@@ -172,7 +191,7 @@ export default function ViewDeliveryOrder() {
           </div>
 
           {/* Customer & Lot Info Row */}
-          <div className="grid grid-cols-3 gap-4 mb-6 text-sm">
+          <div className="grid grid-cols-4 gap-4 mb-6 text-sm">
             <div>
               <p className="font-bold">Customer:</p>
               <p className="font-mono text-lg font-black">{order.customer?.name}</p>
@@ -180,6 +199,10 @@ export default function ViewDeliveryOrder() {
             <div className="text-center">
               <p className="font-bold">Bilti No:</p>
               <p className="font-mono text-lg font-black">{order.gray_lot?.bill_no || '—'}</p>
+            </div>
+            <div className="text-center">
+              <p className="font-bold">Than Qty:</p>
+              <p className="font-mono text-lg font-black">{order.gray_lot?.than || '—'}</p>
             </div>
             <div className="text-right">
               <p className="font-bold">Lot #:</p>
@@ -193,12 +216,12 @@ export default function ViewDeliveryOrder() {
               <p className="font-bold">Process Type:</p>
               <p className="text-gray-800 font-semibold">{order.gray_lot?.process_type || 'Dyeing'}</p>
             </div>
-            <div className="text-right">
+            <div className="col-span-2 text-right">
               <p className="font-bold">Quality / Finish:</p>
               <p>{quality} / {finishType}</p>
             </div>
             {(order as any).remarks && (
-              <div className="col-span-3 mt-2 pt-2 border-t border-gray-200">
+              <div className="col-span-4 mt-2 pt-2 border-t border-gray-200">
                 <p className="font-bold">Remarks:</p>
                 <p className="text-gray-700">{(order as any).remarks}</p>
               </div>
@@ -222,8 +245,12 @@ export default function ViewDeliveryOrder() {
                 <tr className="bg-gray-50">
                   {colors.map(color => (
                     <React.Fragment key={color.id}>
-                      <th className="border border-gray-300 p-1 text-center w-[10%]">Gray</th>
-                      <th className="border border-gray-300 p-1 text-center w-[10%]">Finish</th>
+                      <th className="border border-gray-300 p-1 text-center w-[10%]">
+                        Gray <span className="block text-[8px] text-gray-500 font-normal uppercase tracking-wider">({grayUnitFull})</span>
+                      </th>
+                      <th className="border border-gray-300 p-1 text-center w-[10%]">
+                        Finish <span className="block text-[8px] text-gray-500 font-normal uppercase tracking-wider">({readyUnitFull})</span>
+                      </th>
                     </React.Fragment>
                   ))}
                 </tr>
@@ -282,12 +309,12 @@ export default function ViewDeliveryOrder() {
 
           {/* Summary Row - Show total Gray amount always, but hide details when unchecked */}
           <div className="grid grid-cols-4 gap-2 text-sm mb-4 border-t pt-3">
-            <div className="font-bold">Total Lot PCS / {primaryUnitFull} :</div>
-            <div>{order.total_pcs || order.pcs || '—'} / {primaryGrayQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-            <div className="font-bold text-red-600">Shortage {primaryUnitFull}:</div>
-            <div className="text-red-600">{shortageMeters} ({shortagePercent}%)</div>
-            <div className="font-bold">Finish {primaryUnitFull}:</div>
-            <div>{primaryReadyQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            <div className="font-bold">Gray PCS / {grayUnitFull} :</div>
+            <div>{gridGrayPcsCount > 0 ? gridGrayPcsCount : (order.total_pcs || order.pcs || '—')} / {primaryGrayQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            <div className="font-bold text-red-600">Shortage {grayUnitFull}:</div>
+            <div className="text-red-600">({shortagePercent}%)</div>
+            <div className="font-bold">Ready PCS / Finish {readyUnitFull}:</div>
+            <div>{gridReadyPcsCount > 0 ? gridReadyPcsCount : (order.total_pcs_finish || order.finish_pcs || '—')} / {primaryReadyQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
             <div className="col-span-2"></div>
           </div>
 
@@ -299,11 +326,11 @@ export default function ViewDeliveryOrder() {
                   <th className="border border-gray-300 p-1">Date</th>
                   <th className="border border-gray-300 p-1">DC NO</th>
                   <th className="border border-gray-300 p-1">G.Pcs</th>
-                  <th className="border border-gray-300 p-1">G.{primaryUnit}</th>
+                  <th className="border border-gray-300 p-1">G.{grayUnitShort}</th>
                   <th className="border border-gray-300 p-1">F.Pcs</th>
-                  <th className="border border-gray-300 p-1">F.{primaryUnit}</th>
+                  <th className="border border-gray-300 p-1">F.{readyUnitShort}</th>
                   <th className="border border-gray-300 p-1">Lot Complete</th>
-                  <th className="border border-gray-300 p-1">Balance {primaryUnit}</th>
+                  <th className="border border-gray-300 p-1">Balance {grayUnitShort}</th>
                 </tr>
               </thead>
               <tbody>
@@ -311,12 +338,12 @@ export default function ViewDeliveryOrder() {
                   <td className="border border-gray-300 p-1 text-center">{new Date(order.order_date).toLocaleDateString('en-PK')}</td>
                   <td className="border border-gray-300 p-1 text-center">{order.order_no}</td>
                   <td className="border border-gray-300 p-1 text-center">
-                    {order.total_pcs || order.pcs || '—'}
+                    {gridGrayPcsCount > 0 ? gridGrayPcsCount : (order.total_pcs || order.pcs || '—')}
                   </td>
                   <td className="border border-gray-300 p-1 text-center">
                     {primaryGrayQty.toFixed(2)}
                   </td>
-                  <td className="border border-gray-300 p-1 text-center">{order.total_pcs_finish || order.finish_pcs || '—'}</td>
+                  <td className="border border-gray-300 p-1 text-center">{gridReadyPcsCount > 0 ? gridReadyPcsCount : (order.total_pcs_finish || order.finish_pcs || '—')}</td>
                   <td className="border border-gray-300 p-1 text-center">{primaryReadyQty.toFixed(2)}</td>
                   <td className={`border border-gray-300 p-1 text-center font-bold ${Number(order.gray_lot?.balance || 0) > 0.5 ? 'text-orange-600' : 'text-green-600'}`}>
                     {Number(order.gray_lot?.balance || 0) > 0.5 ? 'Incomplete' : 'Completed'}
@@ -330,12 +357,12 @@ export default function ViewDeliveryOrder() {
                 <tr className="bg-gray-100 font-bold">
                   <td colSpan={2} className="border border-gray-300 p-1 text-right">Total:</td>
                   <td className="border border-gray-300 p-1 text-center">
-                    {order.total_pcs || order.pcs || '—'}
+                    {gridGrayPcsCount > 0 ? gridGrayPcsCount : (order.total_pcs || order.pcs || '—')}
                   </td>
                   <td className="border border-gray-300 p-1 text-center">
                     {primaryGrayQty.toFixed(2)}
                   </td>
-                  <td className="border border-gray-300 p-1 text-center">{order.total_pcs_finish || order.finish_pcs || '—'}</td>
+                  <td className="border border-gray-300 p-1 text-center">{gridReadyPcsCount > 0 ? gridReadyPcsCount : (order.total_pcs_finish || order.finish_pcs || '—')}</td>
                   <td className="border border-gray-300 p-1 text-center">{primaryReadyQty.toFixed(2)}</td>
                   <td colSpan={2} className="border border-gray-300 p-1"></td>
                 </tr>
@@ -359,9 +386,9 @@ export default function ViewDeliveryOrder() {
           </div>
           
           {/* Secondary Unit Hint */}
-          {!isGaz && shouldShowGrayValue() && (
+          {shouldShowGrayValue() && (
             <div className="text-[10px] text-gray-400 text-center mt-2 print:text-gray-500">
-              * Conversion: {primaryReadyQty.toFixed(2)} {primaryUnitFull} ≈ {secondaryReadyQty} {secondaryUnit}
+              * Conversion: {primaryReadyQty.toFixed(2)} {readyUnitFull} ≈ {isReadyGaz ? (primaryReadyQty * 0.9144).toFixed(2) : (primaryReadyQty / 0.9144).toFixed(2)} {isReadyGaz ? 'Meters' : 'Gaz (Yard)'}
             </div>
           )}
         </div>

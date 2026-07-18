@@ -98,8 +98,8 @@ exports.getLotsWithBalance = async (req, res, next) => {
         partyName: lot.party_name,
         process: lot.process_type,
         totalGray: gazana,
-        remaining: Number(remaining.toFixed(4)),
-        returned: Number(returnedInLotUnit.toFixed(4)),
+        remaining: Number(remaining.toFixed(2)),
+        returned: Number(returnedInLotUnit.toFixed(2)),
         measurement: lot.measurement
       };
     });

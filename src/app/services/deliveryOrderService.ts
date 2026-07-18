@@ -23,6 +23,7 @@ export interface DeliveryOrderItem {
   rate_unit?: string;
   kinar_cut_amount?: string | number;
   packing_amount?: string | number;
+  packing_qty?: string | number;
   grid_data?: any;
 }
 
