@@ -306,7 +306,27 @@ exports.getSubLedgerReport = async (req, res, next) => {
 
     periodOrders.forEach((o) => {
       const lot = o.gray_lot || o.GrayLot || {};
-      const quality = lot.quality?.name || lot.Quality?.name || "Fabric";
+      let quality = lot.quality?.name || lot.Quality?.name || "Fabric";
+
+      const pQty = Number(o.packing_qty || 0);
+      const pAmt = Number(o.packing_amount || 0);
+      const kQty = Number(o.kinar_cut_qty || 0);
+      const kAmt = Number(o.kinar_cut_amount || 0);
+      
+      const extras = [];
+      if (pQty > 0 && pAmt > 0) {
+        const rate = Number.isInteger(pAmt / pQty) ? (pAmt / pQty) : (pAmt / pQty).toFixed(2);
+        extras.push(`Packing: ${pQty} @ ${rate}`);
+      }
+      if (kQty > 0 && kAmt > 0) {
+        const rate = Number.isInteger(kAmt / kQty) ? (kAmt / kQty) : (kAmt / kQty).toFixed(2);
+        extras.push(`Kinar Cut: ${kQty} @ ${rate}`);
+      }
+      
+      if (extras.length > 0) {
+        quality += ` - ${extras.join(", ")}`;
+      }
+
       periodEntries.push({
         date: o.order_date,
         type: "BILL",
@@ -317,6 +337,7 @@ exports.getSubLedgerReport = async (req, res, next) => {
         rate: Number(o.rate || 0),
         lotNo: lot.lot_no || "—",
         bundleQty: countBundleQuantity(o),
+        grayQty: Number(o.total_gray_gazana || 0),
         meterQty: Number(o.total_ready_gazana || 0),
         sortOrder: 1,
       });
@@ -335,6 +356,7 @@ exports.getSubLedgerReport = async (req, res, next) => {
         rate: 0,
         lotNo: "—",
         bundleQty: 0,
+        grayQty: 0,
         meterQty: 0,
         sortOrder: payType === "RBOK" ? 2 : 3,
       });
@@ -361,6 +383,7 @@ exports.getSubLedgerReport = async (req, res, next) => {
       rate: 0,
       lotNo: "—",
       bundleQty: 0,
+      grayQty: 0,
       meterQty: 0,
     });
 
@@ -378,6 +401,7 @@ exports.getSubLedgerReport = async (req, res, next) => {
         rate: entry.rate,
         lotNo: entry.lotNo,
         bundleQty: entry.bundleQty,
+        grayQty: entry.grayQty,
         meterQty: entry.meterQty,
       });
     });
@@ -514,7 +538,6 @@ exports.getCompletedLotsReport = async (req, res, next) => {
           : Math.max(gazana - grayDispatched - kWapsiRaw, 0);
 
         const isComplete = gazana > 0 && remainingRaw <= 0.01;
-        if (!isComplete) return null;
 
         const orderDates = orders.map((o) => o.order_date).filter(Boolean);
         const returnDates = returns.map((r) => r.return_date).filter(Boolean);
@@ -552,6 +575,7 @@ exports.getCompletedLotsReport = async (req, res, next) => {
           percentage,
           remarks,
           partyName: lot.party_name,
+          isComplete,
         };
       })
       .filter(Boolean);

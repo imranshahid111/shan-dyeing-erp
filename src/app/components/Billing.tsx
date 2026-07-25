@@ -1,3 +1,4 @@
+import { confirmDialog } from "../utils/confirmDialog";
 //@ts-nocheck
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -397,7 +398,7 @@ export default function Billing() {
                             {canDelete && (
                               <button 
                                 onClick={async () => {
-                                  if (window.confirm("Are you sure you want to delete this invoice? This will revert the order to completed status and delete all associated payments.")) {
+                                  if (await confirmDialog("Are you sure you want to delete this invoice? This will revert the order to completed status and delete all associated payments.")) {
                                     try {
                                       await deliveryOrderService.deleteInvoice(inv.id);
                                       toast.success("Invoice deleted successfully!");

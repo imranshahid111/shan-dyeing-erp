@@ -1,3 +1,4 @@
+import { confirmDialog } from "../utils/confirmDialog";
 //@ts-nocheck
 import { Plus, X, Search, User, Calendar, Wallet, CheckCircle2, AlertCircle, Loader2, Trash2, Eye, Edit2, Paperclip } from 'lucide-react';
 import { customerService, CustomerItem } from '../services/customerService';
@@ -120,7 +121,7 @@ export default function Payments() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this payment? This will revert the allocation from the Delivery Order and increase the Customer's outstanding balance!")) return;
+    if (!await confirmDialog("Are you sure you want to delete this payment? This will revert the allocation from the Delivery Order and increase the Customer's outstanding balance!")) return;
     try {
       await paymentService.deletePayment(id);
       toast.success("Payment deleted successfully!");

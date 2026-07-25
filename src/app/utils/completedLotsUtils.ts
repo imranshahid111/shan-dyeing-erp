@@ -32,25 +32,32 @@ export function getPercentageColor(percentage: number): string {
   return '#374151';
 }
 
-export function exportCompletedLotsExcel(report: CompletedLotsReport, fileName: string) {
-  const rows = report.lots.map((lot) => ({
-    Year: lot.year,
-    'Lot No': lot.lotNo,
-    'Bilty No': lot.biltyNo,
-    Date: lot.date,
-    'Raw Quality': lot.quality,
-    Than: lot.than,
-    'Meters In': lot.metersIn,
-    'Meters Out': lot.metersOut,
-    'Total Meters': lot.totalMeters,
-    'D.O': lot.doQty,
-    'K-Wapsi': lot.kWapsi,
-    Balance: lot.balance,
-    Percentage: lot.percentage,
-    Remarks: lot.remarks,
-  }));
+export function exportCompletedLotsExcel(report: CompletedLotsReport, fileName: string, reportType?: 'completed' | 'incomplete' | 'all') {
+  const isIncomplete = reportType === 'incomplete';
+  
+  const rows = report.lots.map((lot) => {
+    const r: any = {
+      Year: lot.year,
+      'Lot No': lot.lotNo,
+      'Bilty No': lot.biltyNo,
+      Date: lot.date,
+      'Raw Quality': lot.quality,
+      Than: lot.than,
+      'Meters In': lot.metersIn,
+      'Meters Out': lot.metersOut,
+      'Total Meters': lot.totalMeters,
+      'D.O': lot.doQty,
+      'K-Wapsi': lot.kWapsi,
+      Balance: lot.balance,
+    };
+    if (!isIncomplete) {
+      r.Percentage = lot.percentage;
+    }
+    r.Remarks = lot.remarks;
+    return r;
+  });
 
-  rows.push({
+  const grandTotal: any = {
     Year: '',
     'Lot No': 'GRAND TOTAL',
     'Bilty No': '',
@@ -63,9 +70,15 @@ export function exportCompletedLotsExcel(report: CompletedLotsReport, fileName: 
     'D.O': '',
     'K-Wapsi': '',
     Balance: '',
-    Percentage: report.summary.productionDifference,
-    Remarks: `Total Lots: ${report.summary.totalLots}`,
-  } as any);
+  };
+  
+  if (!isIncomplete) {
+    grandTotal.Percentage = report.summary.productionDifference;
+  }
+  
+  grandTotal.Remarks = `Total Lots: ${report.summary.totalLots}`;
+  
+  rows.push(grandTotal);
 
   return { rows, fileName };
 }

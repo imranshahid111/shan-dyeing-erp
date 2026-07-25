@@ -1,3 +1,4 @@
+import { confirmDialog } from "../utils/confirmDialog";
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Plus, Edit, Trash2, Search, Eye, Phone, Users } from 'lucide-react';
@@ -73,7 +74,7 @@ export default function Customers() {
   }, [searchTerm, currentPage]);
 
   const handleDeleteCustomer = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete customer "${name}"? This will permanently delete all associated invoices, delivery orders, payments, gray lots, and returns!`)) {
+    if (!await confirmDialog(`Are you sure you want to delete customer "${name}"? This will permanently delete all associated invoices, delivery orders, payments, gray lots, and returns!`)) {
       return;
     }
 

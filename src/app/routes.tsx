@@ -22,6 +22,7 @@ import CustomerInvoices from "./components/CustomerInvoices";
 import ViewDeliveryOrder from "./components/ViewDeliveryOrder";
 import Qualities from "./components/Qualities";
 import ActivityLogs from "./components/ActivityLogs";
+import Settings from "./components/Settings";
 
 export const router = createHashRouter([
   {
@@ -86,6 +87,7 @@ export const router = createHashRouter([
             ],
           },
           { path: "reports", Component: Reports },
+          { path: "settings", Component: Settings },
         ],
       },
     ],

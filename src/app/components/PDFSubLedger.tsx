@@ -145,8 +145,8 @@ const COL = {
   balance: '10%',
   rate: '6%',
   lot: '8%',
-  bundle: '7%',
-  meter: '11%',
+  gray: '9%',
+  meter: '9%',
 };
 
 const Cell = ({
@@ -216,12 +216,12 @@ export const PDFSubLedger = ({
             <Cell width={COL.refNo} bold>Inv/DC #</Cell>
             <Cell width={COL.lot} bold>Lot #</Cell>
             <Cell width={COL.desc} variant="left" bold>Description</Cell>
+            <Cell width={COL.rate} variant="right" bold>Rate</Cell>
+            <Cell width={COL.gray} variant="right" bold>Gray Qty</Cell>
+            <Cell width={COL.meter} variant="right" bold>Finish Qty</Cell>
             <Cell width={COL.debit} variant="right" bold>Debit</Cell>
             <Cell width={COL.credit} variant="right" bold>Credit</Cell>
-            <Cell width={COL.balance} variant="right" bold>Balance</Cell>
-            <Cell width={COL.rate} variant="right" bold>Rate</Cell>
-            {/* <Cell width={COL.bundle} variant="right" bold>Bundle</Cell> */}
-            <Cell width={COL.meter} variant="right" last bold>Meters</Cell>
+            <Cell width={COL.balance} variant="right" last bold>Balance</Cell>
           </View>
 
           {report.transactions.map((row, idx) => (
@@ -235,24 +235,23 @@ export const PDFSubLedger = ({
               <Cell width={COL.refNo}>{row.referenceNo}</Cell>
                <Cell width={COL.lot}>{row.lotNo}</Cell>
               <Cell width={COL.desc} variant="left">{row.description}</Cell>
+              <Cell width={COL.rate} variant="right">
+                {row.rate ? formatAmount(row.rate) : '—'}
+              </Cell>
+              <Cell width={COL.gray} variant="right">
+                {row.grayQty ? formatAmount(row.grayQty) : '—'}
+              </Cell>
+              <Cell width={COL.meter} variant="right">
+                {row.meterQty ? formatAmount(row.meterQty) : '—'}
+              </Cell>
               <Cell width={COL.debit} variant="right">
                 {row.debit ? formatAmount(row.debit) : '—'}
               </Cell>
               <Cell width={COL.credit} variant="right">
                 {row.credit ? formatAmount(row.credit) : '—'}
               </Cell>
-              <Cell width={COL.balance} variant="right" bold>
+              <Cell width={COL.balance} variant="right" bold last>
                 {formatBalanceShort(row.balance)}
-              </Cell>
-              <Cell width={COL.rate} variant="right">
-                {row.rate ? formatAmount(row.rate) : '—'}
-              </Cell>
-             
-              {/* <Cell width={COL.bundle} variant="right">
-                {row.bundleQty ? String(row.bundleQty) : '—'}
-              </Cell> */}
-              <Cell width={COL.meter} variant="right" last>
-                {row.meterQty ? formatAmount(row.meterQty) : '—'}
               </Cell>
             </View>
           ))}

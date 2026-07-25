@@ -1,3 +1,4 @@
+import { confirmDialog } from "../utils/confirmDialog";
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Plus, Search, Eye, Package, FileText, CalendarDays, Hash, Trash2, FileEdit } from 'lucide-react';
@@ -26,7 +27,7 @@ export default function DeliveryOrders() {
   const [totalPages, setTotalPages] = useState(1);
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure? This will also remove associated payments and adjust customer balance.')) return;
+    if (!await confirmDialog('Are you sure? This will also remove associated payments and adjust customer balance.')) return;
     try {
       await deliveryOrderService.deleteDeliveryOrder(id);
       setOrders(prev => prev.filter(o => o.id !== id));

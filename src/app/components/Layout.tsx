@@ -1,9 +1,10 @@
+import { confirmDialog } from "../utils/confirmDialog";
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Package, Truck, FileText, ClipboardCheck, Users, 
   CreditCard, BarChart3, Bell, Search, ArrowLeft, RefreshCw, 
-  LogOut, History, Wallet, ChevronRight, Database, PanelLeftClose, PanelLeftOpen
+  LogOut, History, Wallet, ChevronRight, Database, PanelLeftClose, PanelLeftOpen, Settings
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -28,6 +29,7 @@ const navItems = [
   { path: '/staff', label: 'Staff', icon: Users, section: 'management', privilegeKey: 'can_view_staff' },
   { path: '/activity-logs', label: 'Activity Logs', icon: History, section: 'system', privilegeKey: 'can_view_activity_logs' },
   { path: '/reports', label: 'Reports', icon: BarChart3, section: 'system', privilegeKey: 'can_view_reports' },
+  { path: '/settings', label: 'Settings', icon: Settings, section: 'system', privilegeKey: 'can_view_reports' },
 ];
 
 const sections = [
@@ -74,8 +76,8 @@ export default function Layout() {
     }
   } catch { /* silent */ }
 
-  const handleLogout = () => {
-    if (window.confirm('Are you sure you want to logout?')) {
+  const handleLogout = async () => {
+    if (await confirmDialog('Are you sure you want to logout?')) {
       logout();
       navigate('/login');
     }

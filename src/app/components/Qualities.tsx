@@ -1,3 +1,4 @@
+import { confirmDialog } from "../utils/confirmDialog";
 import { useEffect, useState } from 'react';
 import { Plus, Trash2, Edit2, Search, Loader2, AlertCircle, X, Tag } from 'lucide-react';
 import { qualityService, QualityItem } from '../services/qualityService';
@@ -70,7 +71,7 @@ export default function Qualities() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this quality?')) return;
+    if (!await confirmDialog('Are you sure you want to delete this quality?')) return;
     try {
       await qualityService.deleteQuality(id);
       fetchQualities();

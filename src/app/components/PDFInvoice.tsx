@@ -210,57 +210,68 @@ const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organizatio
           <Text style={styles.th2}>Amount</Text>
         </View>
         
-        <View style={styles.tableBodyRow}>
-          <View style={styles.td1}>
-            <View style={styles.innerGrid}>
-              {/* Row 1 */}
-              <View style={styles.innerRow}>
-                <View style={styles.innerCol1}><Text style={styles.labelSmall}>Cora Bundle</Text><Text style={styles.valueSmall}>{coraBundle}</Text></View>
-                <View style={styles.innerCol2}><Text style={styles.labelSmall}>{isDoMeter ? 'Cora Mtr' : 'Cora Gazana'}</Text><Text style={styles.valueSmall}>{displayCoraValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
-                <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>-</Text></View>
-              </View>
-              
-              {/* Row 2 */}
-              <View style={styles.innerRow}>
-                <View style={styles.innerCol1}><Text style={styles.labelSmall}>Finish Bundle</Text><Text style={styles.valueSmall}>{finishBundle}</Text></View>
-                <View style={styles.innerCol2}><Text style={styles.labelSmall}>Finish Mtr</Text><Text style={styles.valueSmall}>{readyMeter.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
-                <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>{isRateMeter ? Number(inv.rate).toFixed(2) : '-'}</Text></View>
-              </View>
-              
-              {/* Row 3 */}
-              <View style={styles.innerRow}>
-                <View style={styles.innerCol1}><Text style={styles.labelSmall}> </Text><Text style={styles.valueSmall}> </Text></View>
-                <View style={styles.innerCol2}><Text style={styles.labelSmall}>Finish Yard</Text><Text style={styles.valueSmall}>{readyGaz.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
-                <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>{!isRateMeter ? Number(inv.rate).toFixed(2) : '-'}</Text></View>
-              </View>
-
-              {/* Row 4: Packing */}
-              <View style={styles.innerRow}>
-                <View style={styles.innerCol1}><Text style={styles.labelSmall}>Packing Qty</Text><Text style={styles.valueSmall}>{packingAmount > 0 ? packingQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ' '}</Text></View>
-                <View style={styles.innerCol2}><Text style={styles.labelSmall}> </Text><Text style={styles.valueSmall}> </Text></View>
-                <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>{packingRate}</Text></View>
-              </View>
-              
-              {/* Row 5: Kinar Cut */}
-              {kinarCutAmount > 0 ? (
-              <View style={styles.innerRow}>
-                <View style={styles.innerCol1}><Text style={styles.labelSmall}>Kinar Cut Qty</Text><Text style={styles.valueSmall}>{kinarCutQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
-                <View style={styles.innerCol2}><Text style={styles.labelSmall}> </Text><Text style={styles.valueSmall}> </Text></View>
-                <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>{kinarCutRate}</Text></View>
-              </View>
-              ) : null}
+        <View style={{ flexDirection: 'column' }}>
+          {/* Row 1: Cora */}
+          <View style={{ flexDirection: 'row' }}>
+            <View style={[styles.td1, { flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 4, borderBottomWidth: 0 }]}>
+              <View style={styles.innerCol1}><Text style={styles.labelSmall}>Cora Bundle</Text><Text style={styles.valueSmall}>{coraBundle}</Text></View>
+              <View style={styles.innerCol2}><Text style={styles.labelSmall}>{isDoMeter ? 'Cora Mtr' : 'Cora Gazana'}</Text><Text style={styles.valueSmall}>{displayCoraValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
+              <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>-</Text></View>
+            </View>
+            <View style={[styles.td2, { paddingVertical: 4, paddingHorizontal: 4, justifyContent: 'flex-end', borderBottomWidth: 0 }]}>
+              <Text style={{ fontSize: 8 }}>-</Text>
             </View>
           </View>
           
-          <View style={styles.td2}>
-            <Text style={styles.amtValue}>-</Text>
-            <Text style={styles.amtValue}>{isRateMeter ? processingAmount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : '-'}</Text>
-            <Text style={styles.amtValue}>{!isRateMeter ? processingAmount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : '-'}</Text>
-            <Text style={styles.amtValue}>{packingAmount > 0 ? packingAmount.toLocaleString() : '-'}</Text>
-            {kinarCutAmount > 0 ? (
-              <Text style={styles.amtValue}>{kinarCutAmount > 0 ? kinarCutAmount.toLocaleString() : '-'}</Text>
-            ) : null}
+          {/* Row 2: Finish Meter */}
+          <View style={{ flexDirection: 'row' }}>
+            <View style={[styles.td1, { flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 4, borderBottomWidth: 0 }]}>
+              <View style={styles.innerCol1}><Text style={styles.labelSmall}>Finish Bundle</Text><Text style={styles.valueSmall}>{finishBundle}</Text></View>
+              <View style={styles.innerCol2}><Text style={styles.labelSmall}>Finish Mtr</Text><Text style={styles.valueSmall}>{readyMeter.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
+              <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>{isRateMeter ? Number(inv.rate).toFixed(2) : '-'}</Text></View>
+            </View>
+            <View style={[styles.td2, { paddingVertical: 4, paddingHorizontal: 4, justifyContent: 'flex-end', borderBottomWidth: 0 }]}>
+              <Text style={{ fontSize: 8 }}>{isRateMeter ? processingAmount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : '-'}</Text>
+            </View>
           </View>
+          
+          {/* Row 3: Finish Yard */}
+          <View style={{ flexDirection: 'row' }}>
+            <View style={[styles.td1, { flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 4, borderBottomWidth: 0 }]}>
+              <View style={styles.innerCol1}><Text style={styles.labelSmall}> </Text><Text style={styles.valueSmall}> </Text></View>
+              <View style={styles.innerCol2}><Text style={styles.labelSmall}>Finish Yard</Text><Text style={styles.valueSmall}>{readyGaz.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
+              <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>{!isRateMeter ? Number(inv.rate).toFixed(2) : '-'}</Text></View>
+            </View>
+            <View style={[styles.td2, { paddingVertical: 4, paddingHorizontal: 4, justifyContent: 'flex-end', borderBottomWidth: 0 }]}>
+              <Text style={{ fontSize: 8 }}>{!isRateMeter ? processingAmount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : '-'}</Text>
+            </View>
+          </View>
+
+          {/* Row 4: Packing */}
+          <View style={{ flexDirection: 'row' }}>
+            <View style={[styles.td1, { flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 4, borderBottomWidth: 0 }]}>
+              <View style={styles.innerCol1}><Text style={styles.labelSmall}>Packing Qty</Text><Text style={styles.valueSmall}>{packingAmount > 0 ? packingQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : ' '}</Text></View>
+              <View style={styles.innerCol2}><Text style={styles.labelSmall}> </Text><Text style={styles.valueSmall}> </Text></View>
+              <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>{packingRate}</Text></View>
+            </View>
+            <View style={[styles.td2, { paddingVertical: 4, paddingHorizontal: 4, justifyContent: 'flex-end', borderBottomWidth: 0 }]}>
+              <Text style={{ fontSize: 8 }}>{packingAmount > 0 ? packingAmount.toLocaleString() : '-'}</Text>
+            </View>
+          </View>
+          
+          {/* Row 5: Kinar Cut */}
+          {kinarCutAmount > 0 ? (
+          <View style={{ flexDirection: 'row' }}>
+            <View style={[styles.td1, { flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 4, borderBottomWidth: 0 }]}>
+              <View style={styles.innerCol1}><Text style={styles.labelSmall}>Kinar Cut Qty</Text><Text style={styles.valueSmall}>{kinarCutQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
+              <View style={styles.innerCol2}><Text style={styles.labelSmall}> </Text><Text style={styles.valueSmall}> </Text></View>
+              <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>{kinarCutRate}</Text></View>
+            </View>
+            <View style={[styles.td2, { paddingVertical: 4, paddingHorizontal: 4, justifyContent: 'flex-end', borderBottomWidth: 0 }]}>
+              <Text style={{ fontSize: 8 }}>{kinarCutAmount.toLocaleString()}</Text>
+            </View>
+          </View>
+          ) : null}
         </View>
       </View>
 

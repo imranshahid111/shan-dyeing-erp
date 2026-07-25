@@ -1,3 +1,4 @@
+import { confirmDialog } from "../utils/confirmDialog";
 //@ts-nocheck
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -161,7 +162,7 @@ export default function ReturnLots() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this return lot?')) return;
+    if (!await confirmDialog('Are you sure you want to delete this return lot?')) return;
     
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/return-lots/${id}`, {

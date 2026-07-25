@@ -1,3 +1,4 @@
+import { confirmDialog } from "../utils/confirmDialog";
 //@ts-nocheck
 import { useState, useEffect } from 'react';
 import { Printer, Save, ClipboardCheck, Loader2, Plus, Search, CalendarDays, Hash, ArrowLeft, Truck, User, Trash2, X } from 'lucide-react';
@@ -89,7 +90,7 @@ export default function GatePass() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this Gate Pass?')) return;
+    if (!await confirmDialog('Delete this Gate Pass?')) return;
     try { await gatePassService.deleteGatePass(id); toast.success('Deleted!'); fetchGatePassHistory(); }
     catch (err: any) { toast.error(err.response?.data?.message || 'Failed'); }
   };

@@ -1,3 +1,4 @@
+import { confirmDialog } from "../utils/confirmDialog";
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Plus, Search, Edit, Trash2, Package, Loader2, Eye } from 'lucide-react';
@@ -58,7 +59,7 @@ export default function GrayLotManagement() {
   }, [searchTerm, currentPage]);
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this Gray Lot?')) return;
+    if (!await confirmDialog('Are you sure you want to delete this Gray Lot?')) return;
     try {
       await grayLotService.deleteGrayLot(id);
       setLots(prev => prev.filter(lot => lot.id !== id));

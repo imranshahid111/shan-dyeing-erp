@@ -40,6 +40,7 @@ export default function DateWiseSalesReportView({
   const [report, setReport] = useState<DateWiseSalesReport | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showQualitySummary, setShowQualitySummary] = useState(false);
 
   const selectedCustomerId = customerIdProp !== undefined ? customerIdProp : internalCustomerId;
   const selectedQualityId = qualityIdProp !== undefined ? qualityIdProp : internalQualityId;
@@ -198,20 +199,29 @@ export default function DateWiseSalesReportView({
               Quality: {selectedQualityName}
             </span>
             {!selectedQualityId && (
-              <div className="flex rounded-lg border border-gray-200 overflow-hidden ml-2">
+              <div className="flex items-center gap-2 ml-2">
+                <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('qualityWise')}
+                    className={`px-3 py-1.5 text-xs font-bold flex items-center gap-1 ${viewMode === 'qualityWise' ? 'bg-purple-600 text-white' : 'bg-white text-gray-600'}`}
+                  >
+                    <Layers size={14} /> Quality Wise
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('list')}
+                    className={`px-3 py-1.5 text-xs font-bold ${viewMode === 'list' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600'}`}
+                  >
+                    List View
+                  </button>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setViewMode('qualityWise')}
-                  className={`px-3 py-1.5 text-xs font-bold flex items-center gap-1 ${viewMode === 'qualityWise' ? 'bg-purple-600 text-white' : 'bg-white text-gray-600'}`}
+                  onClick={() => setShowQualitySummary(!showQualitySummary)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg border ${showQualitySummary ? 'bg-purple-100 border-purple-200 text-purple-800' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                 >
-                  <Layers size={14} /> Quality Wise
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('list')}
-                  className={`px-3 py-1.5 text-xs font-bold ${viewMode === 'list' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600'}`}
-                >
-                  List View
+                  {showQualitySummary ? 'Hide Summary' : 'View Summary'}
                 </button>
               </div>
             )}
@@ -252,7 +262,7 @@ export default function DateWiseSalesReportView({
         {report && report.data.length > 0 && (
           <>
             {/* Quality Wise Summary */}
-            {(report.qualitySummary?.length ?? 0) > 0 && !selectedQualityId && (
+            {showQualitySummary && (report.qualitySummary?.length ?? 0) > 0 && !selectedQualityId && (
               <div className="max-w-6xl mx-auto border border-purple-200 rounded-lg overflow-hidden bg-white shadow-sm print:hidden">
                 <div className="bg-purple-100 px-4 py-2 border-b border-purple-200">
                   <p className="text-xs font-black uppercase tracking-wider text-purple-900">Quality Wise Summary</p>

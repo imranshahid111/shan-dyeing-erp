@@ -176,12 +176,12 @@ export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerRepor
                   <th className="border border-black p-1.5 text-left">Invoice/Challan #</th>
                   <th className="border border-black p-1.5 text-left">Lot Number</th>
                   <th className="border border-black p-1.5 text-left">Description</th>
+                  <th className="border border-black p-1.5 text-right">Rate</th>
+                  <th className="border border-black p-1.5 text-right">Gray Qty</th>
+                  <th className="border border-black p-1.5 text-right">Finish Qty</th>
                   <th className="border border-black p-1.5 text-right">Debit</th>
                   <th className="border border-black p-1.5 text-right">Credit</th>
                   <th className="border border-black p-1.5 text-right">Running Balance</th>
-                  <th className="border border-black p-1.5 text-right">Rate</th>
-                  {/* <th className="border border-black p-1.5 text-right">Bundle Qty</th> */}
-                  <th className="border border-black p-1.5 text-right">Meter Qty</th>
                 </tr>
               </thead>
               <tbody>
@@ -195,6 +195,15 @@ export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerRepor
                                         <td className="border border-black p-1.5 font-mono">{row.lotNo}</td>
 
                     <td className="border border-black p-1.5">{row.description}</td>
+                    <td className="border border-black p-1.5 text-right">
+                      {row.rate ? formatAmount(row.rate) : '—'}
+                    </td>
+                    <td className="border border-black p-1.5 text-right">
+                      {row.grayQty ? formatAmount(row.grayQty) : '—'}
+                    </td>
+                    <td className="border border-black p-1.5 text-right">
+                      {row.meterQty ? formatAmount(row.meterQty) : '—'}
+                    </td>
                     <td className="border border-black p-1.5 text-right text-red-700 font-semibold">
                       {row.debit ? formatAmount(row.debit) : '—'}
                     </td>
@@ -203,15 +212,6 @@ export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerRepor
                     </td>
                     <td className="border border-black p-1.5 text-right font-bold">
                       {formatBalanceShort(row.balance)}
-                    </td>
-                    <td className="border border-black p-1.5 text-right">
-                      {row.rate ? formatAmount(row.rate) : '—'}
-                    </td>
-                    {/* <td className="border border-black p-1.5 text-right">
-                      {row.bundleQty ? row.bundleQty : '—'}
-                    </td> */}
-                    <td className="border border-black p-1.5 text-right">
-                      {row.meterQty ? formatAmount(row.meterQty) : '—'}
                     </td>
                   </tr>
                 ))}

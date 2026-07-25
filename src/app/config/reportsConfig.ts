@@ -21,6 +21,7 @@ export type ReportTabId =
   | 'challan'
   | 'subledger'
   | 'completedlots'
+  | 'incompletelots'
   | 'partylotdelivery'
   | 'datesales';
 
@@ -62,6 +63,7 @@ export const REPORT_CATEGORIES: ReportCategory[] = [
     tabs: [
       { id: 'challan', label: 'Delivery Challan', icon: ClipboardList, description: 'Delivery challan document' },
       { id: 'completedlots', label: 'Completed Lots', icon: Layers, description: 'Completed production lots' },
+      { id: 'incompletelots', label: 'Incomplete Lots', icon: Layers, description: 'Incomplete production lots' },
       { id: 'partylotdelivery', label: 'Party Lot Delivery', icon: Truck, description: 'Party-wise lot deliveries' },
     ],
   },
@@ -78,6 +80,7 @@ export const SELF_CONTAINED_TABS: ReportTabId[] = [
   'challan',
   'subledger',
   'completedlots',
+  'incompletelots',
   'partylotdelivery',
   'datesales',
 ];

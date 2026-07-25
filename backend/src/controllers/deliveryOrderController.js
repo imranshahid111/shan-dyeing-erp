@@ -9,11 +9,12 @@ exports.getDeliveryOrders = async (req, res, next) => {
     const status = String(req.query.status || "");
     const page = Math.max(Number(req.query.page || 1), 1);
     const pageSize = Math.min(Math.max(Number(req.query.pageSize || 20), 1), 100);
-    const { customer_id, startDate, endDate, search } = req.query;
+    const { customer_id, startDate, endDate, search, gray_lot_id } = req.query;
 
     const where = {};
     if (status) where.status = status;
     if (customer_id) where.customer_id = customer_id;
+    if (gray_lot_id) where.gray_lot_id = gray_lot_id;
     if (startDate && endDate) {
       where.order_date = { [Op.between]: [startDate, endDate] };
     } else if (startDate) {
@@ -71,7 +72,10 @@ exports.getDeliveryOrderById = async (req, res, next) => {
         { 
           model: GrayLot, 
           attributes: ["id", "lot_no", "party_name", "measurement", "gazana", "bill_no", "process_type", "than"],
-          include: [{ model: Quality, attributes: ["name"] }]
+          include: [
+            { model: Quality, attributes: ["name"] },
+            { model: ReturnLot }
+          ]
         }
       ]
     });
@@ -140,12 +144,10 @@ exports.createDeliveryOrder = async (req, res, next) => {
     }
     const grayQty = Number(total_gray_gazana || 0);
 
-    const roundedGrayQty = Number(grayQty.toFixed(4));
-    const roundedBalance = Number(balanceInYards.toFixed(4));
+    const balanceInLotUnit = isMeter ? balanceInYards * 0.9144 : balanceInYards;
+    const grayQtyInLotUnit = isMeter ? grayQty * 0.9144 : grayQty;
 
-    if (roundedGrayQty > roundedBalance) {
-      const balanceInLotUnit = isMeter ? balanceInYards * 0.9144 : balanceInYards;
-      const grayQtyInLotUnit = isMeter ? grayQty * 0.9144 : grayQty;
+    if (Number(grayQtyInLotUnit.toFixed(2)) > Number(balanceInLotUnit.toFixed(2))) {
       const unitName = isMeter ? "meters" : "yards";
       return res.status(400).json({ message: `Qty (${grayQtyInLotUnit.toFixed(2)} ${unitName}) exceeds remaining balance (${balanceInLotUnit.toFixed(2)} ${unitName})` });
     }
@@ -207,12 +209,10 @@ exports.updateDeliveryOrder = async (req, res, next) => {
     }
     const grayQty = Number(total_gray_gazana || 0);
 
-    const roundedGrayQty = Number(grayQty.toFixed(4));
-    const roundedBalance = Number(balanceInYards.toFixed(4));
+    const balanceInLotUnit = isMeter ? balanceInYards * 0.9144 : balanceInYards;
+    const grayQtyInLotUnit = isMeter ? grayQty * 0.9144 : grayQty;
 
-    if (roundedGrayQty > roundedBalance) {
-      const balanceInLotUnit = isMeter ? balanceInYards * 0.9144 : balanceInYards;
-      const grayQtyInLotUnit = isMeter ? grayQty * 0.9144 : grayQty;
+    if (Number(grayQtyInLotUnit.toFixed(2)) > Number(balanceInLotUnit.toFixed(2))) {
       const unitName = isMeter ? "meters" : "yards";
       return res.status(400).json({ message: `Qty (${grayQtyInLotUnit.toFixed(2)} ${unitName}) exceeds remaining balance (${balanceInLotUnit.toFixed(2)} ${unitName})` });
     }

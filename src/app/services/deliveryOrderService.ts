@@ -42,9 +42,9 @@ export interface CreateDeliveryOrderPayload {
 }
 
 export const deliveryOrderService = {
-  getDeliveryOrders: (status = "", page = 1, pageSize = 50, customer_id?: string | number, startDate?: string, endDate?: string, search?: string) => {
+  getDeliveryOrders: (status = "", page = 1, pageSize = 50, customer_id?: string | number, startDate?: string, endDate?: string, search?: string, gray_lot_id?: string | number) => {
     return apiClient.get<unknown, DeliveryOrdersResponse>('/delivery-orders', {
-      params: { status, page, pageSize, customer_id, startDate, endDate, search },
+      params: { status, page, pageSize, customer_id, startDate, endDate, search, gray_lot_id },
     });
   },
   getDeliveryOrderById: (id: string | number) => {

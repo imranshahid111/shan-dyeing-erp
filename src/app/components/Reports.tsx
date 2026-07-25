@@ -351,7 +351,8 @@ export default function Reports() {
 
             {activeTab === 'challan' && <DeliveryChallanReport fromDate={fromDate} toDate={toDate} />}
             {activeTab === 'subledger' && <SubLedgerReportView fromDate={fromDate} toDate={toDate} />}
-            {activeTab === 'completedlots' && <CompletedLotsReportView fromDate={fromDate} toDate={toDate} />}
+            {activeTab === 'completedlots' && <CompletedLotsReportView fromDate={fromDate} toDate={toDate} reportType="completed" />}
+            {activeTab === 'incompletelots' && <CompletedLotsReportView fromDate={fromDate} toDate={toDate} reportType="incomplete" />}
             {activeTab === 'partylotdelivery' && <PartyWiseLotDeliveryReport fromDate={fromDate} toDate={toDate} />}
             {activeTab === 'datesales' && (
               <DateWiseSalesReportView

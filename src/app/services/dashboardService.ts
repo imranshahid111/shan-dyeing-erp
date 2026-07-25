@@ -92,6 +92,7 @@ export interface SubLedgerTransaction {
   rate: number;
   lotNo: string;
   bundleQty: number;
+  grayQty: number;
   meterQty: number;
 }
 
@@ -130,6 +131,7 @@ export interface CompletedLotEntry {
   percentage: number;
   remarks: string;
   partyName?: string;
+  isComplete: boolean;
 }
 
 export interface CompletedLotsReport {

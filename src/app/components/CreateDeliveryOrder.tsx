@@ -105,7 +105,7 @@ export default function CreateDeliveryOrder() {
             // Add back the current DO's amount to the remaining balance so we can edit it freely
             const isLotMeter = lot.measurement?.toLowerCase() === 'meter';
             const addedQty = isLotMeter ? Number(doData.total_gray_gazana) * 0.9144 : Number(doData.total_gray_gazana);
-            lot.remaining += addedQty;
+            lot.remaining = Number((lot.remaining + addedQty).toFixed(2));
             setSelectedLot(lot);
           }
           
@@ -127,7 +127,7 @@ export default function CreateDeliveryOrder() {
           }
         }
         
-        setLots(response);
+        setLots(response.filter((l: DeliveryLotOption) => l.remaining > 0.01));
       } catch (error) {
         console.error('Failed to load data:', error);
       }
@@ -154,7 +154,7 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
 };
 
   const updateCellValue = (rowId: string, colorId: string, field: CellField, value: string) => {
-    const val = Math.max(0, parseFloat(value) || 0);
+    const val = Math.max(0, parseInt(value, 10) || 0);
     setRows(prev =>
       prev.map(row => {
         if (row.id !== rowId) return row;
@@ -280,7 +280,7 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
   };
 
   const updateHeaderInput = (colorId: string, field: CellField, value: string) => {
-    const val = value === '' ? '' : String(Math.max(0, parseFloat(value) || 0));
+    const val = value === '' ? '' : String(Math.max(0, parseInt(value, 10) || 0));
     setHeaderInputs(prev => ({
       ...prev,
       [colorId]: {
@@ -327,6 +327,13 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
     return gray - getReadyInLotUnit(ready);
   };
 
+  const calculateOverallShortagePercent = () => {
+    const gray = calculateTotalGray();
+    if (gray === 0) return '0.00';
+    const shortage = calculateShortage();
+    return ((shortage / gray) * 100).toFixed(2);
+  };
+
   // Base unit in database is Gaz.
   // 1 Gaz (Yard) = 0.9144 Meters. So to convert meters to gaz, we divide by 0.9144.
   const CONVERSION_FACTOR = 0.9144;
@@ -339,7 +346,7 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
     const grayAmount = calculateTotalGray();
     const readyAmount = calculateTotalReady();
 
-    if (grayAmount > selectedLot.remaining) {
+    if (Number(grayAmount.toFixed(2)) > Number(selectedLot.remaining.toFixed(2))) {
       toast.error(`Gray quantity (${grayAmount.toFixed(2)} ${isLotMeter ? 'meters' : 'yards'}) exceeds lot remaining quantity (${selectedLot.remaining.toFixed(2)} ${isLotMeter ? 'meters' : 'yards'}).`);
       return;
     }
@@ -583,7 +590,9 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                 </div>
                 <div className="bg-red-50 rounded-xl p-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-red-600 font-bold uppercase tracking-wider">Shortage</span>
+                    <span className="text-xs text-red-600 font-bold uppercase tracking-wider">
+                      Shortage <span className="ml-1 px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[10px]">({calculateOverallShortagePercent()}%)</span>
+                    </span>
                     <div className="text-right">
                       <p className="text-lg font-black text-red-700 leading-none">
                         {calculateShortage().toLocaleString(undefined, {maximumFractionDigits: 2})} <span className="text-[10px] uppercase">{isLotMeter ? 'METERS' : 'GAZ'}</span>
@@ -600,18 +609,18 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
               <div className="pt-2">
                 <button
                   className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                  disabled={!selectedLot || calculateTotalGray() > (selectedLot?.remaining || 0) || getReadyInLotUnit(calculateTotalReady()) > calculateTotalGray() || saving}
+                  disabled={!selectedLot || Number(calculateTotalGray().toFixed(2)) > Number((selectedLot?.remaining || 0).toFixed(2)) || Number(getReadyInLotUnit(calculateTotalReady()).toFixed(2)) > Number(calculateTotalGray().toFixed(2)) || saving}
                   onClick={handleSaveDO}
                 >
                   <Save size={18} />
                   {saving ? 'Saving...' : id ? 'Update DO' : 'Save DO'}
                 </button>
-                {selectedLot && calculateTotalGray() > selectedLot.remaining && (
+                {selectedLot && Number(calculateTotalGray().toFixed(2)) > Number(selectedLot.remaining.toFixed(2)) && (
                   <p className="text-red-500 text-xs mt-2 text-center">
                     Gray miqdar remaining ({selectedLot.remaining}) se zyada hai
                   </p>
                 )}
-                {getReadyInLotUnit(calculateTotalReady()) > calculateTotalGray() && (
+                {Number(getReadyInLotUnit(calculateTotalReady()).toFixed(2)) > Number(calculateTotalGray().toFixed(2)) && (
                   <p className="text-red-500 text-xs mt-2 text-center">
                     Ready miqdar Gray se zyada nahi ho sakti
                   </p>
@@ -708,11 +717,12 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                           <input
                             type="number"
                             min="0"
-                            step="0.01"
+                            step="1"
                             value={headerInputs[color.id]?.gray || ''}
                             onChange={(e) => updateHeaderInput(color.id, 'gray', e.target.value)}
                             onKeyDown={(e) => handleHeaderKeyDown(e, color.id, 'gray')}
-                            onKeyPress={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                            onKeyPress={(e) => { if (e.key === '-' || e.key === 'e' || e.key === '.') e.preventDefault(); }}
+                            onWheel={(e) => (e.target as HTMLInputElement).blur()}
                             placeholder="Add..."
                             className="w-full h-8 px-2 text-center text-xs font-bold text-blue-700 bg-white/50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
@@ -721,11 +731,12 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                           <input
                             type="number"
                             min="0"
-                            step="0.01"
+                            step="1"
                             value={headerInputs[color.id]?.ready || ''}
                             onChange={(e) => updateHeaderInput(color.id, 'ready', e.target.value)}
                             onKeyDown={(e) => handleHeaderKeyDown(e, color.id, 'ready')}
-                            onKeyPress={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                            onKeyPress={(e) => { if (e.key === '-' || e.key === 'e' || e.key === '.') e.preventDefault(); }}
+                            onWheel={(e) => (e.target as HTMLInputElement).blur()}
                             placeholder="Add..."
                             className="w-full h-8 px-2 text-center text-xs font-bold text-blue-700 bg-white/50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
@@ -748,11 +759,12 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                               ref={el => { cellRefs.current[getCellKey(rowIndex, colorIndex, 'gray')] = el; }}
                               type="number"
                               min="0"
-                              step="0.01"
+                              step="1"
                               value={getCellValue(row, color.id, 'gray')}
                               onChange={e => updateCellValue(row.id, color.id, 'gray', e.target.value)}
                               onKeyDown={e => handleCellKeyDown(e, rowIndex, colorIndex, 'gray')}
-                              onKeyPress={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                              onKeyPress={(e) => { if (e.key === '-' || e.key === 'e' || e.key === '.') e.preventDefault(); }}
+                              onWheel={(e) => (e.target as HTMLInputElement).blur()}
                               onFocus={(e) => e.target.select()}
                               placeholder="0"
                               className="w-full h-8 px-2 text-center text-xs bg-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -763,11 +775,12 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                               ref={el => { cellRefs.current[getCellKey(rowIndex, colorIndex, 'ready')] = el; }}
                               type="number"
                               min="0"
-                              step="0.01"
+                              step="1"
                               value={getCellValue(row, color.id, 'ready')}
                               onChange={e => updateCellValue(row.id, color.id, 'ready', e.target.value)}
                               onKeyDown={e => handleCellKeyDown(e, rowIndex, colorIndex, 'ready')}
-                              onKeyPress={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                              onKeyPress={(e) => { if (e.key === '-' || e.key === 'e' || e.key === '.') e.preventDefault(); }}
+                              onWheel={(e) => (e.target as HTMLInputElement).blur()}
                               onFocus={(e) => e.target.select()}
                               placeholder="0"
                               className="w-full h-8 px-2 text-center text-xs bg-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"

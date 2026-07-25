@@ -19,11 +19,12 @@ import { toast } from 'sonner';
 interface CompletedLotsReportViewProps {
   fromDate: string;
   toDate: string;
+  reportType?: 'completed' | 'incomplete' | 'all';
 }
 
 type SortField = 'date' | 'lotNo' | 'totalMeters' | 'quality';
 
-export default function CompletedLotsReportView({ fromDate, toDate }: CompletedLotsReportViewProps) {
+export default function CompletedLotsReportView({ fromDate, toDate, reportType = 'all' }: CompletedLotsReportViewProps) {
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
   const [qualities, setQualities] = useState<QualityItem[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | ''>('');
@@ -56,6 +57,41 @@ export default function CompletedLotsReportView({ fromDate, toDate }: CompletedL
           sortBy,
           sortOrder,
         });
+        if (reportType === 'completed') {
+          data.lots = data.lots.filter(l => l.isComplete);
+        } else if (reportType === 'incomplete') {
+          data.lots = data.lots.filter(l => !l.isComplete);
+        }
+        
+        // Recalculate summary if filtered
+        if (reportType !== 'all') {
+          const summary = data.lots.reduce(
+            (acc, lot) => {
+              acc.totalLots += 1;
+              acc.totalBundles += lot.than;
+              acc.totalMetersIn += lot.metersIn;
+              acc.totalMetersOut += lot.metersOut;
+              acc.totalMeters += lot.totalMeters;
+              return acc;
+            },
+            {
+              totalLots: 0,
+              totalBundles: 0,
+              totalMetersIn: 0,
+              totalMetersOut: 0,
+              totalMeters: 0,
+              productionDifference: 0,
+            }
+          );
+          
+          summary.totalMetersIn = parseFloat(summary.totalMetersIn.toFixed(2));
+          summary.totalMetersOut = parseFloat(summary.totalMetersOut.toFixed(2));
+          summary.totalMeters = parseFloat(summary.totalMeters.toFixed(2));
+          summary.productionDifference = parseFloat((summary.totalMeters - summary.totalMetersIn).toFixed(2));
+          
+          data.summary = summary;
+        }
+
         setReport(data);
       } catch (err) {
         console.error(err);
@@ -71,7 +107,7 @@ export default function CompletedLotsReportView({ fromDate, toDate }: CompletedL
   const handlePdfPrint = async () => {
     if (!report || !organization) return;
     try {
-      const blob = await pdf(<PDFCompletedLots report={report} org={organization} />).toBlob();
+      const blob = await pdf(<PDFCompletedLots report={report} org={organization} reportType={reportType} />).toBlob();
       const url = URL.createObjectURL(blob);
       const printWindow = window.open(url, '_blank', 'width=1200,height=800');
       if (!printWindow) {
@@ -90,11 +126,12 @@ export default function CompletedLotsReportView({ fromDate, toDate }: CompletedL
     const partySlug = report.party.name.replace(/\s+/g, '-');
     const { rows, fileName } = exportCompletedLotsExcel(
       report,
-      `Completed-Lots_${partySlug}_${fromDate}_${toDate}.xlsx`
+      `${reportType === 'incomplete' ? 'Incomplete' : 'Completed'}-Lots_${partySlug}_${fromDate}_${toDate}.xlsx`,
+      reportType
     );
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Completed Lots');
+    XLSX.utils.book_append_sheet(wb, ws, `${reportType === 'incomplete' ? 'Incomplete' : 'Completed'} Lots`);
     XLSX.writeFile(wb, fileName);
     toast.success('Excel exported successfully');
   };
@@ -204,8 +241,8 @@ export default function CompletedLotsReportView({ fromDate, toDate }: CompletedL
             </button>
             {organization && report && (
               <PDFDownloadLink
-                document={<PDFCompletedLots report={report} org={organization} />}
-                fileName={`Completed-Lots_${report.party.name.replace(/\s+/g, '-')}_${fromDate}_${toDate}.pdf`}
+                document={<PDFCompletedLots report={report} org={organization} reportType={reportType} />}
+                fileName={`${reportType === 'incomplete' ? 'Incomplete' : 'Completed'}-Lots_${report.party.name.replace(/\s+/g, '-')}_${fromDate}_${toDate}.pdf`}
                 className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-bold text-sm no-underline"
               >
                 {({ loading: pdfLoading }) => (
@@ -235,6 +272,7 @@ export default function CompletedLotsReportView({ fromDate, toDate }: CompletedL
 
         {report && report.lots.length > 0 && (
           <div className="completed-lots-report min-w-[1400px]">
+
             <div className="bg-gray-300 border border-black p-4 flex justify-between items-start mb-0">
               <div>
                 <h1 className="text-base font-black uppercase tracking-wider">{companyName}</h1>
@@ -242,7 +280,9 @@ export default function CompletedLotsReportView({ fromDate, toDate }: CompletedL
                 {organization?.phone && <p className="text-[10px]">Tel: {organization.phone}</p>}
               </div>
               <div className="text-right">
-                <p className="text-sm font-black uppercase tracking-wide">Completed Lots Report</p>
+                <p className="text-sm font-black uppercase tracking-wide">
+                  {reportType === 'incomplete' ? 'Incomplete Lots Report' : 'Completed Lots Report'}
+                </p>
                 <p className="text-[10px] text-gray-600 mt-1">Party: {report.party.name}</p>
                 <p className="text-[10px]">Print: {getPrintDateTime()}</p>
               </div>
@@ -252,16 +292,19 @@ export default function CompletedLotsReportView({ fromDate, toDate }: CompletedL
               <table className="w-full border-collapse text-[10px]">
                 <thead className="sticky top-0 z-[1]">
                   <tr className="bg-gray-300">
-                    {['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Total Meters', 'D.O', 'K-Wapsi', 'Balance', 'Percentage', 'Remarks'].map((h) => (
+                    {(reportType === 'incomplete' 
+                      ? ['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Total Meters', 'D.O', 'K-Wapsi', 'Balance', 'Remarks']
+                      : ['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Total Meters', 'D.O', 'K-Wapsi', 'Balance', 'Percentage', 'Remarks']
+                    ).map((h) => (
                       <th key={h} className="border border-black p-1.5 text-left whitespace-nowrap font-black uppercase text-[9px]">
                         {h}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody>
-                  {report.lots.map((lot, idx) => (
-                    <tr key={`${lot.lotNo}-${idx}`} className={idx % 2 === 1 ? 'bg-gray-50' : 'bg-white'}>
+                  <tbody>
+                    {report.lots.map((lot, idx) => (
+                      <tr key={`${lot.lotNo}-${idx}`} className={idx % 2 === 1 ? 'bg-gray-50' : 'bg-white'}>
                       <td className="border border-black p-1.5 text-center">{lot.year}</td>
                       <td className="border border-black p-1.5 font-mono font-bold">{lot.lotNo}</td>
                       <td className="border border-black p-1.5 font-mono">{lot.biltyNo}</td>
@@ -274,27 +317,31 @@ export default function CompletedLotsReportView({ fromDate, toDate }: CompletedL
                       <td className="border border-black p-1.5 text-right">{formatMeters(lot.doQty)}</td>
                       <td className="border border-black p-1.5 text-right">{formatMeters(lot.kWapsi)}</td>
                       <td className="border border-black p-1.5 text-right">{formatMeters(lot.balance)}</td>
-                      <td
-                        className="border border-black p-1.5 text-right font-bold"
-                        style={{ color: getPercentageColor(lot.percentage) }}
-                      >
-                        {lot.percentage > 0 ? '+' : ''}{lot.percentage}%
-                      </td>
+                      {reportType !== 'incomplete' && (
+                        <td
+                          className="border border-black p-1.5 text-right font-bold"
+                          style={{ color: getPercentageColor(lot.percentage) }}
+                        >
+                          {lot.percentage > 0 ? '+' : ''}{lot.percentage}%
+                        </td>
+                      )}
                       <td className="border border-black p-1.5 text-gray-600">{lot.remarks || '—'}</td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-            <div className="border border-t-0 border-black bg-gray-200 p-3 flex flex-wrap gap-6 text-[11px] font-bold">
+            <div className="border border-black bg-gray-200 p-3 flex flex-wrap gap-6 text-[11px] font-bold">
               <span>Total Lots: {report.summary.totalLots}</span>
               <span>Total Bundles: {formatMeters(report.summary.totalBundles)}</span>
               <span>Total Meters In: {formatMeters(report.summary.totalMetersIn)}</span>
               <span>Total Meters Out: {formatMeters(report.summary.totalMetersOut)}</span>
-              <span style={{ color: getPercentageColor(-report.summary.productionDifference) }}>
-                Production Difference: {formatMeters(report.summary.productionDifference)}
-              </span>
+              {reportType !== 'incomplete' && (
+                <span style={{ color: getPercentageColor(-report.summary.productionDifference) }}>
+                  Production Difference: {formatMeters(report.summary.productionDifference)}
+                </span>
+              )}
             </div>
 
             <div className="border border-t-0 border-black bg-gray-300 p-4 text-[11px] font-black">
@@ -303,9 +350,11 @@ export default function CompletedLotsReportView({ fromDate, toDate }: CompletedL
                 <span>Bundles: {formatMeters(report.summary.totalBundles)}</span>
                 <span>Meters In: {formatMeters(report.summary.totalMetersIn)}</span>
                 <span>Meters Out: {formatMeters(report.summary.totalMetersOut)}</span>
-                <span style={{ color: getPercentageColor(-report.summary.productionDifference) }}>
-                  Difference: {formatMeters(report.summary.productionDifference)}
-                </span>
+                {reportType !== 'incomplete' && (
+                  <span style={{ color: getPercentageColor(-report.summary.productionDifference) }}>
+                    Difference: {formatMeters(report.summary.productionDifference)}
+                  </span>
+                )}
               </div>
             </div>
           </div>

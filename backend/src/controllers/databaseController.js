@@ -41,3 +41,26 @@ exports.downloadBackup = (req, res, next) => {
     });
   });
 };
+
+exports.restoreDatabase = (req, res, next) => {
+  if (!req.file) {
+    return res.status(400).json({ message: "No database file uploaded" });
+  }
+
+  const sqlFilePath = req.file.path;
+  const command = `mysql -h ${env.dbHost} -P ${env.dbPort} -u ${env.dbUser} ${env.dbPassword ? `-p${env.dbPassword}` : ""} ${env.dbName} < "${sqlFilePath}"`;
+
+  exec(command, (error, stdout, stderr) => {
+    fs.unlink(sqlFilePath, (unlinkErr) => {
+      if (unlinkErr) console.error("Failed to delete uploaded SQL file:", unlinkErr);
+    });
+
+    if (error) {
+      console.error("Exec error:", error);
+      console.error("Stderr:", stderr);
+      return res.status(500).json({ message: "Failed to restore database", details: error.message });
+    }
+    
+    res.status(200).json({ message: "Database restored successfully" });
+  });
+};

@@ -11,7 +11,7 @@ module.exports = (sequelize, DataTypes) =>
       quality_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
       measurement: { type: DataTypes.STRING(20), allowNull: false },
       than: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, defaultValue: 0 },
-      gazana: { type: DataTypes.DECIMAL(12, 2), allowNull: false, defaultValue: 0 },
+      gazana: { type: DataTypes.DECIMAL(14, 4), allowNull: false, defaultValue: 0 },
       notes: { type: DataTypes.TEXT, allowNull: true },
     },
     {
