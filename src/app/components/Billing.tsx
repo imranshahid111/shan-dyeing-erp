@@ -374,7 +374,16 @@ export default function Billing() {
                           className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
                       </td>
-                    <td className="px-6 py-4 font-bold text-gray-900 font-mono">#{inv.order_no}</td>
+                    <td className="px-6 py-4">
+                      <p style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--gray-900)', fontSize: '0.875rem' }}>
+                        {inv.order_no}
+                      </p>
+                      {inv.invoice_no && (
+                        <p style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--brand-600)', marginTop: '2px' }}>
+                          INV: {inv.invoice_no}
+                        </p>
+                      )}
+                    </td>
                     <td className="px-6 py-4 font-semibold text-gray-700">{inv.customer?.name}</td>
                     <td className="px-6 py-4 text-gray-500">{new Date(inv.order_date).toLocaleDateString()}</td>
                       <td className="px-6 py-4 text-right">{inv.total_gray_gazana} GZ</td>

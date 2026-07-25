@@ -180,6 +180,8 @@ export const PDFSubLedger = ({
 }) => {
   const companyName = org?.name || 'SHAN DYEING';
   const printDate = getPrintDateTime();
+  const totalGray = report?.transactions.reduce((sum, r) => sum + (Number(r.grayQty) || 0), 0) || 0;
+  const totalReady = report?.transactions.reduce((sum, r) => sum + (Number(r.meterQty) || 0), 0) || 0;
 
   return (
     <Document title={`Sub Ledger - ${report.customer.name}`}>
@@ -232,7 +234,11 @@ export const PDFSubLedger = ({
             >
               <Cell width={COL.date}>{formatReportDate(row.date)}</Cell>
               <Cell width={COL.refType} variant="left">{row.referenceType}</Cell>
-              <Cell width={COL.refNo}>{row.referenceNo}</Cell>
+              <View style={[styles.cell, { width: COL.refNo }]}>
+                {row.referenceNo !== '—' && <Text>Inv: {row.referenceNo}</Text>}
+                {row.doNo !== '—' && <Text style={{ color: '#555', marginTop: 1 }}>DO: {row.doNo}</Text>}
+                {row.referenceNo === '—' && row.doNo === '—' && <Text>—</Text>}
+              </View>
                <Cell width={COL.lot}>{row.lotNo}</Cell>
               <Cell width={COL.desc} variant="left">{row.description}</Cell>
               <Cell width={COL.rate} variant="right">
@@ -258,6 +264,14 @@ export const PDFSubLedger = ({
         </View>
 
         <View style={styles.summaryBox}>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Total Gray</Text>
+            <Text style={styles.summaryValue}>{formatAmount(totalGray)}</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Total Finish</Text>
+            <Text style={styles.summaryValue}>{formatAmount(totalReady)}</Text>
+          </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total Debit Amount</Text>
             <Text style={styles.summaryValue}>{formatCurrency(report.summary.totalDebit)}</Text>

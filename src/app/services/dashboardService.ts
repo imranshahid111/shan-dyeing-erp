@@ -85,6 +85,7 @@ export interface SubLedgerTransaction {
   type: string;
   referenceType: string;
   referenceNo: string;
+  doNo: string;
   description: string;
   debit: number;
   credit: number;

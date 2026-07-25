@@ -31,7 +31,8 @@ export default function ReturnLots() {
     gray_lot_id: '',
     returned_quantity: '',
     return_date: new Date().toISOString().split('T')[0],
-    reason: ''
+    reason: '',
+    than: ''
   });
 
   useEffect(() => {
@@ -54,7 +55,8 @@ export default function ReturnLots() {
       gray_lot_id: '',
       returned_quantity: '',
       return_date: new Date().toISOString().split('T')[0],
-      reason: ''
+      reason: '',
+      than: ''
     });
   };
 
@@ -69,7 +71,8 @@ export default function ReturnLots() {
       gray_lot_id: rl.gray_lot_id.toString(),
       returned_quantity: displayedQty.toString(),
       return_date: new Date(rl.return_date).toISOString().split('T')[0],
-      reason: rl.reason || ''
+      reason: rl.reason || '',
+      than: rl.than?.toString() || ''
     });
     setUnit(isMeter ? 'meter' : 'yard');
     setIsModalOpen(true);
@@ -133,7 +136,8 @@ export default function ReturnLots() {
 
       const payload = {
         ...formData,
-        returned_quantity: finalQty
+        returned_quantity: finalQty,
+        than: parseInt(formData.than) || 0
       };
 
       const url = editingId 
@@ -433,6 +437,18 @@ export default function ReturnLots() {
                     <option value="yard">Yard</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Than Qty (Pieces)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.than}
+                  onChange={(e) => setFormData({ ...formData, than: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                  placeholder="e.g. 5"
+                />
               </div>
 
               <div>

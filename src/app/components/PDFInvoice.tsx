@@ -289,10 +289,6 @@ const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organizatio
           <Text style={{ fontWeight: 'bold', fontSize: 12 }}>{totalInvoiceAmount.toLocaleString()}</Text>
         </View>
       </View>
-
-      <Text style={styles.footerNote}>
-        نوٹ:- ریٹ فرق یا بل میں کسی بھی قسم کی غلطی کی صورت میں 7 دن کے اندر فیکٹری پر رابطہ کریں اس کے بعد کوئی شکایت قابل قبول نہیں ہوگی۔
-      </Text>
     </View>
   );
 };

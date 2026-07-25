@@ -32,7 +32,7 @@ exports.getAllReturnLots = async (req, res) => {
 
 exports.createReturnLot = async (req, res) => {
   try {
-    const { gray_lot_id, returned_quantity, return_date, reason } = req.body;
+    const { gray_lot_id, returned_quantity, return_date, reason, than } = req.body;
 
     if (!gray_lot_id || !returned_quantity || !return_date) {
       return res.status(400).json({ error: "gray_lot_id, returned_quantity, and return_date are required." });
@@ -43,6 +43,7 @@ exports.createReturnLot = async (req, res) => {
       returned_quantity,
       return_date,
       reason,
+      than: than ? parseInt(than) : 0,
     });
 
     res.status(201).json({ message: "Return lot created successfully.", data: newReturnLot });
@@ -56,7 +57,7 @@ exports.createReturnLot = async (req, res) => {
 exports.updateReturnLot = async (req, res) => {
   try {
     const { id } = req.params;
-    const { gray_lot_id, returned_quantity, return_date, reason } = req.body;
+    const { gray_lot_id, returned_quantity, return_date, reason, than } = req.body;
 
     const returnLot = await ReturnLot.findByPk(id);
 
@@ -73,6 +74,7 @@ exports.updateReturnLot = async (req, res) => {
       returned_quantity,
       return_date,
       reason,
+      than: than ? parseInt(than) : 0,
     });
 
     res.json({ message: "Return lot updated successfully.", data: returnLot });

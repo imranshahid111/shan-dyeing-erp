@@ -48,7 +48,8 @@ export default function ViewDeliveryOrder() {
             order_no: `RETURN${r.reason ? ` - ${r.reason}` : ''}`,
             total_gray_gazana: r.returned_quantity,
             total_ready_gazana: 0,
-            grid_data: null
+            grid_data: null,
+            than: r.than
           }));
           const combined = [...(res.data || []), ...returns];
           const sorted = combined.sort((a: any, b: any) => new Date(a.order_date).getTime() - new Date(b.order_date).getTime() || (String(a.id).localeCompare(String(b.id))));
@@ -225,8 +226,8 @@ export default function ViewDeliveryOrder() {
               <p className="font-mono text-lg font-black">{order.gray_lot?.bill_no || '—'}</p>
             </div>
             <div className="text-center">
-              <p className="font-bold">Than Qty:</p>
-              <p className="font-mono text-lg font-black">{order.gray_lot?.than || '—'}</p>
+              <p className="font-bold">Than Qty / Gazana:</p>
+              <p className="font-mono text-lg font-black">{order.gray_lot?.than || '—'} / {order.gray_lot?.gazana || order.gray_lot?.total_gazana ? Number(order.gray_lot?.gazana || order.gray_lot?.total_gazana).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}</p>
             </div>
             <div className="text-right">
               <p className="font-bold">Lot #:</p>
@@ -393,6 +394,9 @@ export default function ViewDeliveryOrder() {
                       const isReadyGaz = (doItem.input_unit || 'meter') === 'gaz';
                       fMtr = isReadyGaz ? Number(doItem.total_ready_gazana || 0) : Number(doItem.total_ready_gazana || 0) * CONVERSION_FACTOR;
                     }
+                    if (doItem.isReturn) {
+                      gPcs = Number(doItem.than) || 0;
+                    }
 
                     balance -= gMtr;
                     const isComplete = balance <= 1;
@@ -446,6 +450,9 @@ export default function ViewDeliveryOrder() {
                             let g = d.grid_data;
                             if (typeof g === 'string') try { g = JSON.parse(g) } catch(e){}
                             (g.rows || []).forEach((r:any) => (g.colors || []).forEach((c:any) => { if(Number(r.values?.[c.id]?.gray || 0) > 0) count++; }));
+                          }
+                          if (d.isReturn) {
+                            count += Number(d.than) || 0;
                           }
                           return count;
                         })(), 0)

@@ -330,7 +330,8 @@ exports.getSubLedgerReport = async (req, res, next) => {
       periodEntries.push({
         date: o.order_date,
         type: "BILL",
-        referenceNo: o.invoice_no || o.order_no,
+        referenceNo: o.invoice_no || "—",
+        doNo: o.order_no || "—",
         description: quality,
         debit: Number(o.total_amount || 0),
         credit: 0,
@@ -349,7 +350,8 @@ exports.getSubLedgerReport = async (req, res, next) => {
       periodEntries.push({
         date: p.payment_date,
         type: payType,
-        referenceNo: p.reference_no || doItem.invoice_no || doItem.order_no || "—",
+        referenceNo: p.reference_no || doItem.invoice_no || "—",
+        doNo: doItem.order_no || "—",
         description: payType === "RBOK" ? "Cash Receipt" : payType === "JOURNAL" ? "Journal Entry" : "Payment Voucher",
         debit: 0,
         credit: Number(p.amount || 0),
@@ -376,6 +378,7 @@ exports.getSubLedgerReport = async (req, res, next) => {
       type: "OPENING",
       referenceType: mapReferenceType("OPENING"),
       referenceNo: "—",
+      doNo: "—",
       description: "Opening Balance B/F",
       debit: openingBalance > 0 ? parseFloat(openingBalance.toFixed(2)) : 0,
       credit: openingBalance < 0 ? parseFloat(Math.abs(openingBalance).toFixed(2)) : 0,
@@ -394,6 +397,7 @@ exports.getSubLedgerReport = async (req, res, next) => {
         type: entry.type,
         referenceType: mapReferenceType(entry.type),
         referenceNo: entry.referenceNo,
+        doNo: entry.doNo,
         description: entry.description,
         debit: entry.debit,
         credit: entry.credit,
@@ -866,7 +870,17 @@ exports.getOutstandingReport = async (req, res, next) => {
         "name",
         "outstanding_amount",
         [sequelize.fn("SUM", sequelize.col("delivery_orders.total_amount")), "totalBilled"],
-        [sequelize.fn("SUM", sequelize.col("delivery_orders.paid_amount")), "totalPaid"],
+        [
+          sequelize.literal(`(
+            SELECT COALESCE(SUM(amount), 0)
+            FROM payments
+            WHERE payments.customer_id = customers.id
+               OR payments.delivery_order_id IN (
+                  SELECT id FROM delivery_orders WHERE delivery_orders.customer_id = customers.id
+               )
+          )`),
+          "totalPaid"
+        ],
       ],
       include: [{
         model: DeliveryOrder,

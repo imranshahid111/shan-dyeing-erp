@@ -5,6 +5,7 @@ module.exports = (sequelize, DataTypes) =>
       id: { type: DataTypes.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true },
       gray_lot_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
       returned_quantity: { type: DataTypes.DECIMAL(14, 4), allowNull: false },
+      than: { type: DataTypes.INTEGER, allowNull: true, defaultValue: 0 },
       return_date: { type: DataTypes.DATEONLY, allowNull: false },
       reason: { type: DataTypes.TEXT, allowNull: true },
     },

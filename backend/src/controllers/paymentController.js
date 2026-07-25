@@ -300,6 +300,7 @@ exports.addAdvancePayment = async (req, res, next) => {
     }, { transaction: t });
 
     await customer.increment("advance_balance", { by: amount, transaction: t });
+    await customer.decrement("outstanding_amount", { by: amount, transaction: t });
 
     await t.commit();
     await logActivity("Payments", `Received Payment`, `Amount: ${amount} for Customer ID ${customerId}`, req);

@@ -26,11 +26,15 @@ export default function DeliveryOrders() {
   const pageSize = 20;
   const [totalPages, setTotalPages] = useState(1);
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (order: DeliveryOrderItem) => {
+    if (order.status === 'billed' || order.status === 'paid') {
+      toast.error('Cannot delete this order because it has an invoice. Please delete the invoice first.');
+      return;
+    }
     if (!await confirmDialog('Are you sure? This will also remove associated payments and adjust customer balance.')) return;
     try {
-      await deliveryOrderService.deleteDeliveryOrder(id);
-      setOrders(prev => prev.filter(o => o.id !== id));
+      await deliveryOrderService.deleteDeliveryOrder(order.id);
+      setOrders(prev => prev.filter(o => o.id !== order.id));
       setTotal(prev => prev - 1);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to delete order');
@@ -224,7 +228,7 @@ export default function DeliveryOrders() {
                             <button
                               className="icon-btn danger"
                               title="Delete Order"
-                              onClick={() => handleDelete(order.id)}
+                              onClick={() => handleDelete(order)}
                             >
                               <Trash2 size={14} />
                             </button>

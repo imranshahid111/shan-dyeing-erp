@@ -79,6 +79,9 @@ export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerRepor
 
   const companyName = organization?.name || 'SHAN DYEING';
 
+  const totalGray = report?.transactions.reduce((sum, r) => sum + (Number(r.grayQty) || 0), 0) || 0;
+  const totalReady = report?.transactions.reduce((sum, r) => sum + (Number(r.meterQty) || 0), 0) || 0;
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-6 border-b border-gray-100 flex flex-col lg:flex-row gap-4 justify-between print:hidden">
@@ -191,7 +194,11 @@ export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerRepor
                       {formatReportDate(row.date)}
                     </td>
                     <td className="border border-black p-1.5">{row.referenceType}</td>
-                    <td className="border border-black p-1.5 font-mono">{row.referenceNo}</td>
+                    <td className="border border-black p-1.5 font-mono text-[9px]">
+                      {row.referenceNo !== '—' && <div>Inv: {row.referenceNo}</div>}
+                      {row.doNo !== '—' && <div className="text-gray-500">DO: {row.doNo}</div>}
+                      {row.referenceNo === '—' && row.doNo === '—' && '—'}
+                    </td>
                                         <td className="border border-black p-1.5 font-mono">{row.lotNo}</td>
 
                     <td className="border border-black p-1.5">{row.description}</td>
@@ -220,6 +227,14 @@ export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerRepor
 
             <div className="flex justify-end p-4 border-t border-black">
               <div className="w-72 border border-black text-[11px]">
+                <div className="flex justify-between p-2 border-b border-black bg-gray-100">
+                  <span className="font-bold">Total Gray</span>
+                  <span className="font-bold">{formatAmount(totalGray)}</span>
+                </div>
+                <div className="flex justify-between p-2 border-b border-black bg-gray-100">
+                  <span className="font-bold">Total Finish</span>
+                  <span className="font-bold">{formatAmount(totalReady)}</span>
+                </div>
                 <div className="flex justify-between p-2 border-b border-black bg-gray-100">
                   <span className="font-bold">Total Debit Amount</span>
                   <span className="font-bold">{formatCurrency(report.summary.totalDebit)}</span>

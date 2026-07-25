@@ -394,26 +394,10 @@ exports.deleteOrder = async (req, res, next) => {
       return res.status(404).json({ message: "Delivery Order not found" });
     }
 
-    // If billed, we might need to adjust customer outstanding balance
+    // If billed, we cannot delete
     if (deliveryOrder.status === 'billed' || deliveryOrder.status === 'paid') {
-      const netAmount = Number(deliveryOrder.total_amount || 0);
-      const paidAmount = Number(deliveryOrder.paid_amount || 0);
-      const balanceToAdjust = netAmount - paidAmount;
-
-      if (balanceToAdjust > 0) {
-        await Customer.decrement("outstanding_amount", {
-          by: balanceToAdjust,
-          where: { id: deliveryOrder.customer_id },
-          transaction: t,
-        });
-      } else if (balanceToAdjust < 0) {
-        // This case shouldn't normally happen but just in case
-        await Customer.increment("outstanding_amount", {
-          by: Math.abs(balanceToAdjust),
-          where: { id: deliveryOrder.customer_id },
-          transaction: t,
-        });
-      }
+      await t.rollback();
+      return res.status(400).json({ message: "Cannot delete a delivery order that has an invoice. Please delete the invoice first." });
     }
 
     // Delete associated payments first
