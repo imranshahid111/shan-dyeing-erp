@@ -95,8 +95,11 @@ export default function GatePass() {
     catch (err: any) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
-  // Available DOs not already added in form rows
-  const usedIds = doRows.map(r => r.delivery_order_id);
+  // Collect all DO IDs that are already assigned to an existing saved Gate Pass
+  const savedDoIds = gatePasses.flatMap(gp => (gp.items || []).map(item => item.delivery_order_id || item.delivery_order?.id)).filter(Boolean);
+
+  // Available DOs not already added in current form rows AND not in any saved Gate Pass
+  const usedIds = [...doRows.map(r => r.delivery_order_id), ...savedDoIds];
   const availableDOs = deliveryOrders.filter(o => !usedIds.includes(o.id));
   const filteredAvailable = availableDOs.filter(o =>
     o.order_no.toLowerCase().includes(doSearch.toLowerCase()) ||
@@ -104,24 +107,57 @@ export default function GatePass() {
   );
 
   const addDOToRows = (o: DeliveryOrderItem) => {
-    let gPcsCount = 0;
+    let readyPcsCount = 0;
     if (o.grid_data) {
-      // Check if grid_data has a rows array (new format) or is a direct object (old format)
       const rows = Array.isArray(o.grid_data.rows) ? o.grid_data.rows : (Array.isArray(o.grid_data) ? o.grid_data : Object.values(o.grid_data));
-      gPcsCount = rows.reduce((count: number, row: any) => {
+      readyPcsCount = rows.reduce((count: number, row: any) => {
         const values = row.values || row || {};
-        return count + Object.values(values).filter((val: any) => val && val.gray && Number(val.gray) > 0).length;
+        return count + Object.values(values).filter((val: any) => {
+          if (!val || typeof val !== 'object') return false;
+          const rVal = val.ready ?? val.finish ?? val.f;
+          return rVal !== null && rVal !== undefined && Number(rVal) > 0;
+        }).length;
       }, 0);
     }
+    if (readyPcsCount === 0) {
+      readyPcsCount = Number((o as any).total_pcs_finish || (o as any).finish_pcs || 0);
+    }
+
+    const isLotMeter = (o as any).gray_lot?.measurement?.toLowerCase() === 'meter';
+    const inputUnit = o.input_unit || o.grid_data?.inputUnit || 'meter';
+    const isReadyGaz = inputUnit === 'gaz';
+
+    // Calculate grid totals if grid_data exists
+    let gridReadyTotal = 0;
+    if (o.grid_data?.rows && o.grid_data?.colors) {
+      o.grid_data.rows.forEach((r: any) => {
+        o.grid_data.colors.forEach((c: any) => {
+          gridReadyTotal += Number(r.values?.[c.id]?.ready) || 0;
+        });
+      });
+    }
+
+    // Determine the gazana in DO's entered unit
+    let primaryGazana = 0;
+    if (gridReadyTotal > 0) {
+      primaryGazana = gridReadyTotal;
+    } else {
+      const readyGaz = Number(o.total_ready_gazana || 0);
+      primaryGazana = isReadyGaz ? readyGaz : (readyGaz * 0.9144);
+    }
+
+    const lotObj: any = (o as any).gray_lot || (o as any).GrayLot || {};
+    const qualityInfo: any = lotObj.quality || lotObj.Quality || '';
+    const defaultQualityName = typeof qualityInfo === 'object' ? qualityInfo.name : qualityInfo;
 
     setDoRows(prev => [...prev, {
       delivery_order_id: o.id,
       order_no: o.order_no,
       party_name: o.customer?.name || '',
-      lot_no: (o as any).gray_lot?.lot_no || '',
-      description: '',
-      bundles: String(gPcsCount || 0),
-      gazana_total: String(Number(o.total_gray_gazana || 0)),
+      lot_no: lotObj.lot_no || '',
+      description: defaultQualityName ? String(defaultQualityName) : '',
+      bundles: String(readyPcsCount || 0),
+      gazana_total: String(parseFloat(primaryGazana.toFixed(2))),
     }]);
     setDoSearch(''); setDoDropdownOpen(false);
   };
@@ -247,17 +283,20 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
               </div>
             ) : (
               <table className="data-table">
-                <thead><tr>
-                  <th><div style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}><Hash size={12} />GP No</div></th>
-                  <th><div style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}><CalendarDays size={12} />Date</div></th>
-                  <th>DOs</th>
-                  <th>Vehicle / Driver</th>
-                  <th>Total Gazana</th>
-                  <th style={{ textAlign: 'center' }}>Actions</th>
-                </tr></thead>
+                <thead>
+                  <tr>
+                    <th><div style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}><Hash size={12} />GP No</div></th>
+                    <th><div style={{ display:'flex', alignItems:'center', gap:'0.375rem' }}><CalendarDays size={12} />Date</div></th>
+                    <th>DOs</th>
+                    <th>Vehicle / Driver</th>
+                    <th>Total Gazana</th>
+                    <th style={{ textAlign: 'center' }}>Actions</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {filtered.map(gp => {
                     const totalGaz = (gp.items || []).reduce((s, it) => s + Number(it.gazana_total || 0), 0);
+                    const firstUnit = (gp.items?.[0]?.delivery_order?.input_unit || gp.items?.[0]?.delivery_order?.grid_data?.inputUnit || 'meter') === 'gaz' ? 'Gaz' : 'Mtr';
                     return (
                       <tr key={gp.id}>
                         <td><p style={{ fontFamily:'monospace', fontWeight:700, color:'var(--gray-900)', fontSize:'0.875rem' }}>{gp.gate_pass_no}</p></td>
@@ -276,7 +315,7 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
                           <div style={{ display:'flex', alignItems:'center', gap:4 }}><Truck size={13} style={{ color:'var(--gray-400)' }} /><span style={{ fontWeight:500 }}>{gp.vehicle_no || '—'}</span></div>
                           <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:2 }}><User size={13} style={{ color:'var(--gray-400)' }} /><span style={{ fontSize:'0.8rem', color:'var(--gray-600)' }}>{gp.driver_name || '—'}</span></div>
                         </td>
-                        <td><span style={{ fontWeight:700, color:'var(--brand-700)' }}>{totalGaz.toLocaleString()} GZ</span></td>
+                        <td><span style={{ fontWeight:700, color:'var(--brand-700)' }}>{totalGaz.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} {firstUnit}</span></td>
                         <td style={{ textAlign: 'center' }}>
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}>
     {/* Print Button - Opens PDF for printing */}
@@ -359,7 +398,9 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
                         onMouseEnter={e => (e.currentTarget.style.background='var(--brand-50)')}
                         onMouseLeave={e => (e.currentTarget.style.background='white')}>
                         <div style={{ fontWeight:600, fontFamily:'monospace', fontSize:'0.85rem' }}>{o.order_no}</div>
-                        <div style={{ fontSize:'0.75rem', color:'var(--gray-500)' }}>{o.customer?.name} — {Number(o.total_gray_gazana || 0)} GZ</div>
+                        <div style={{ fontSize:'0.75rem', color:'var(--gray-500)' }}>
+                          {o.customer?.name} — {Number((o as any).total_ready_gazana || o.total_gray_gazana || 0).toLocaleString()} {(o.input_unit || o.grid_data?.inputUnit || 'meter') === 'gaz' ? 'Gaz' : 'Mtr'}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -412,9 +453,9 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
                       </tr>
                     ))}
                     <tr style={{ background:'var(--gray-50)', fontWeight:700 }}>
-                      <td colSpan={5} style={{ padding:'10px 12px', textAlign:'right', fontSize:'0.875rem', color:'var(--gray-600)' }}>Total Gazana:</td>
+                      <td colSpan={5} style={{ padding:'10px 12px', textAlign:'right', fontSize:'0.875rem', color:'var(--gray-600)' }}>Total Quantity:</td>
                       <td style={{ padding:'10px 12px', textAlign:'right', fontFamily:'monospace', color:'var(--brand-700)' }}>
-                        {doRows.reduce((s, r) => s + (Number(r.gazana_total) || 0), 0).toLocaleString()} GZ
+                        {doRows.reduce((s, r) => s + (Number(r.gazana_total) || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                       </td>
                       <td />
                     </tr>

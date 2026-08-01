@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Download, Loader2, Printer } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Download, Loader2, Printer, Search, ChevronDown, User, X } from 'lucide-react';
 import { PDFDownloadLink, pdf } from '@react-pdf/renderer';
 import { dashboardService, SubLedgerReport } from '../services/dashboardService';
 import { organizationService, Organization } from '../services/organizationService';
@@ -23,9 +23,22 @@ interface SubLedgerReportViewProps {
 export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerReportViewProps) {
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [report, setReport] = useState<SubLedgerReport | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     customerService
@@ -37,6 +50,13 @@ export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerRepor
       .catch(console.error);
     organizationService.getOrganization().then(setOrganization).catch(console.error);
   }, []);
+
+  const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+
+  const filteredCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    (c.customer_code && c.customer_code.toLowerCase().includes(customerSearch.toLowerCase()))
+  );
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -85,21 +105,80 @@ export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerRepor
   return (
     <div className="flex flex-col h-full">
       <div className="p-6 border-b border-gray-100 flex flex-col lg:flex-row gap-4 justify-between print:hidden">
-        <div className="min-w-[260px] relative">
-          <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-blue-600 uppercase tracking-wider">
+        <div ref={dropdownRef} className="min-w-[320px] relative z-50">
+          <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-blue-600 uppercase tracking-wider z-10">
             Customer / Party
           </label>
-          <select
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 font-bold text-gray-700 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            value={selectedCustomerId || ''}
-            onChange={(e) => setSelectedCustomerId(Number(e.target.value))}
+          <div
+            className={`w-full px-4 py-2.5 rounded-xl border ${isDropdownOpen ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'} bg-gray-50 cursor-pointer flex justify-between items-center transition-all`}
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           >
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} {c.customer_code ? `(${c.customer_code})` : ''}
-              </option>
-            ))}
-          </select>
+            <div className="flex items-center gap-2 overflow-hidden">
+              <User size={18} className="text-gray-400 flex-shrink-0" />
+              <span className={selectedCustomer ? 'text-gray-800 font-bold text-sm truncate' : 'text-gray-400 font-medium text-sm'}>
+                {selectedCustomer ? `${selectedCustomer.name} ${selectedCustomer.customer_code ? `(${selectedCustomer.customer_code})` : ''}` : 'Search customer...'}
+              </span>
+            </div>
+            <ChevronDown size={18} className={`text-gray-400 transition-transform duration-200 flex-shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+          </div>
+
+          {isDropdownOpen && (
+            <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] max-h-72 flex flex-col overflow-hidden">
+              <div className="p-2 border-b border-gray-50 bg-gray-50/50">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={15} />
+                  <input
+                    type="text"
+                    className="w-full pl-9 pr-8 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-gray-400 font-medium"
+                    placeholder="Search party name or code..."
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    autoFocus
+                  />
+                  {customerSearch && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setCustomerSearch(''); }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="p-1.5 overflow-y-auto">
+                {filteredCustomers.length === 0 ? (
+                  <div className="p-4 text-sm text-gray-500 text-center flex flex-col items-center gap-2">
+                    <Search size={20} className="text-gray-300" />
+                    <p>No customers found matching "{customerSearch}"</p>
+                  </div>
+                ) : (
+                  filteredCustomers.map((c) => (
+                    <div
+                      key={c.id}
+                      className={`px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-all ${selectedCustomerId === c.id ? 'bg-blue-50 border border-blue-100 font-bold' : 'hover:bg-gray-50 border border-transparent font-medium'}`}
+                      onClick={() => {
+                        setSelectedCustomerId(c.id);
+                        setIsDropdownOpen(false);
+                        setCustomerSearch('');
+                      }}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className={selectedCustomerId === c.id ? 'text-blue-700' : 'text-gray-800'}>
+                          {c.name}
+                        </span>
+                        {c.customer_code && (
+                          <span className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded font-mono font-bold">
+                            {c.customer_code}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -180,8 +259,8 @@ export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerRepor
                   <th className="border border-black p-1.5 text-left">Lot Number</th>
                   <th className="border border-black p-1.5 text-left">Description</th>
                   <th className="border border-black p-1.5 text-right">Rate</th>
-                  <th className="border border-black p-1.5 text-right">Gray Qty</th>
-                  <th className="border border-black p-1.5 text-right">Finish Qty</th>
+                  <th className="border border-black p-1.5 text-right">Gray Mtr</th>
+                  <th className="border border-black p-1.5 text-right">Finish Mtr</th>
                   <th className="border border-black p-1.5 text-right">Debit</th>
                   <th className="border border-black p-1.5 text-right">Credit</th>
                   <th className="border border-black p-1.5 text-right">Running Balance</th>

@@ -39,6 +39,9 @@ export interface CreateDeliveryOrderPayload {
   total_gray_gazana: number;
   total_ready_gazana: number;
   grid_data: any;
+  order_date?: string;
+  input_unit?: string;
+  remarks?: string;
 }
 
 export const deliveryOrderService = {

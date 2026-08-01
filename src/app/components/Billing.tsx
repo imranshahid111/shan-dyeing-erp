@@ -87,8 +87,20 @@ export default function Billing() {
     try {
       setLoading(true);
       const customerId = selectedCustomer ? selectedCustomer.id : undefined;
-      const invRes = await deliveryOrderService.getDeliveryOrders('billed', 1, 100, customerId, startDate, endDate, search);
-      setInvoices(invRes.data);
+      // Fetch without backend search constraint so client-side filter can search across all records
+      const invRes = await deliveryOrderService.getDeliveryOrders('billed', 1, 1000, customerId, startDate, endDate);
+      let data = invRes.data || [];
+      if (search && search.trim()) {
+        const q = search.trim().toLowerCase();
+        data = data.filter(inv => {
+          const invNo = String(inv.invoice_no || '').toLowerCase();
+          const orderNo = String(inv.order_no || '').toLowerCase();
+          const custName = String(inv.customer?.name || '').toLowerCase();
+          const lotNo = String(inv.gray_lot?.lot_no || (inv as any).GrayLot?.lot_no || '').toLowerCase();
+          return invNo.includes(q) || orderNo.includes(q) || custName.includes(q) || lotNo.includes(q);
+        });
+      }
+      setInvoices(data);
     } catch (error) {
       console.error("Failed to load invoices", error);
     } finally {
@@ -220,24 +232,37 @@ export default function Billing() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-4 items-end">
-          <div className="flex-1 min-w-[200px]">
+          <div className="flex-1 min-w-[240px] relative">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Search Invoice / DO / Lot</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <input 
+                type="text" 
+                placeholder="Search Inv #, DO #, Lot #..." 
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 outline-none text-sm font-bold text-gray-700 bg-white" 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex-1 min-w-[180px]">
             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Start Date</label>
-              <input 
-                type="date" 
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 outline-none text-sm font-bold text-gray-700" 
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">End Date</label>
-              <input 
-                type="date" 
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 outline-none text-sm font-bold text-gray-700" 
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
+            <input 
+              type="date" 
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 outline-none text-sm font-bold text-gray-700" 
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+          <div className="flex-1 min-w-[180px]">
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">End Date</label>
+            <input 
+              type="date" 
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-100 outline-none text-sm font-bold text-gray-700" 
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
 
           <button 
             onClick={() => { setStartDate(''); setEndDate(''); setSearch(''); }}
@@ -334,6 +359,7 @@ export default function Billing() {
                     />
                   </th>
                 <th className="px-6 py-4">Invoice No</th>
+                <th className="px-6 py-4">Lot No</th>
                 <th className="px-6 py-4">Customer</th>
                 <th className="px-6 py-4">Date</th>
                   <th className="px-6 py-4 text-right">Gazana</th>
@@ -363,6 +389,11 @@ export default function Billing() {
                 )}
                 {invoices.map((inv) => {
                   const isSelected = selectedIds.includes(inv.id);
+                  const lotNo = inv.gray_lot?.lot_no || (inv as any).GrayLot?.lot_no || '—';
+                  const isYard = inv.rate_unit === 'yard' || inv.input_unit === 'gaz';
+                  const readyGaz = Number(inv.total_ready_gazana || 0);
+                  const displayQty = isYard ? readyGaz : (readyGaz * 0.9144);
+                  const unitLabel = isYard ? 'Gaz' : 'Mtr';
                   
                   return (
                     <tr key={inv.id} className={`hover:bg-gray-50 transition-colors ${isSelected ? 'bg-blue-50/50' : ''}`}>
@@ -384,10 +415,15 @@ export default function Billing() {
                         </p>
                       )}
                     </td>
+                    <td className="px-6 py-4 font-mono font-bold text-gray-800 text-xs">
+                      <span className="px-2 py-1 bg-gray-100 rounded-md border border-gray-200">{lotNo}</span>
+                    </td>
                     <td className="px-6 py-4 font-semibold text-gray-700">{inv.customer?.name}</td>
                     <td className="px-6 py-4 text-gray-500">{new Date(inv.order_date).toLocaleDateString()}</td>
-                      <td className="px-6 py-4 text-right">{inv.total_gray_gazana} GZ</td>
-                      <td className="px-6 py-4 text-right font-bold text-gray-500">{inv.rate ? `Rs ${inv.rate}/${inv.rate_unit === 'yard' ? 'Gaz' : 'Mtr'}` : '-'}</td>
+                      <td className="px-6 py-4 text-right font-bold text-gray-800">
+                        {displayQty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {unitLabel}
+                      </td>
+                      <td className="px-6 py-4 text-right font-bold text-gray-500">{inv.rate ? `Rs ${inv.rate}/${unitLabel}` : '-'}</td>
                       <td className="px-6 py-4 text-right font-bold text-gray-900">{Number(inv.total_amount).toLocaleString()}</td>
                       <td className="px-6 py-4 text-center relative">
                         <button 
@@ -399,7 +435,15 @@ export default function Billing() {
                         {activeDropdown === String(inv.id) && (
                           <div className="absolute right-6 top-10 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-10">
                             <button 
-                              onClick={() => { setSelectedInvoice(inv); setActiveDropdown(null); }}
+                              onClick={async () => {
+                                try {
+                                  const fullDo = await deliveryOrderService.getDeliveryOrderById(inv.id);
+                                  setSelectedInvoice(fullDo);
+                                } catch (e) {
+                                  setSelectedInvoice(inv);
+                                }
+                                setActiveDropdown(null);
+                              }}
                               className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors font-semibold"
                             >
                               <Eye size={16} /> View Invoice

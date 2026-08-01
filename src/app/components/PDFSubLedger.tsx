@@ -219,8 +219,8 @@ export const PDFSubLedger = ({
             <Cell width={COL.lot} bold>Lot #</Cell>
             <Cell width={COL.desc} variant="left" bold>Description</Cell>
             <Cell width={COL.rate} variant="right" bold>Rate</Cell>
-            <Cell width={COL.gray} variant="right" bold>Gray Qty</Cell>
-            <Cell width={COL.meter} variant="right" bold>Finish Qty</Cell>
+            <Cell width={COL.gray} variant="right" bold>Gray Mtr</Cell>
+            <Cell width={COL.meter} variant="right" bold>Finish Mtr</Cell>
             <Cell width={COL.debit} variant="right" bold>Debit</Cell>
             <Cell width={COL.credit} variant="right" bold>Credit</Cell>
             <Cell width={COL.balance} variant="right" last bold>Balance</Cell>

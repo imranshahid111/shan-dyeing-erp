@@ -24,20 +24,41 @@ exports.getDeliveryOrders = async (req, res, next) => {
     }
     
     if (search) {
-      where[Op.or] = [
-        { order_no: { [Op.like]: `%${search}%` } },
-        { '$Customer.name$': { [Op.like]: `%${search}%` } }
+      const cleanSearch = String(search).trim();
+      const matchedCustomers = await Customer.findAll({
+        where: { name: { [Op.like]: `%${cleanSearch}%` } },
+        attributes: ["id"],
+      });
+      const matchedCustomerIds = matchedCustomers.map((c) => c.id);
+
+      const matchedLots = await GrayLot.findAll({
+        where: { lot_no: { [Op.like]: `%${cleanSearch}%` } },
+        attributes: ["id"],
+      });
+      const matchedLotIds = matchedLots.map((l) => l.id);
+
+      const orConditions = [
+        { invoice_no: { [Op.like]: `%${cleanSearch}%` } },
+        { order_no: { [Op.like]: `%${cleanSearch}%` } },
       ];
+      if (matchedCustomerIds.length > 0) {
+        orConditions.push({ customer_id: { [Op.in]: matchedCustomerIds } });
+      }
+      if (matchedLotIds.length > 0) {
+        orConditions.push({ gray_lot_id: { [Op.in]: matchedLotIds } });
+      }
+      where[Op.or] = orConditions;
     }
 
+    const { ReturnLot } = require("../models");
     const { count, rows } = await DeliveryOrder.findAndCountAll({
       where,
       subQuery: false,
       include: [
-        { model: Customer, attributes: ["id", "name", "customer_code"] },
+        { model: Customer, attributes: ["id", "name", "customer_code", "city"] },
         { 
           model: GrayLot, 
-          attributes: ["lot_no", "measurement", "bill_no", "than"],
+          attributes: ["id", "lot_no", "party_name", "measurement", "gazana", "bill_no", "process_type", "than"],
           include: [{ model: Quality, attributes: ["name"] }]
         },
       ],
@@ -47,15 +68,40 @@ exports.getDeliveryOrders = async (req, res, next) => {
       offset: (page - 1) * pageSize,
     });
 
-    const rowsWithQuality = rows.map(order => {
+    const rowsWithQuality = await Promise.all(rows.map(async (order) => {
       const orderData = order.toJSON();
       if (orderData.gray_lot && orderData.gray_lot.quality) {
         orderData.gray_lot.quality = orderData.gray_lot.quality.name;
       } else if (orderData.GrayLot && orderData.GrayLot.Quality) {
         orderData.GrayLot.quality = orderData.GrayLot.Quality.name;
       }
+
+      if (orderData.gray_lot_id) {
+        const allDOs = await DeliveryOrder.findAll({ where: { gray_lot_id: orderData.gray_lot_id } });
+        const returns = await ReturnLot.findAll({ where: { gray_lot_id: orderData.gray_lot_id } });
+        const delivered = allDOs.reduce((sum, o) => sum + Number(o.total_gray_gazana || 0), 0);
+        const returnedQty = returns.reduce((sum, r) => sum + Number(r.returned_quantity || 0), 0);
+        const gazana = Number((orderData.gray_lot && orderData.gray_lot.gazana) ? orderData.gray_lot.gazana : (orderData.GrayLot ? orderData.GrayLot.gazana : 0));
+        const isMeter = String(orderData.gray_lot?.measurement || orderData.GrayLot?.measurement || "").toLowerCase() === "meter";
+        let balance = 0;
+        if (isMeter) {
+          balance = Math.max(gazana - (delivered + returnedQty) * 0.9144, 0);
+        } else {
+          balance = Math.max(gazana - delivered - returnedQty, 0);
+        }
+        
+        if (orderData.gray_lot) {
+          orderData.gray_lot.balance = balance;
+          orderData.gray_lot.total_gazana = gazana;
+        }
+        if (orderData.GrayLot) {
+          orderData.GrayLot.balance = balance;
+          orderData.GrayLot.total_gazana = gazana;
+        }
+      }
+
       return orderData;
-    });
+    }));
 
     return res.json({ page, pageSize, total: count, data: rowsWithQuality });
   } catch (error) {
@@ -124,8 +170,8 @@ exports.getDeliveryOrderById = async (req, res, next) => {
 
 exports.createDeliveryOrder = async (req, res, next) => {
   try {
-    console.log("Creating DO with body:", JSON.stringify(req.body, null, 2));
-    const { gray_lot_id, total_gray_gazana, total_ready_gazana, grid_data, input_unit } = req.body;
+    // console.log("Creating DO with body:", JSON.stringify(req.body, null, 2));
+    const { gray_lot_id, total_gray_gazana, total_ready_gazana, grid_data, input_unit, order_date } = req.body;
     
     const lot = await GrayLot.findByPk(gray_lot_id);
     if (!lot) return res.status(404).json({ message: "Gray lot not found" });
@@ -160,7 +206,7 @@ exports.createDeliveryOrder = async (req, res, next) => {
       order_no: nextOrderNo,
       customer_id: customer ? customer.id : 1,
       gray_lot_id,
-      order_date: new Date().toISOString().split('T')[0],
+      order_date: order_date || new Date().toISOString().split('T')[0],
       total_amount: 0,
       total_gray_gazana: grayQty,
       total_ready_gazana: Number(total_ready_gazana || 0),
@@ -178,7 +224,11 @@ exports.createDeliveryOrder = async (req, res, next) => {
 exports.updateDeliveryOrder = async (req, res, next) => {
   try {
     const doId = req.params.id;
-    const { gray_lot_id, total_gray_gazana, total_ready_gazana, grid_data, input_unit } = req.body;
+    // console.log("------------------------------------------");
+    // console.log(`[UPDATE DO #${doId}] req.body received:`, JSON.stringify(req.body, null, 2));
+    // console.log(`[UPDATE DO #${doId}] order_date in backend:`, req.body.order_date);
+    // console.log("------------------------------------------");
+    const { gray_lot_id, total_gray_gazana, total_ready_gazana, grid_data, input_unit, order_date } = req.body;
     
     const deliveryOrder = await DeliveryOrder.findByPk(doId);
     if (!deliveryOrder) return res.status(404).json({ message: "Delivery Order not found" });
@@ -219,14 +269,24 @@ exports.updateDeliveryOrder = async (req, res, next) => {
 
     let customer = await Customer.findOne({ where: { name: lot.party_name } });
 
-    await deliveryOrder.update({
+    const updateFields = {
       customer_id: customer ? customer.id : deliveryOrder.customer_id,
       gray_lot_id,
       total_gray_gazana: grayQty,
       total_ready_gazana: Number(total_ready_gazana || 0),
       input_unit: input_unit || deliveryOrder.input_unit,
       grid_data: grid_data || {},
-    });
+    };
+
+    if (order_date) {
+      updateFields.order_date = order_date;
+    }
+
+    console.log(`[UPDATE DO #${doId}] updateFields to DB:`, updateFields);
+    await deliveryOrder.update(updateFields);
+    await deliveryOrder.reload();
+    console.log(`[UPDATE DO #${doId}] reloaded DB record order_date:`, deliveryOrder.order_date);
+    console.log("------------------------------------------");
 
     await logActivity("Delivery Orders", `Updated Order #${deliveryOrder.order_no}`, `Updated quantities and grid data`, req);
 

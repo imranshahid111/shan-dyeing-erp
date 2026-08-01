@@ -2,6 +2,7 @@ const { exec } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const env = require("../config/env");
+const { User } = require("../models");
 
 exports.downloadBackup = (req, res, next) => {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -42,25 +43,56 @@ exports.downloadBackup = (req, res, next) => {
   });
 };
 
-exports.restoreDatabase = (req, res, next) => {
+exports.restoreDatabase = async (req, res, next) => {
   if (!req.file) {
     return res.status(400).json({ message: "No database file uploaded" });
   }
 
-  const sqlFilePath = req.file.path;
-  const command = `mysql -h ${env.dbHost} -P ${env.dbPort} -u ${env.dbUser} ${env.dbPassword ? `-p${env.dbPassword}` : ""} ${env.dbName} < "${sqlFilePath}"`;
+  const { password } = req.body;
+  if (!password) {
+    if (req.file.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    return res.status(400).json({ message: "Password is required for database restoration" });
+  }
 
-  exec(command, (error, stdout, stderr) => {
-    fs.unlink(sqlFilePath, (unlinkErr) => {
-      if (unlinkErr) console.error("Failed to delete uploaded SQL file:", unlinkErr);
-    });
-
-    if (error) {
-      console.error("Exec error:", error);
-      console.error("Stderr:", stderr);
-      return res.status(500).json({ message: "Failed to restore database", details: error.message });
+  try {
+    const userId = req.user?.id;
+    let user = null;
+    if (userId) {
+      user = await User.findByPk(userId);
+    } else {
+      user = await User.findOne({ where: { role: 'admin' } });
     }
-    
-    res.status(200).json({ message: "Database restored successfully" });
-  });
+
+    if (!user) {
+      if (req.file.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(401).json({ message: "User not found or unauthenticated" });
+    }
+
+    const bcrypt = require("bcryptjs");
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) {
+      if (req.file.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(401).json({ message: "Invalid password. Database restoration aborted." });
+    }
+
+    const sqlFilePath = req.file.path;
+    const command = `mysql -h ${env.dbHost} -P ${env.dbPort} -u ${env.dbUser} ${env.dbPassword ? `-p${env.dbPassword}` : ""} ${env.dbName} < "${sqlFilePath}"`;
+
+    exec(command, (error, stdout, stderr) => {
+      fs.unlink(sqlFilePath, (unlinkErr) => {
+        if (unlinkErr) console.error("Failed to delete uploaded SQL file:", unlinkErr);
+      });
+
+      if (error) {
+        console.error("Exec error:", error);
+        console.error("Stderr:", stderr);
+        return res.status(500).json({ message: "Failed to restore database", details: error.message });
+      }
+      
+      res.status(200).json({ message: "Database restored successfully" });
+    });
+  } catch (err) {
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    return next(err);
+  }
 };

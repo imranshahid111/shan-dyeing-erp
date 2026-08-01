@@ -235,7 +235,16 @@ export default function ViewDeliveryOrder() {
             </div>
             <div>
               <p className="font-bold">Date:</p>
-              <p>{new Date(order.order_date).toLocaleDateString('en-PK')}</p>
+              <p>
+                {order.order_date
+                  ? (() => {
+                      const [y, m, d] = String(order.order_date).split('T')[0].split('-');
+                      if (!y || !m || !d) return order.order_date;
+                      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                      return `${d.padStart(2, '0')}-${months[parseInt(m, 10) - 1]}-${y}`;
+                    })()
+                  : '—'}
+              </p>
             </div>
             <div className="text-center">
               <p className="font-bold">Process Type:</p>
@@ -261,20 +270,20 @@ export default function ViewDeliveryOrder() {
                 <tr className="bg-gray-100">
                   <th rowSpan={2} className="border border-gray-300 p-1 align-middle w-[10%]">Sr. No</th>
                   {colors.map(color => (
-                    <th key={color.id} colSpan={2} className="border border-gray-300 p-1 text-center">
+                    <th key={color.id} colSpan={2} className="border border-gray-300 border-b-0 p-1 text-center">
                       {color.name}
                     </th>
                   ))}
                 </tr>
                 {/* Gray/Finish Header Row - Always show both headers */}
-                <tr className="bg-gray-50">
+                <tr className="bg-gray-100">
                   {colors.map(color => (
                     <React.Fragment key={color.id}>
-                      <th className="border border-gray-300 p-1 text-center w-[10%]">
-                        Gray <span className="block text-[8px] text-gray-500 font-normal uppercase tracking-wider">({grayUnitFull})</span>
+                      <th className="border border-gray-300 border-t-0 p-1 text-center w-[10%]">
+                        Gray <span className="sub-unit-label text-[10px]">({grayUnitFull})</span>
                       </th>
-                      <th className="border border-gray-300 p-1 text-center w-[10%]">
-                        Finish <span className="block text-[8px] text-gray-500 font-normal uppercase tracking-wider">({readyUnitFull})</span>
+                      <th className="border border-gray-300 border-t-0 p-1 text-center w-[10%]">
+                        Finish <span className="sub-unit-label text-[10px]">({readyUnitFull})</span>
                       </th>
                     </React.Fragment>
                   ))}
@@ -298,13 +307,13 @@ export default function ViewDeliveryOrder() {
                         const readyVal = getCellValue(rowIndex, color.id, 'ready');
                         return (
                           <React.Fragment key={color.id}>
-                            {/* Gray column - Show blank/dash when checkbox is unchecked, otherwise show actual value */}
-                            <td className="border border-gray-300 p-1 text-center w-[10%]">
-                              {shouldShowGrayValue() && grayVal !== null && grayVal !== undefined && grayVal !== '' ? grayVal : '—'}
+                            {/* Gray column - Show blank when checkbox is unchecked, otherwise show actual value */}
+                            <td className="border border-gray-300 p-1 text-center w-[10%] qty-cell text-sm font-semibold">
+                              {shouldShowGrayValue() && grayVal !== null && grayVal !== undefined && grayVal !== '' ? grayVal : ''}
                             </td>
                             {/* Finish column - Always show with actual value */}
-                            <td className="border border-gray-300 p-1 text-center w-[10%]">
-                              {readyVal !== null && readyVal !== undefined && readyVal !== '' ? readyVal : '—'}
+                            <td className="border border-gray-300 p-1 text-center w-[10%] qty-cell text-sm font-semibold">
+                              {readyVal !== null && readyVal !== undefined && readyVal !== '' ? readyVal : ''}
                             </td>
                           </React.Fragment>
                         );
@@ -321,9 +330,9 @@ export default function ViewDeliveryOrder() {
                     return (
                       <React.Fragment key={color.id}>
                         <td className="border border-gray-300 p-1 text-center w-[10%]">
-                          {colorGrayTotal || '—'}
+                          {colorGrayTotal || ''}
                         </td>
-                        <td className="border border-gray-300 p-1 text-center w-[10%]">{colorReadyTotal || '—'}</td>
+                        <td className="border border-gray-300 p-1 text-center w-[10%]">{colorReadyTotal || ''}</td>
                       </React.Fragment>
                     );
                   })}
@@ -335,11 +344,11 @@ export default function ViewDeliveryOrder() {
           {/* Summary Row - Show total Gray amount always, but hide details when unchecked */}
           <div className="grid grid-cols-4 gap-2 text-sm mb-4 border-t pt-3">
             <div className="font-bold">Gray PCS / {grayUnitFull} :</div>
-            <div>{gridGrayPcsCount > 0 ? gridGrayPcsCount : (order.total_pcs || order.pcs || '—')} / {primaryGrayQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            <div>{gridGrayPcsCount > 0 ? gridGrayPcsCount : (order.total_pcs || order.pcs || '')} / {primaryGrayQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
             <div className="font-bold text-red-600">Shortage {grayUnitFull}:</div>
             <div className="text-red-600">({shortagePercent}%)</div>
             <div className="font-bold">Ready PCS / Finish {readyUnitFull}:</div>
-            <div>{gridReadyPcsCount > 0 ? gridReadyPcsCount : (order.total_pcs_finish || order.finish_pcs || '—')} / {primaryReadyQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            <div>{gridReadyPcsCount > 0 ? gridReadyPcsCount : (order.total_pcs_finish || order.finish_pcs || '')} / {primaryReadyQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
             <div className="col-span-2"></div>
           </div>
 
@@ -403,12 +412,20 @@ export default function ViewDeliveryOrder() {
 
                     return (
                       <tr key={doItem.id} className={`${doItem.id === order.id ? 'bg-blue-50 font-semibold' : doItem.isReturn ? 'bg-red-50 text-red-800 italic' : 'bg-white'} hover:bg-gray-50 transition-colors ${!doItem.isReturn ? 'cursor-pointer' : ''}`} onClick={() => !doItem.isReturn && window.open(`/delivery-orders/${doItem.id}`, '_blank')}>
-                        <td className="border border-gray-300 p-1 text-center">{new Date(doItem.order_date).toLocaleDateString('en-GB')}</td>
+                        <td className="border border-gray-300 p-1 text-center">
+                          {doItem.order_date
+                            ? (() => {
+                                const [y, m, d] = String(doItem.order_date).split('T')[0].split('-');
+                                if (!y || !m || !d) return doItem.order_date;
+                                return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+                              })()
+                            : '—'}
+                        </td>
                         <td className={`border border-gray-300 p-1 text-center ${!doItem.isReturn ? 'text-blue-600' : 'font-bold'}`}>{doItem.order_no}</td>
-                        <td className="border border-gray-300 p-1 text-center">{gPcs > 0 ? gPcs : '—'}</td>
-                        <td className="border border-gray-300 p-1 text-center">{gMtr > 0 ? gMtr.toFixed(2) : '—'}</td>
-                        <td className="border border-gray-300 p-1 text-center">{fPcs > 0 ? fPcs : '—'}</td>
-                        <td className="border border-gray-300 p-1 text-center">{!doItem.isReturn ? fMtr.toFixed(2) : '—'}</td>
+                        <td className="border border-gray-300 p-1 text-center">{gPcs > 0 ? gPcs : ''}</td>
+                        <td className="border border-gray-300 p-1 text-center">{gMtr > 0 ? gMtr.toFixed(2) : ''}</td>
+                        <td className="border border-gray-300 p-1 text-center">{fPcs > 0 ? fPcs : ''}</td>
+                        <td className="border border-gray-300 p-1 text-center">{!doItem.isReturn ? fMtr.toFixed(2) : ''}</td>
                         <td className={`border border-gray-300 p-1 text-center font-bold ${!isComplete ? 'text-orange-600' : 'text-green-600'}`}>
                           {!isComplete ? 'Incomplete' : 'Completed'}
                         </td>
@@ -420,15 +437,23 @@ export default function ViewDeliveryOrder() {
                   });
                 })() : (
                   <tr>
-                    <td className="border border-gray-300 p-1 text-center">{new Date(order.order_date).toLocaleDateString('en-GB')}</td>
+                    <td className="border border-gray-300 p-1 text-center">
+                      {order.order_date
+                        ? (() => {
+                            const [y, m, d] = String(order.order_date).split('T')[0].split('-');
+                            if (!y || !m || !d) return order.order_date;
+                            return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+                          })()
+                        : '—'}
+                    </td>
                     <td className="border border-gray-300 p-1 text-center">{order.order_no}</td>
                     <td className="border border-gray-300 p-1 text-center">
-                      {gridGrayPcsCount > 0 ? gridGrayPcsCount : (order.total_pcs || order.pcs || '—')}
+                      {gridGrayPcsCount > 0 ? gridGrayPcsCount : (order.total_pcs || order.pcs || '')}
                     </td>
                     <td className="border border-gray-300 p-1 text-center">
                       {primaryGrayQty.toFixed(2)}
                     </td>
-                    <td className="border border-gray-300 p-1 text-center">{gridReadyPcsCount > 0 ? gridReadyPcsCount : (order.total_pcs_finish || order.finish_pcs || '—')}</td>
+                    <td className="border border-gray-300 p-1 text-center">{gridReadyPcsCount > 0 ? gridReadyPcsCount : (order.total_pcs_finish || order.finish_pcs || '')}</td>
                     <td className="border border-gray-300 p-1 text-center">{primaryReadyQty.toFixed(2)}</td>
                     <td className={`border border-gray-300 p-1 text-center font-bold ${Number(order.gray_lot?.balance || 0) > 0.5 ? 'text-orange-600' : 'text-green-600'}`}>
                       {Number(order.gray_lot?.balance || 0) > 0.5 ? 'Incomplete' : 'Completed'}
@@ -532,72 +557,100 @@ export default function ViewDeliveryOrder() {
           
         </div>
       </div>
-      
+
       {/* Print CSS Override */}
       <style>{`
         @page {
           size: A4 portrait;
-          margin: 10mm;
+          margin: 6mm 6mm 6mm 6mm;
         }
         @media print {
-          .app-sidebar, header {
-            display: none !important;
-          }
-          body {
-            margin: 0;
-            padding: 0;
-          }
+          /* Hide all UI elements except print-area */
           body * {
-            visibility: hidden;
+            visibility: hidden !important;
           }
-          .max-w-5xl {
-            max-width: 100% !important;
+          
+          .print-area, .print-area * {
+            visibility: visible !important;
+          }
+
+          /* Detach print-area from layout flow to allow natural browser pagination */
+          .print-area {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
             width: 100% !important;
             margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+            float: none !important;
+            overflow: visible !important;
           }
-          .print-area, .print-area * {
-            visibility: visible;
+
+          /* Force un-hide and unlock parent containers height */
+          html, body, #root, main, div {
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            position: static !important;
           }
-          .print-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0;
-            padding: 0;
-          }
-          .print\\:hidden {
+
+          .print\\:hidden, button, header, nav, .sidebar, .app-sidebar {
             display: none !important;
           }
-          button, .print\\:hidden {
-            display: none;
-          }
+
           .bg-gray-100, .bg-gray-50, .bg-gray-200 {
             background-color: #f3f4f6 !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
-          .border, .border-gray-300 {
-            border-color: #000 !important;
+
+          .border, .border-gray-300, .border-gray-200 {
+            border-color: #000000 !important;
           }
-          .text-blue-600 {
-            color: black !important;
+
+          .text-blue-600, .text-gray-500, .text-gray-600, .text-gray-700, .text-gray-800, .text-gray-900, .text-red-600, .text-orange-600, .text-green-600 {
+            color: #000000 !important;
           }
-          /* Fix for many columns getting cut off */
-          .overflow-x-auto {
-            overflow: visible !important;
-          }
+
           table {
             width: 100% !important;
             max-width: 100% !important;
             table-layout: fixed !important;
+            border-collapse: collapse !important;
+            page-break-inside: auto !important;
           }
+
+          tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          thead {
+            display: table-header-group !important;
+          }
+
           th, td {
-            padding: 1px !important;
-            font-size: 8px !important;
+            padding: 2px 1px !important;
+            font-size: 9px !important;
             word-wrap: break-word;
-            overflow: hidden;
+            color: #000000 !important;
+          }
+
+          .sub-unit-label {
+            font-size: 7.5px !important;
+            font-weight: normal !important;
+          }
+
+          .qty-cell {
+            font-size: 13px !important;
+            font-weight: 700 !important;
+          }
+
+          .lot-history-section, .signature-section {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
         }
         .font-urdu {

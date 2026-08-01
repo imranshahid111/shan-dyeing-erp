@@ -14,10 +14,14 @@ exports.getGatePasses = async (req, res, next) => {
             {
               model: DeliveryOrder,
               as: "delivery_order",
-              attributes: ["id", "order_no", "total_gray_gazana", "total_ready_gazana"],
+              attributes: ["id", "order_no", "total_gray_gazana", "total_ready_gazana", "input_unit", "grid_data"],
               include: [
                 { model: Customer, attributes: ["id", "name", "customer_code"] },
-                { model: GrayLot, attributes: ["id", "lot_no", "party_name"] },
+                { 
+                  model: GrayLot, 
+                  attributes: ["id", "lot_no", "party_name", "measurement"],
+                  include: [{ model: require("../models").Quality, attributes: ["id", "name"] }]
+                },
               ],
             },
           ],

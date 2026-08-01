@@ -181,7 +181,16 @@ export default function CreateInvoice() {
                       onMouseEnter={() => setFocusedDoIndex(index)}
                     >
                       <div>
-                        <div className="font-bold text-gray-800">{doItem.order_no}</div>
+                        <div className="font-bold text-gray-800 flex items-center justify-between">
+                          <span>{doItem.order_no}</span>
+                          {((doItem.gray_lot as any)?.quality || (doItem.gray_lot as any)?.Quality) && (
+                            <span className="text-[10px] px-2 py-0.5 bg-purple-100 text-purple-700 rounded-md font-black">
+                              {typeof (doItem.gray_lot as any)?.quality === 'object' 
+                                ? (doItem.gray_lot as any)?.quality?.name 
+                                : ((doItem.gray_lot as any)?.quality || (doItem.gray_lot as any)?.Quality?.name)}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-gray-500">{doItem.customer?.name}</div>
                       </div>
                       {selectedDO?.id === doItem.id && <Check size={18} className="text-blue-600" />}
@@ -194,26 +203,34 @@ export default function CreateInvoice() {
         </div>
 
         {selectedDO && (
-          <div className="mt-4 grid grid-cols-3 gap-4">
-            <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">Lot No</p>
-              <p className="font-medium text-gray-800">{selectedDO.gray_lot?.lot_no}</p>
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+            <div className="bg-gray-50 rounded-xl p-3">
+              <p className="text-xs text-gray-500 mb-1 font-bold">Lot No</p>
+              <p className="font-mono font-bold text-gray-800">{selectedDO.gray_lot?.lot_no || '—'}</p>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">Party</p>
-              <p className="font-medium text-gray-800">{selectedDO.customer?.name}</p>
+            <div className="bg-purple-50 rounded-xl p-3 border border-purple-100">
+              <p className="text-xs text-purple-600 mb-1 font-bold">Quality</p>
+              <p className="font-bold text-purple-900 truncate">
+                {typeof (selectedDO.gray_lot as any)?.quality === 'object' 
+                  ? (selectedDO.gray_lot as any)?.quality?.name 
+                  : ((selectedDO.gray_lot as any)?.quality || (selectedDO.gray_lot as any)?.Quality?.name || '—')}
+              </p>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">Gray Mtr</p>
+            <div className="bg-gray-50 rounded-xl p-3">
+              <p className="text-xs text-gray-500 mb-1 font-bold">Party</p>
+              <p className="font-semibold text-gray-800 truncate">{selectedDO.customer?.name}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3">
+              <p className="text-xs text-gray-500 mb-1 font-bold">Gray Mtr</p>
               <p className="font-medium text-gray-800">{grayMeterQuantity.toFixed(2)}m</p>
             </div>
-            <div className="bg-blue-50 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">Ready Mtr</p>
-              <p className="font-bold text-blue-600">{meterQuantity.toFixed(2)}m</p>
+            <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+              <p className="text-xs text-blue-600 mb-1 font-bold">Ready Mtr</p>
+              <p className="font-bold text-blue-700">{meterQuantity.toFixed(2)}m</p>
             </div>
-            <div className="bg-blue-50 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">Ready Yds (Gaz)</p>
-              <p className="font-bold text-blue-600">{yardQuantity.toFixed(2)}y</p>
+            <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+              <p className="text-xs text-blue-600 mb-1 font-bold">Ready Yds (Gaz)</p>
+              <p className="font-bold text-blue-700">{yardQuantity.toFixed(2)}y</p>
             </div>
           </div>
         )}

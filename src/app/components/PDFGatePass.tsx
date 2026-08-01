@@ -241,34 +241,52 @@ const GatePassCopy = ({ gp, org, copyType }: { gp: GatePassItem; org: Organizati
       <View style={styles.table}>
         <View style={[styles.tableRow, styles.tableHeader]}>
           <Text style={[styles.tableCell, { width: '10%' }]}>D.O No</Text>
-          <Text style={[styles.tableCell, { width: '8%' }]}>Lot No</Text>
-          <Text style={[styles.tableCellLeft, { width: '23%' }]}>Party Name</Text>
-          <Text style={[styles.tableCellLeft, { width: '20%' }]}>Description</Text>
-          <Text style={[styles.tableCell, { width: '8%' }]}>Bundles</Text>
-          <Text style={[styles.tableCell, { width: '11%' }]}>Gazana</Text>
-          <Text style={[styles.tableCell, { width: '20%' }]}>Status</Text>
+          <Text style={[styles.tableCell, { width: '12%' }]}>Lot No</Text>
+          <Text style={[styles.tableCellLeft, { width: '21%' }]}>Party Name</Text>
+          <Text style={[styles.tableCellLeft, { width: '21%' }]}>Description</Text>
+          <Text style={[styles.tableCell, { width: '7%' }]}>Bundles</Text>
+          <Text style={[styles.tableCell, { width: '12%' }]}>Gazana / Mtr</Text>
+          <Text style={[styles.tableCell, { width: '17%' }]}>Status</Text>
         </View>
 
-        {(gp.items || []).map((item, idx) => (
-          <View style={styles.tableRow} key={idx}>
-            <Text style={[styles.tableCell, { width: '10%' }]}>{item.delivery_order?.order_no || '—'}</Text>
-            <Text style={[styles.tableCell, { width: '8%' }]}>{(item.delivery_order as any)?.gray_lot?.lot_no || '—'}</Text>
-            <Text style={[styles.tableCellLeft, { width: '23%' }]}>{item.delivery_order?.customer?.name || '—'}</Text>
-            <Text style={[styles.tableCellLeft, { width: '20%' }]}>{item.description || '—'}</Text>
-            <Text style={[styles.tableCell, { width: '8%' }]}>{item.bundles || 0}</Text>
-            <Text style={[styles.tableCell, { width: '11%' }]}>{Number(item.gazana_total || 0).toLocaleString()}</Text>
-            <Text style={[styles.tableCell, { width: '20%' }]}>{item.status || (allComplete ? 'Complete' : 'Pending')}</Text>
-          </View>
-        ))}
+        {(gp.items || []).map((item, idx) => {
+          const doObj: any = item.delivery_order || {};
+          const lotObj: any = doObj.gray_lot || doObj.GrayLot || {};
+          const qualityInfo: any = lotObj.quality || lotObj.Quality || '';
+          const qualityName = typeof qualityInfo === 'object' ? qualityInfo.name : qualityInfo;
+          const unit = (doObj.input_unit || doObj.grid_data?.inputUnit || 'meter') === 'gaz' ? 'Gaz' : 'Mtr';
+          
+          let displayDesc = item.description || '';
+          if (qualityName) {
+            displayDesc = displayDesc ? `${qualityName} - ${displayDesc}` : qualityName;
+          }
+          if (!displayDesc) displayDesc = '—';
+
+          return (
+            <View style={styles.tableRow} key={idx}>
+              <Text style={[styles.tableCell, { width: '10%' }]}>{doObj.order_no || '—'}</Text>
+              <Text style={[styles.tableCell, { width: '12%' }]}>{lotObj.lot_no || '—'}</Text>
+              <Text style={[styles.tableCellLeft, { width: '21%' }]}>{doObj.customer?.name || '—'}</Text>
+              <Text style={[styles.tableCellLeft, { width: '21%' }]}>{displayDesc}</Text>
+              <Text style={[styles.tableCell, { width: '7%' }]}>{item.bundles || 0}</Text>
+              <Text style={[styles.tableCell, { width: '12%' }]}>
+                {Number(item.gazana_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {unit}
+              </Text>
+              <Text style={[styles.tableCell, { width: '17%' }]}>{item.status || (allComplete ? 'Complete' : 'Pending')}</Text>
+            </View>
+          );
+        })}
 
         <View style={[styles.tableRow, styles.totalRow]}>
           <Text style={[styles.tableCell, { width: '10%', fontWeight: 'bold' }]}>Total:</Text>
-          <Text style={[styles.tableCell, { width: '8%' }]}></Text>
-          <Text style={[styles.tableCellLeft, { width: '23%' }]}></Text>
-          <Text style={[styles.tableCellLeft, { width: '20%' }]}></Text>
-          <Text style={[styles.tableCell, { width: '8%', fontWeight: 'bold' }]}>{totalBundles}</Text>
-          <Text style={[styles.tableCell, { width: '11%', fontWeight: 'bold' }]}>{totalGazana.toLocaleString()}</Text>
-          <Text style={[styles.tableCell, { width: '20%', fontWeight: 'bold' }]}>{allComplete ? 'Complete' : 'In Progress'}</Text>
+          <Text style={[styles.tableCell, { width: '12%' }]}></Text>
+          <Text style={[styles.tableCellLeft, { width: '21%' }]}></Text>
+          <Text style={[styles.tableCellLeft, { width: '21%' }]}></Text>
+          <Text style={[styles.tableCell, { width: '7%', fontWeight: 'bold' }]}>{totalBundles}</Text>
+          <Text style={[styles.tableCell, { width: '12%', fontWeight: 'bold' }]}>
+            {totalGazana.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </Text>
+          <Text style={[styles.tableCell, { width: '17%', fontWeight: 'bold' }]}>{allComplete ? 'Complete' : 'In Progress'}</Text>
         </View>
       </View>
 

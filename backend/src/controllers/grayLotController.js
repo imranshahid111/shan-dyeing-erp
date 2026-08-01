@@ -40,9 +40,9 @@ exports.getGrayLots = async (req, res, next) => {
     const where = search
       ? {
           [Op.or]: [
-            { lot_no: { [Op.like]: `${search}%` } },
-            { party_name: { [Op.like]: `${search}%` } },
-            { bill_no: { [Op.like]: `${search}%` } },
+            { lot_no: { [Op.like]: `%${search}%` } },
+            { party_name: { [Op.like]: `%${search}%` } },
+            { bill_no: { [Op.like]: `%${search}%` } },
           ],
         }
       : undefined;
@@ -63,19 +63,19 @@ exports.getGrayLots = async (req, res, next) => {
 
 exports.getLotsWithBalance = async (req, res, next) => {
   try {
-    const lots = await GrayLot.findAll({
-      include: [
-        {
-          model: DeliveryOrder,
-          attributes: ['total_gray_gazana'],
-        },
-        {
-          model: ReturnLot,
-          attributes: ['returned_quantity'],
-        }
-      ],
-      order: [["id", "DESC"]]
-    });
+    const [lots, allQualities] = await Promise.all([
+      GrayLot.findAll({
+        include: [
+          { model: Quality, attributes: ['id', 'name'] },
+          { model: DeliveryOrder, attributes: ['total_gray_gazana'] },
+          { model: ReturnLot, attributes: ['returned_quantity'] }
+        ],
+        order: [["id", "DESC"]]
+      }),
+      Quality.findAll({ attributes: ['id', 'name'] })
+    ]);
+
+    const qualityMap = new Map(allQualities.map(q => [Number(q.id), q.name]));
 
     const results = lots.map((lot) => {
       const delivered = lot.delivery_orders ? lot.delivery_orders.reduce((sum, order) => sum + Number(order.total_gray_gazana || 0), 0) : 0;
@@ -92,10 +92,14 @@ exports.getLotsWithBalance = async (req, res, next) => {
         remaining = Math.max(gazana - delivered - returned, 0);
       }
 
+      const qId = Number(lot.quality_id);
+      const qualityName = lot.quality?.name || lot.Quality?.name || qualityMap.get(qId) || '';
+
       return {
         id: lot.id,
         lotNo: lot.lot_no,
         partyName: lot.party_name,
+        quality: qualityName,
         process: lot.process_type,
         totalGray: gazana,
         remaining: Number(remaining.toFixed(2)),

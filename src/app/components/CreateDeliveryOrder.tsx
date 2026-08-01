@@ -34,6 +34,7 @@ export default function CreateDeliveryOrder() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [inputUnit, setInputUnit] = useState<'meter' | 'gaz'>('meter');
   const [remarks, setRemarks] = useState('');
+  const [orderDate, setOrderDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -96,6 +97,7 @@ export default function CreateDeliveryOrder() {
     const loadData = async () => {
       try {
         const response = await grayLotService.getLotsWithBalance();
+        setLots(response || []);
         
         if (id) {
           const doData = await deliveryOrderService.getDeliveryOrderById(id);
@@ -109,6 +111,9 @@ export default function CreateDeliveryOrder() {
             setSelectedLot(lot);
           }
           
+          if (doData.order_date) {
+            setOrderDate(doData.order_date.split('T')[0]);
+          }
           if ((doData as any).remarks) setRemarks((doData as any).remarks);
           
           if (doData.grid_data) {
@@ -365,6 +370,7 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
 
       const payload = {
         gray_lot_id: selectedLot.id,
+        order_date: orderDate,
         remarks: remarks,
         // Totals always sent in gaz to backend for lot balance tracking
         total_gray_gazana: totalGrayGazana,
@@ -430,6 +436,16 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Lot Selection</h3>
 
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-600 mb-2">DO Date</label>
+                <input
+                  type="date"
+                  value={orderDate}
+                  onChange={(e) => setOrderDate(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+              </div>
+
               <div ref={dropdownRef} className="relative z-50">
                 <label className="block text-sm text-gray-600 mb-2">Select Lot No</label>
                 <div 
@@ -469,8 +485,18 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                           <div
                             key={lot.id}
                             className={`px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-all ${selectedLot?.id === lot.id ? 'bg-blue-50 border border-blue-100' : 'hover:bg-gray-50 border border-transparent'}`}
-                            onClick={() => {
-                              setSelectedLot(lot);
+                            onClick={async () => {
+                              if (!lot.quality) {
+                                try {
+                                  const fullLot = await grayLotService.getGrayLot(lot.id);
+                                  const qName = fullLot?.quality?.name || fullLot?.Quality?.name || '';
+                                  setSelectedLot({ ...lot, quality: qName });
+                                } catch (e) {
+                                  setSelectedLot(lot);
+                                }
+                              } else {
+                                setSelectedLot(lot);
+                              }
                               setIsDropdownOpen(false);
                               setSearchQuery('');
                             }}
@@ -483,9 +509,10 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                                 {lot.remaining} left
                               </span>
                             </div>
-                            <div className={`text-xs mt-0.5 ${selectedLot?.id === lot.id ? 'text-blue-600/80' : 'text-gray-500'}`}>
-                              {lot.partyName}
-                            </div>
+                             <div className={`text-xs mt-0.5 flex justify-between ${selectedLot?.id === lot.id ? 'text-blue-600/80' : 'text-gray-500'}`}>
+                                <span>{lot.partyName}</span>
+                                {lot.quality && <span className="font-semibold text-purple-700">{lot.quality}</span>}
+                              </div>
                           </div>
                         ))
                       )}
@@ -533,6 +560,10 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Party Name</span>
                     <span className="text-sm font-medium text-gray-800">{selectedLot.partyName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Quality</span>
+                    <span className="text-sm font-bold text-purple-700">{selectedLot.quality || '—'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Process</span>
@@ -754,7 +785,7 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                       </td>
                       {colors.map((color, colorIndex) => (
                         <React.Fragment key={color.id}>
-                          <td className={`border border-gray-300 p-0 ${colorIndex % 2 === 0 ? 'bg-yellow-50' : 'bg-green-50'}`}>
+                          <td className="border border-gray-300 p-0 bg-yellow-50">
                             <input
                               ref={el => { cellRefs.current[getCellKey(rowIndex, colorIndex, 'gray')] = el; }}
                               type="number"
@@ -770,7 +801,7 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                               className="w-full h-8 px-2 text-center text-xs bg-transparent focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                           </td>
-                          <td className={`border border-gray-300 p-0 ${colorIndex % 2 === 0 ? 'bg-yellow-50' : 'bg-green-50'}`}>
+                          <td className="border border-gray-300 p-0 bg-green-50">
                             <input
                               ref={el => { cellRefs.current[getCellKey(rowIndex, colorIndex, 'ready')] = el; }}
                               type="number"
@@ -795,12 +826,12 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                 <tfoot>
                   <tr className="bg-gray-100 font-semibold">
                     <td className="border border-gray-300 px-2 py-2 text-center text-xs">Total</td>
-                    {colors.map((color, index) => (
+                    {colors.map((color) => (
                       <React.Fragment key={color.id}>
-                        <td className={`border border-gray-300 px-2 py-2 text-center text-xs ${index % 2 === 0 ? 'bg-yellow-100' : 'bg-green-100'}`}>
+                        <td className="border border-gray-300 px-2 py-2 text-center text-xs bg-yellow-100">
                           {calculateColorTotal(color.id, 'gray')}
                         </td>
-                        <td className={`border border-gray-300 px-2 py-2 text-center text-xs ${index % 2 === 0 ? 'bg-yellow-100' : 'bg-green-100'}`}>
+                        <td className="border border-gray-300 px-2 py-2 text-center text-xs bg-green-100">
                           {calculateColorTotal(color.id, 'ready')}
                         </td>
                       </React.Fragment>
@@ -808,12 +839,12 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                   </tr>
                   <tr className="bg-gray-50 font-semibold text-gray-700">
                     <td className="border border-gray-300 px-2 py-2 text-center text-xs">% Shortage</td>
-                    {colors.map((color, index) => (
+                    {colors.map((color) => (
                       <React.Fragment key={color.id}>
-                        <td className={`border border-gray-300 px-2 py-2 text-center text-xs ${index % 2 === 0 ? 'bg-yellow-50' : 'bg-green-50'}`}>
+                        <td className="border border-gray-300 px-2 py-2 text-center text-xs bg-yellow-50">
                           {calculateColorTotal(color.id, 'gray')}
                         </td>
-                        <td className={`border border-gray-300 px-2 py-2 text-center text-xs text-red-600 font-bold ${index % 2 === 0 ? 'bg-yellow-50' : 'bg-green-50'}`}>
+                        <td className="border border-gray-300 px-2 py-2 text-center text-xs text-red-600 font-bold bg-green-50">
                           {calculateColorTotal(color.id, 'gray') ? `${calculateColorPercentage(color.id)}%` : '—'}
                         </td>
                       </React.Fragment>

@@ -222,7 +222,7 @@ export const PDFCompletedLots = ({
               <Cell width={COL.than} bold>Than</Cell>
               <Cell width={COL.in} variant="right" bold>Meters In</Cell>
               <Cell width={COL.out} variant="right" bold>Meters Out</Cell>
-              <Cell width={COL.total} variant="right" bold>Total Mtr</Cell>
+              <Cell width={COL.total} variant="right" bold>Ready Mtr</Cell>
               <Cell width={COL.do} variant="right" bold>D.O</Cell>
               <Cell width={COL.kwapsi} variant="right" bold>K-Wapsi</Cell>
               <Cell width={COL.balance} variant="right" bold>Balance</Cell>

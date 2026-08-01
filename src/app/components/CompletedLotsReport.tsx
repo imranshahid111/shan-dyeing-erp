@@ -210,7 +210,7 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
             >
               <option value="date">Sort: Date</option>
               <option value="lotNo">Sort: Lot Number</option>
-              <option value="totalMeters">Sort: Total Meters</option>
+              <option value="totalMeters">Sort: Ready Meters</option>
               <option value="quality">Sort: Quality</option>
             </select>
             <select
@@ -293,8 +293,8 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
                 <thead className="sticky top-0 z-[1]">
                   <tr className="bg-gray-300">
                     {(reportType === 'incomplete' 
-                      ? ['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Total Meters', 'D.O', 'K-Wapsi', 'Balance', 'Remarks']
-                      : ['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Total Meters', 'D.O', 'K-Wapsi', 'Balance', 'Percentage', 'Remarks']
+                      ? ['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Ready Meters', 'D.O', 'K-Wapsi', 'Balance', 'Remarks']
+                      : ['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Ready Meters', 'D.O', 'K-Wapsi', 'Balance', 'Percentage', 'Remarks']
                     ).map((h) => (
                       <th key={h} className="border border-black p-1.5 text-left whitespace-nowrap font-black uppercase text-[9px]">
                         {h}

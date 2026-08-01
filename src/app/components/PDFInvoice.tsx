@@ -141,11 +141,35 @@ const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organizatio
   const readyMeter = readyGaz * 0.9144;
   const effectiveQty = isRateMeter ? readyMeter : readyGaz;
   
-  const coraBundle = Number((inv as any).total_pcs || (inv as any).pcs || 0);
+  // Calculate bundles from grid_data if available
+  let gridData: any = inv.grid_data;
+  if (typeof gridData === 'string') {
+    try { gridData = JSON.parse(gridData); } catch (e) {}
+  }
+  
+  let gridCoraBundle = 0;
+  let gridFinishBundle = 0;
+  
+  const rowsArr = gridData?.rows || gridData?.grid_data?.rows || [];
+  const colorsArr = gridData?.colors || gridData?.grid_data?.colors || [];
+
+  if (Array.isArray(rowsArr) && Array.isArray(colorsArr)) {
+    rowsArr.forEach((r: any) => {
+      colorsArr.forEach((c: any) => {
+        const valObj = r.values?.[c.id] || r.values?.[String(c.id)];
+        const g = Number(valObj?.gray || valObj?.g || 0);
+        const f = Number(valObj?.ready || valObj?.finish || valObj?.f || 0);
+        if (g > 0) gridCoraBundle++;
+        if (f > 0) gridFinishBundle++;
+      });
+    });
+  }
+
+  const coraBundle = gridCoraBundle > 0 ? gridCoraBundle : Number((inv as any).total_pcs || (inv as any).pcs || (inv as any).than || 0);
   const coraGazanaDB = Number(inv.total_gray_gazana || 0);
   const displayCoraLabel = isDoMeter ? 'Cora Mtr:' : 'Cora Gazana:';
   const displayCoraValue = isDoMeter ? (coraGazanaDB * 0.9144) : coraGazanaDB;
-  const finishBundle = Number((inv as any).total_pcs_finish || (inv as any).finish_pcs || 0);
+  const finishBundle = gridFinishBundle > 0 ? gridFinishBundle : Number((inv as any).total_pcs_finish || (inv as any).finish_pcs || 0);
   
   const processingAmount = effectiveQty * Number(inv.rate || 0);
   
@@ -158,7 +182,22 @@ const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organizatio
   const packingRate = packingAmount > 0 && packingQty > 0 ? (packingAmount / packingQty).toFixed(2) : '-';
 
   const totalInvoiceAmount = Number(inv.total_amount || 0);
-  const balanceCora = 0.00;
+  
+  // Extract lot object from any property variation
+  const lotObj: any = inv.gray_lot || (inv as any).GrayLot || (inv as any).lot || {};
+  const rawBalance = lotObj.balance ?? lotObj.remaining ?? (inv as any).balance;
+  
+  let balanceCora = 0;
+  if (rawBalance !== undefined && rawBalance !== null && !isNaN(Number(rawBalance))) {
+    balanceCora = Number(rawBalance);
+  } else {
+    const totalGazana = Number(lotObj.gazana || lotObj.total_gazana || 0);
+    const deliveredGazana = Number(inv.total_gray_gazana || 0);
+    if (totalGazana > 0) {
+      balanceCora = Math.max(totalGazana - deliveredGazana, 0);
+    }
+  }
+  const isCompleted = balanceCora <= 1;
 
   // Typecasting to access nested quality properly if available
   const productInfo: any = inv.gray_lot?.quality || '';
@@ -278,14 +317,18 @@ const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organizatio
       <View style={styles.bottomSection}>
         <View style={styles.balanceBox}>
           <Text style={styles.labelSmall}>Balance Cora</Text>
-          <Text style={styles.valueSmall}>{balanceCora.toFixed(2)}</Text>
+          <Text style={[styles.valueSmall, { fontWeight: 'bold', fontSize: 10 }]}>
+            {balanceCora.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </Text>
         </View>
         <View style={styles.conditionBox}>
           <Text style={styles.labelSmall}>Condition:</Text>
-          <Text style={[styles.valueSmall, { color: 'blue' }]}>Complete</Text>
+          <Text style={[styles.valueSmall, { fontWeight: 'bold', color: isCompleted ? 'green' : 'orange' }]}>
+            {isCompleted ? 'Complete' : 'Incomplete'}
+          </Text>
         </View>
         <View style={styles.totalBox}>
-          <Text style={styles.labelSmall}>Total Invoice Amount:</Text>
+          <Text style={styles.labelSmall}>Total Amount:</Text>
           <Text style={{ fontWeight: 'bold', fontSize: 12 }}>{totalInvoiceAmount.toLocaleString()}</Text>
         </View>
       </View>

@@ -327,6 +327,14 @@ exports.getSubLedgerReport = async (req, res, next) => {
         quality += ` - ${extras.join(", ")}`;
       }
 
+      const isLotMeter = String(lot.measurement || "").toLowerCase() === "meter";
+      const rawGray = Number(o.total_gray_gazana || 0);
+      const rawReady = Number(o.total_ready_gazana || 0);
+
+      // Convert DB gazana (which is always in GAZ / Yard) to Meters (* 0.9144) if lot or DO is in meters
+      const grayMeters = isLotMeter ? (rawGray * 0.9144) : rawGray;
+      const readyMeters = (o.input_unit || 'meter') === 'gaz' ? (rawReady * 0.9144) : rawReady;
+
       periodEntries.push({
         date: o.order_date,
         type: "BILL",
@@ -338,8 +346,8 @@ exports.getSubLedgerReport = async (req, res, next) => {
         rate: Number(o.rate || 0),
         lotNo: lot.lot_no || "—",
         bundleQty: countBundleQuantity(o),
-        grayQty: Number(o.total_gray_gazana || 0),
-        meterQty: Number(o.total_ready_gazana || 0),
+        grayQty: parseFloat(grayMeters.toFixed(2)),
+        meterQty: parseFloat(readyMeters.toFixed(2)),
         sortOrder: 1,
       });
     });
@@ -549,15 +557,28 @@ exports.getCompletedLotsReport = async (req, res, next) => {
         const completionDate = allDates.reduce((max, d) =>
           new Date(d) > new Date(max) ? d : max, allDates[0]);
 
+        // metersIn: lot's gazana is stored in its own unit (Meter or Yard) → convert correctly
         const metersIn = toMeters(gazana, measurement);
-        const metersOut = dbValueToMeters(grayDispatched);
-        const totalMeters = dbValueToMeters(readyProduced);
-        const doQty = dbValueToMeters(readyProduced);
-        const kWapsi = dbValueToMeters(kWapsiRaw);
+
+        // grayDispatched, readyProduced, kWapsiRaw: always stored in Gaz (Yards) in DB
+        // So when lot is in Meters: multiply by 0.9144
+        // When lot is in Yards: use as-is (already gaz)
+        const metersOut = isMeter
+          ? parseFloat((grayDispatched * 0.9144).toFixed(2))
+          : parseFloat(grayDispatched.toFixed(2));
+        const totalMeters = isMeter
+          ? parseFloat((readyProduced * 0.9144).toFixed(2))
+          : parseFloat(readyProduced.toFixed(2));
+        const doQty = totalMeters;
+        const kWapsi = isMeter
+          ? parseFloat((kWapsiRaw * 0.9144).toFixed(2))
+          : parseFloat(kWapsiRaw.toFixed(2));
+        // balance (remainingRaw) is already computed in lot's native unit above
         const balance = toMeters(remainingRaw, measurement);
-        const percentage = metersIn > 0
-          ? parseFloat((((totalMeters - metersIn) / metersIn) * 100).toFixed(2))
-          : 0;
+        
+        // Percentage: ((Meters Out - Meters In) / Meters In) * 100
+        const calcPct = metersIn > 0 ? (((metersOut - metersIn) / metersIn) * 100) : 0;
+        const percentage = Math.abs(calcPct) < 0.001 ? 0 : parseFloat(calcPct.toFixed(2));
 
         const remarks = lot.notes
           || returns.map((r) => r.reason).filter(Boolean).join("; ")

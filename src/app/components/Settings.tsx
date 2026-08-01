@@ -11,6 +11,9 @@ export default function Settings() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { getToken } = useAuth();
 
+  const [password, setPassword] = useState('');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFile(e.target.files[0]);
@@ -18,19 +21,32 @@ export default function Settings() {
     }
   };
 
-  const handleRestore = async () => {
+  const handleInitiateRestore = async () => {
     if (!file) return;
 
     if (!await confirmDialog('WARNING: This action is DESTRUCTIVE. It will completely overwrite the existing database with the data from the uploaded file. Are you absolutely sure you want to proceed?')) {
       return;
     }
 
+    setPassword('');
+    setShowPasswordModal(true);
+  };
+
+  const handleConfirmRestore = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!password) {
+      setErrorMessage('Password is required');
+      return;
+    }
+
+    setShowPasswordModal(false);
     setIsUploading(true);
     setStatus('idle');
     setErrorMessage('');
 
     const formData = new FormData();
-    formData.append('database', file);
+    formData.append('database', file!);
+    formData.append('password', password);
 
     try {
       const token = getToken ? getToken() : localStorage.getItem('erp_token');
@@ -51,6 +67,7 @@ export default function Settings() {
 
       setStatus('success');
       setFile(null);
+      setPassword('');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -166,7 +183,7 @@ export default function Settings() {
             )}
 
             <button
-              onClick={handleRestore}
+              onClick={handleInitiateRestore}
               disabled={!file || isUploading}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
@@ -198,6 +215,75 @@ export default function Settings() {
 
         </div>
       </div>
+
+      {showPasswordModal && (
+        <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
+          <div className="modal-dialog" style={{ maxWidth: '420px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="flex items-center gap-2 text-gray-900" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#111827' }}>
+                <Database size={20} color="#dc2626" /> Security Verification
+              </h3>
+              <button className="modal-close-btn" onClick={() => setShowPasswordModal(false)}>
+                <XCircle size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleConfirmRestore}>
+              <div className="modal-body" style={{ padding: '1.25rem' }}>
+                <p style={{ color: '#4b5563', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                  Please enter your password to authorize replacing the database.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#374151' }}>
+                    Admin Password
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter password..."
+                    autoFocus
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem 0.875rem',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '0.9375rem',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', padding: '1rem 1.25rem', backgroundColor: '#f9fafb', borderTop: '1px solid #f3f4f6', borderRadius: '0 0 1rem 1rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowPasswordModal(false)}
+                  style={{ padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid #d1d5db', background: 'white', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-danger"
+                  disabled={!password}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: !password ? '#fca5a5' : '#dc2626',
+                    color: 'white',
+                    fontWeight: 600,
+                    cursor: !password ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Confirm & Restore
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

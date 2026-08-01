@@ -39,6 +39,7 @@ export interface DeliveryLotOption {
   id: number;
   lotNo: string;
   partyName: string;
+  quality?: string;
   process: string;
   totalGray: number;
   remaining: number;

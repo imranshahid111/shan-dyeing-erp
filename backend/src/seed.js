@@ -88,7 +88,7 @@ async function seed() {
         total_ready_gazana: totalReady,
         rate: amount / totalReady,
         total_amount: amount,
-        status: i % 4 === 0 ? "pending" : "delivered",
+        status: i % 4 === 0 ? "pending" : "completed",
       });
     }
     const createdOrders = await DeliveryOrder.bulkCreate(deliveryOrdersData);

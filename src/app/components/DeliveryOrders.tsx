@@ -191,7 +191,12 @@ export default function DeliveryOrders() {
                       </td>
                       <td style={{ color: 'var(--gray-500)', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
                         {order.order_date
-                          ? new Date(order.order_date).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })
+                          ? (() => {
+                              const [y, m, d] = String(order.order_date).split('T')[0].split('-');
+                              if (!y || !m || !d) return order.order_date;
+                              const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                              return `${d.padStart(2, '0')}-${months[parseInt(m, 10) - 1]}-${y}`;
+                            })()
                           : '—'}
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 500, color: 'var(--gray-600)' }}>

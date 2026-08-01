@@ -45,7 +45,7 @@ export function exportCompletedLotsExcel(report: CompletedLotsReport, fileName: 
       Than: lot.than,
       'Meters In': lot.metersIn,
       'Meters Out': lot.metersOut,
-      'Total Meters': lot.totalMeters,
+      'Ready Meters': lot.totalMeters,
       'D.O': lot.doQty,
       'K-Wapsi': lot.kWapsi,
       Balance: lot.balance,

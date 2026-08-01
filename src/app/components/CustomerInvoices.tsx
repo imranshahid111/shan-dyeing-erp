@@ -19,6 +19,7 @@ export default function CustomerInvoices() {
   
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [search, setSearch] = useState('');
   
   const [selectedInvoice, setSelectedInvoice] = useState<DeliveryOrderItem | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -45,7 +46,7 @@ export default function CustomerInvoices() {
     try {
       setLoading(true);
       const [invRes, orgRes] = await Promise.all([
-        deliveryOrderService.getDeliveryOrders('billed', currentPage, pageSize, id, startDate || undefined, endDate || undefined),
+        deliveryOrderService.getDeliveryOrders('billed', currentPage, pageSize, id, startDate || undefined, endDate || undefined, search || undefined),
         organizationService.getOrganization()
       ]);
       setInvoices(invRes.data);
@@ -66,11 +67,11 @@ export default function CustomerInvoices() {
   // Reset to page 1 on filter change
   useEffect(() => {
     setCurrentPage(1);
-  }, [id, startDate, endDate]);
+  }, [id, startDate, endDate, search]);
 
   useEffect(() => {
     fetchInvoices();
-  }, [id, startDate, endDate, currentPage]);
+  }, [id, startDate, endDate, search, currentPage]);
 
 
 
@@ -93,8 +94,21 @@ export default function CustomerInvoices() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-end gap-4">
-        <div className="flex-1">
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap items-end gap-4">
+        <div className="flex-1 min-w-[240px]">
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Search Invoice / DO / Lot</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search Inv #, DO #, Lot #..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-gray-700 font-medium transition-all"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex-1 min-w-[180px]">
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Start Date</label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -106,7 +120,7 @@ export default function CustomerInvoices() {
             />
           </div>
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-[180px]">
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">End Date</label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -119,7 +133,7 @@ export default function CustomerInvoices() {
           </div>
         </div>
         <button 
-          onClick={() => { setStartDate(''); setEndDate(''); }}
+          onClick={() => { setStartDate(''); setEndDate(''); setSearch(''); }}
           className="px-6 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors font-semibold flex items-center gap-2"
         >
           <Filter size={18} />
@@ -173,7 +187,15 @@ export default function CustomerInvoices() {
                       {activeDropdown === String(inv.id) && (
                         <div className="absolute right-6 top-10 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 z-10">
                           <button 
-                            onClick={() => { setSelectedInvoice(inv); setActiveDropdown(null); }}
+                            onClick={async () => {
+                              try {
+                                const fullDo = await deliveryOrderService.getDeliveryOrderById(inv.id);
+                                setSelectedInvoice(fullDo);
+                              } catch (e) {
+                                setSelectedInvoice(inv);
+                              }
+                              setActiveDropdown(null);
+                            }}
                             className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors font-semibold"
                           >
                             <Eye size={16} /> View Invoice
