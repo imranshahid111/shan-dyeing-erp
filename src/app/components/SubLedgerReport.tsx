@@ -184,20 +184,20 @@ export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerRepor
           <button
             onClick={handlePdfPrint}
             disabled={!report || !organization}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-bold text-sm disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20 font-black text-base disabled:opacity-50"
           >
-            <Printer size={16} />
+            <Printer size={20} />
             Print Report
           </button>
           {organization && report && (
             <PDFDownloadLink
               document={<PDFSubLedger report={report} org={organization} />}
               fileName={`Sub-Ledger-${report.customer.name.replace(/\s+/g, '-')}_${fromDate}_${toDate}.pdf`}
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-bold text-sm no-underline"
+              className="flex items-center gap-2 px-6 py-3 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors shadow-lg shadow-rose-500/20 font-black text-base no-underline"
             >
               {({ loading: pdfLoading }) => (
                 <>
-                  <Download size={16} />
+                  <Download size={20} />
                   {pdfLoading ? 'Generating...' : 'Export PDF'}
                 </>
               )}
@@ -220,7 +220,7 @@ export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerRepor
         )}
 
         {report && (
-          <div className="sub-ledger-report min-w-[1100px] max-w-6xl mx-auto border border-gray-300 bg-white text-[11px] text-black">
+          <div className="sub-ledger-report min-w-[1100px] max-w-6xl mx-auto border border-gray-300 bg-white text-sm text-black font-semibold">
             <div className="bg-gray-300 border-b border-black p-4 flex justify-between items-start">
               <div>
                 <h1 className="text-base font-black uppercase tracking-wider">{companyName}</h1>
@@ -232,71 +232,71 @@ export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerRepor
                 )}
               </div>
               <div className="text-right">
-                <p className="text-sm font-black uppercase tracking-wide">Sub Ledger Report</p>
-                <p className="text-[10px] text-gray-600 mt-1">Print Date: {getPrintDateTime()}</p>
+                <p className="text-sm font-black uppercase tracking-wide text-black">Sub Ledger Report</p>
+                <p className="text-[10px] text-black mt-1">Print Date: {getPrintDateTime()}</p>
               </div>
             </div>
 
             <div className="border-b border-black p-3 flex justify-between bg-gray-50">
               <div>
-                <p className="text-[10px] font-bold text-gray-500 uppercase">Customer / Party Name</p>
-                <p className="font-black text-sm">{report.customer.name}</p>
+                <p className="text-[10px] font-bold text-black uppercase">Customer / Party Name</p>
+                <p className="font-black text-base text-black">{report.customer.name}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold text-gray-500 uppercase">Period</p>
-                <p className="font-bold">
+                <p className="text-[10px] font-bold text-black uppercase">Period</p>
+                <p className="font-bold text-black text-sm">
                   {formatReportDate(report.fromDate)} — {formatReportDate(report.toDate)}
                 </p>
               </div>
             </div>
 
-            <table className="w-full border-collapse text-[10px]">
+            <table className="w-full border-collapse text-sm text-black">
               <thead>
-                <tr className="bg-gray-300">
-                  <th className="border border-black p-1.5 text-left">Date</th>
-                  <th className="border border-black p-1.5 text-left">Reference Type</th>
-                  <th className="border border-black p-1.5 text-left">Invoice/Challan #</th>
-                  <th className="border border-black p-1.5 text-left">Lot Number</th>
-                  <th className="border border-black p-1.5 text-left">Description</th>
-                  <th className="border border-black p-1.5 text-right">Rate</th>
-                  <th className="border border-black p-1.5 text-right">Gray Mtr</th>
-                  <th className="border border-black p-1.5 text-right">Finish Mtr</th>
-                  <th className="border border-black p-1.5 text-right">Debit</th>
-                  <th className="border border-black p-1.5 text-right">Credit</th>
-                  <th className="border border-black p-1.5 text-right">Running Balance</th>
+                <tr className="bg-gray-300 text-black">
+                  <th className="border border-black p-1.5 text-left font-black">Date</th>
+                  <th className="border border-black p-1.5 text-left font-black">Reference Type</th>
+                  <th className="border border-black p-1.5 text-left font-black">Invoice/Challan #</th>
+                  <th className="border border-black p-1.5 text-left font-black">Lot Number</th>
+                  <th className="border border-black p-1.5 text-left font-black">Description</th>
+                  <th className="border border-black p-1.5 text-right font-black">Rate</th>
+                  <th className="border border-black p-1.5 text-right font-black">Gray Mtr</th>
+                  <th className="border border-black p-1.5 text-right font-black">Finish Mtr</th>
+                  <th className="border border-black p-1.5 text-right font-black">Debit</th>
+                  <th className="border border-black p-1.5 text-right font-black">Credit</th>
+                  <th className="border border-black p-1.5 text-right font-black">Running Balance</th>
                 </tr>
               </thead>
               <tbody>
                 {report.transactions.map((row, idx) => (
                   <tr key={`${row.date}-${row.type}-${idx}`} className={idx % 2 === 1 ? 'bg-gray-50' : ''}>
-                    <td className="border border-black p-1.5 whitespace-nowrap">
+                    <td className="border border-black p-1.5 whitespace-nowrap font-semibold">
                       {formatReportDate(row.date)}
                     </td>
-                    <td className="border border-black p-1.5">{row.referenceType}</td>
-                    <td className="border border-black p-1.5 font-mono text-[9px]">
+                    <td className="border border-black p-1.5 font-semibold">{row.referenceType}</td>
+                    <td className="border border-black p-1.5 font-mono text-xs font-semibold">
                       {row.referenceNo !== '—' && <div>Inv: {row.referenceNo}</div>}
-                      {row.doNo !== '—' && <div className="text-gray-500">DO: {row.doNo}</div>}
+                      {row.doNo !== '—' && <div className="text-black">DO: {row.doNo}</div>}
                       {row.referenceNo === '—' && row.doNo === '—' && '—'}
                     </td>
-                                        <td className="border border-black p-1.5 font-mono">{row.lotNo}</td>
+                    <td className="border border-black p-1.5 font-mono font-bold">{row.lotNo}</td>
 
-                    <td className="border border-black p-1.5">{row.description}</td>
-                    <td className="border border-black p-1.5 text-right">
+                    <td className="border border-black p-1.5 font-semibold">{row.description}</td>
+                    <td className="border border-black p-1.5 text-right font-semibold">
                       {row.rate ? formatAmount(row.rate) : '—'}
                     </td>
-                    <td className="border border-black p-1.5 text-right">
+                    <td className="border border-black p-1.5 text-right font-bold">
                       {row.grayQty ? formatAmount(row.grayQty) : '—'}
                     </td>
-                    <td className="border border-black p-1.5 text-right">
+                    <td className="border border-black p-1.5 text-right font-bold">
                       {row.meterQty ? formatAmount(row.meterQty) : '—'}
                     </td>
-                    <td className="border border-black p-1.5 text-right text-red-700 font-semibold">
+                    <td className="border border-black p-1.5 text-right text-black font-bold">
                       {row.debit ? formatAmount(row.debit) : '—'}
                     </td>
-                    <td className="border border-black p-1.5 text-right text-emerald-700 font-semibold">
+                    <td className="border border-black p-1.5 text-right text-black font-bold">
                       {row.credit ? formatAmount(row.credit) : '—'}
                     </td>
-                    <td className="border border-black p-1.5 text-right font-bold">
+                    <td className="border border-black p-1.5 text-right font-black">
                       {formatBalanceShort(row.balance)}
                     </td>
                   </tr>
@@ -305,7 +305,7 @@ export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerRepor
             </table>
 
             <div className="flex justify-end p-4 border-t border-black">
-              <div className="w-72 border border-black text-[11px]">
+              <div className="w-72 border border-black text-sm text-black">
                 <div className="flex justify-between p-2 border-b border-black bg-gray-100">
                   <span className="font-bold">Total Gray</span>
                   <span className="font-bold">{formatAmount(totalGray)}</span>

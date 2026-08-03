@@ -227,7 +227,15 @@ const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organizatio
           <Text style={styles.infoCol1}>Invoice No:</Text>
           <Text style={styles.infoCol2}>{inv.invoice_no}</Text>
           <Text style={styles.infoCol3}>Date:</Text>
-          <Text style={styles.infoCol4}>{new Date().toLocaleDateString()}</Text>
+          <Text style={styles.infoCol4}>
+            {inv.order_date 
+              ? new Date(inv.order_date).toLocaleDateString('en-PK', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })
+              : '—'}
+          </Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoCol1}>Lot No:</Text>

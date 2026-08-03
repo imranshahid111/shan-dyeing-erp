@@ -136,14 +136,14 @@ export default function GrayLotManagement() {
                       <span onClick={() => navigate(`/gray-lots/view/${lot.id}`)} style={{
                         cursor:'pointer',
                         fontFamily: 'monospace', fontWeight: 700,
-                        color: 'var(--gray-900)', fontSize: '0.875rem',
+                        color: '#000', fontSize: '0.95rem',
                       }}>{lot.lot_no}</span>
                     </td>
-                    <td style={{ color: 'var(--gray-500)', fontSize: '0.8125rem' }}>
+                    <td style={{ color: '#000', fontSize: '0.9rem' }}>
                       {lot.entry_date}
                     </td>
                     <td>
-                      <span style={{ fontWeight: 600, color: 'var(--gray-800)' }}>
+                      <span style={{ fontWeight: 600, color: '#000', fontSize: '0.95rem' }}>
                         {lot.party_name}
                       </span>
                     </td>
@@ -152,13 +152,13 @@ export default function GrayLotManagement() {
                         {lot.process_type}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--gray-600)' }}>
+                    <td style={{ color: '#000', fontSize: '0.95rem' }}>
                       {lot.quality ? (typeof lot.quality === 'object' ? lot.quality.name : lot.quality) : 'Unknown'}
                     </td>
-                    <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--gray-700)' }}>
+                    <td style={{ textAlign: 'right', fontWeight: 600, color: '#000', fontSize: '0.95rem' }}>
                       {lot.than}
                     </td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--brand-600)' }}>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: '#000', fontSize: '0.95rem' }}>
                       {lot.gazana}
                     </td>
                     <td>

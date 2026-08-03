@@ -171,25 +171,25 @@ export default function DeliveryOrders() {
                   return (
                     <tr key={order.id}>
                       <td>
-                        <p style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--gray-900)', fontSize: '0.875rem' }}>
+                        <p style={{ fontFamily: 'monospace', fontWeight: 700, color: '#000', fontSize: '0.95rem' }}>
                           {order.order_no}
                         </p>
                         {order.invoice_no && (
-                          <p style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--brand-600)', marginTop: '2px' }}>
+                          <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--brand-600)', marginTop: '2px' }}>
                             INV: {order.invoice_no}
                           </p>
                         )}
                       </td>
-                      <td style={{ color: 'var(--gray-500)', fontFamily: 'monospace', fontSize: '0.8125rem' }}>
+                      <td style={{ color: '#000', fontFamily: 'monospace', fontSize: '0.9rem' }}>
                         {order.gray_lot?.lot_no ?? '—'}
                       </td>
                       <td>
-                        <p style={{ fontWeight: 600, color: 'var(--gray-800)' }}>{order.customer?.name ?? '—'}</p>
+                        <p style={{ fontWeight: 600, color: '#000', fontSize: '0.95rem' }}>{order.customer?.name ?? '—'}</p>
                         {order.customer?.customer_code && (
-                          <p style={{ fontSize: '0.6875rem', color: 'var(--gray-400)' }}>{order.customer.customer_code}</p>
+                          <p style={{ fontSize: '0.75rem', color: '#000' }}>{order.customer.customer_code}</p>
                         )}
                       </td>
-                      <td style={{ color: 'var(--gray-500)', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
+                      <td style={{ color: '#000', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                         {order.order_date
                           ? (() => {
                               const [y, m, d] = String(order.order_date).split('T')[0].split('-');
@@ -199,13 +199,13 @@ export default function DeliveryOrders() {
                             })()
                           : '—'}
                       </td>
-                      <td style={{ textAlign: 'right', fontWeight: 500, color: 'var(--gray-600)' }}>
+                      <td style={{ textAlign: 'right', fontWeight: 500, color: '#000', fontSize: '0.95rem' }}>
                         {Number(grayQty ?? 0).toLocaleString(undefined, {maximumFractionDigits: 2})}
-                        <span style={{ fontSize: '0.65rem', marginLeft: '4px', color: 'var(--gray-400)', textTransform: 'uppercase' }}>{grayUnit}</span>
+                        <span style={{ fontSize: '0.75rem', marginLeft: '4px', color: '#000', textTransform: 'uppercase' }}>{grayUnit}</span>
                       </td>
-                      <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--brand-600)' }}>
+                      <td style={{ textAlign: 'right', fontWeight: 700, color: '#000', fontSize: '0.95rem' }}>
                         {Number(readyQty ?? 0).toLocaleString(undefined, {maximumFractionDigits: 2})}
-                        <span style={{ fontSize: '0.65rem', marginLeft: '4px', color: 'var(--brand-400)', textTransform: 'uppercase' }}>{readyUnit}</span>
+                        <span style={{ fontSize: '0.75rem', marginLeft: '4px', color: '#000', textTransform: 'uppercase' }}>{readyUnit}</span>
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <span className={`badge ${sc.badge}`}>{sc.label}</span>

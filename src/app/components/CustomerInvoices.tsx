@@ -309,7 +309,7 @@ export default function CustomerInvoices() {
                 </button>
                 <PDFDownloadLink
                   document={<PDFInvoice inv={selectedInvoice} org={org} />}
-                  fileName={`Invoice-${selectedInvoice.order_no}.pdf`}
+                  fileName={`${selectedInvoice.invoice_no || selectedInvoice.order_no}.pdf`}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
                     padding: '0.5rem 1.25rem',

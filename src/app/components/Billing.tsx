@@ -507,7 +507,7 @@ export default function Billing() {
                   </button>
                   <PDFDownloadLink
                     document={<PDFInvoice inv={selectedInvoice} org={org} />}
-                    fileName={`Invoice-${selectedInvoice.order_no}.pdf`}
+                    fileName={`${selectedInvoice.invoice_no || selectedInvoice.order_no}.pdf`}
                     className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-bold shadow-lg shadow-blue-500/20"
                   >
                     {({ loading }) => (loading ? 'Preparing...' : 'Download PDF')}

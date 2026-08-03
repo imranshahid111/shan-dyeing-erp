@@ -59,8 +59,8 @@ export const deliveryOrderService = {
   updateDeliveryOrder: (id: string | number, payload: CreateDeliveryOrderPayload) => {
     return apiClient.put(`/delivery-orders/${id}`, payload);
   },
-  generateInvoice: (id: number, netAmount: number, rate: number, rateUnit: string, kinarCutAmount: number = 0, packingAmount: number = 0, kinarCutQty?: number, packingQty?: number) => {
-    return apiClient.put(`/delivery-orders/${id}/invoice`, { netAmount, rate, rateUnit, kinarCutAmount, packingAmount, kinarCutQty, packingQty });
+  generateInvoice: (id: number, netAmount: number, rate: number, rateUnit: string, kinarCutAmount: number = 0, packingAmount: number = 0, kinarCutQty?: number, packingQty?: number, invoiceDate?: string) => {
+    return apiClient.put(`/delivery-orders/${id}/invoice`, { netAmount, rate, rateUnit, kinarCutAmount, packingAmount, kinarCutQty, packingQty, invoiceDate });
   },
   addPayment: (id: number, payload: any) => {
     return apiClient.post(`/delivery-orders/${id}/payment`, payload);

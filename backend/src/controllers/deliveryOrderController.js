@@ -300,7 +300,7 @@ exports.generateInvoice = async (req, res, next) => {
   const t = await sequelize.transaction();
   try {
     const doId = req.params.id;
-    const { netAmount, rate, rateUnit, kinarCutAmount, packingAmount, kinarCutQty, packingQty } = req.body;
+    const { netAmount, rate, rateUnit, kinarCutAmount, packingAmount, kinarCutQty, packingQty, invoiceDate } = req.body;
 
     const deliveryOrder = await DeliveryOrder.findByPk(doId, { transaction: t });
     if (!deliveryOrder) {
@@ -330,7 +330,8 @@ exports.generateInvoice = async (req, res, next) => {
       kinar_cut_amount: Number(kinarCutAmount || 0),
       packing_amount: Number(packingAmount || 0),
       kinar_cut_qty: kinarCutQty != null ? Number(kinarCutQty) : null,
-      packing_qty: packingQty != null ? Number(packingQty) : null
+      packing_qty: packingQty != null ? Number(packingQty) : null,
+      order_date: invoiceDate || deliveryOrder.order_date
     }, { transaction: t });
 
     await t.commit();

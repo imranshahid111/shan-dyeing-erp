@@ -35,6 +35,7 @@ export default function CreateInvoice() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rateUnit, setRateUnit] = useState<'meter' | 'yard'>('meter');
+  const [invoiceDate, setInvoiceDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -243,6 +244,15 @@ export default function CreateInvoice() {
 
           <div className="space-y-4">
             <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <label className="block text-sm text-gray-600 mb-2">Invoice Date</label>
+                <input
+                  type="date"
+                  value={invoiceDate}
+                  onChange={(e) => setInvoiceDate(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-bold bg-white"
+                />
+              </div>
               <div className="flex-1">
                 <label className="block text-sm text-gray-600 mb-2">Apply Rate On</label>
                 <div className="flex gap-2">
@@ -507,7 +517,8 @@ export default function CreateInvoice() {
                     kinarCutTotal, 
                     packingTotal,
                     finalKinarCutQty,
-                    finalPackingQty
+                    finalPackingQty,
+                    invoiceDate
                   );
                   toast.success("Invoice generated and customer ledger updated!");
                   navigate('/billing');

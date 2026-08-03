@@ -227,20 +227,20 @@ export default function DateWiseSalesReportView({
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-          <button onClick={handlePrint} disabled={!report || !organization} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-lg font-bold text-sm hover:bg-gray-50 disabled:opacity-50">
-            <Printer size={16} /> Print
+          <button onClick={handlePrint} disabled={!report || !organization} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20 font-black text-sm disabled:opacity-50">
+            <Printer size={20} /> Print
           </button>
-          <button onClick={handleExcel} disabled={!report} className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg font-bold text-sm hover:bg-indigo-700 disabled:opacity-50">
-            <Download size={16} /> Excel
+          <button onClick={handleExcel} disabled={!report} className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/20 font-black text-sm disabled:opacity-50">
+            <Download size={20} /> Excel
           </button>
           {organization && report && (
             <PDFDownloadLink
               document={<PDFDateWiseSales report={report} org={organization} />}
               fileName={`Date-Wise-Sales_${fromDate}_${toDate}.pdf`}
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg font-bold text-sm no-underline hover:bg-emerald-700"
+              className="flex items-center gap-2 px-6 py-3 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors shadow-lg shadow-rose-500/20 font-black text-sm no-underline"
             >
               {({ loading: pdfLoading }) => (
-                <><Download size={16} />{pdfLoading ? 'Generating...' : 'PDF'}</>
+                <><Download size={20} />{pdfLoading ? 'Generating...' : 'PDF'}</>
               )}
             </PDFDownloadLink>
           )}
@@ -317,66 +317,66 @@ export default function DateWiseSalesReportView({
             </div>
 
             <div className="overflow-x-auto max-h-[560px] overflow-y-auto">
-              <table className="w-full border-collapse text-sm">
+              <table className="w-full border-collapse text-sm text-black">
                 <thead className="sticky top-0 z-[1]">
-                  <tr className="bg-slate-200 text-slate-800">
-                    <th className="border border-gray-400 px-3 py-2 text-left text-xs font-black uppercase">Date</th>
-                    <th className="border border-gray-400 px-3 py-2 text-left text-xs font-black uppercase">Bill No</th>
-                    <th className="border border-gray-400 px-3 py-2 text-left text-xs font-black uppercase">Challan No</th>
-                    <th className="border border-gray-400 px-3 py-2 text-left text-xs font-black uppercase">Party Name</th>
-                    <th className="border border-gray-400 px-3 py-2 text-left text-xs font-black uppercase">Quality</th>
-                    <th className="border border-gray-400 px-3 py-2 text-right text-xs font-black uppercase">Qty (Gazana)</th>
-                    <th className="border border-gray-400 px-3 py-2 text-right text-xs font-black uppercase">Rate</th>
-                    <th className="border border-gray-400 px-3 py-2 text-right text-xs font-black uppercase">Amount</th>
+                  <tr className="bg-slate-200 text-black">
+                    <th className="border border-gray-400 px-3 py-2 text-left text-sm font-black uppercase text-black">Date</th>
+                    <th className="border border-gray-400 px-3 py-2 text-left text-sm font-black uppercase text-black">Bill No</th>
+                    <th className="border border-gray-400 px-3 py-2 text-left text-sm font-black uppercase text-black">Challan No</th>
+                    <th className="border border-gray-400 px-3 py-2 text-left text-sm font-black uppercase text-black">Party Name</th>
+                    <th className="border border-gray-400 px-3 py-2 text-left text-sm font-black uppercase text-black">Quality</th>
+                    <th className="border border-gray-400 px-3 py-2 text-right text-sm font-black uppercase text-black">Qty (Gazana)</th>
+                    <th className="border border-gray-400 px-3 py-2 text-right text-sm font-black uppercase text-black">Rate</th>
+                    <th className="border border-gray-400 px-3 py-2 text-right text-sm font-black uppercase text-black">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(viewMode === 'qualityWise' && !selectedQualityId
                     ? qualityGroups.flatMap((group) => [
                         <tr key={`hdr-${group.qualityName}`} className="bg-purple-100">
-                          <td colSpan={8} className="border border-purple-300 px-3 py-2 font-black text-purple-900 text-xs uppercase tracking-wide">
+                          <td colSpan={8} className="border border-purple-300 px-3 py-2 font-black text-black text-sm uppercase tracking-wide">
                             Quality: {group.qualityName}
                           </td>
                         </tr>,
                         ...group.rows.map((row, idx) => (
                           <tr key={`${group.qualityName}-${row.billNo}-${idx}`} className={idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
-                            <td className="border border-gray-300 px-3 py-2 whitespace-nowrap">{formatReportDate(row.date)}</td>
-                            <td className="border border-gray-300 px-3 py-2 font-mono font-semibold">{row.billNo}</td>
-                            <td className="border border-gray-300 px-3 py-2 font-mono">{row.challanNo}</td>
-                            <td className="border border-gray-300 px-3 py-2 font-medium">{row.partyName}</td>
-                            <td className="border border-gray-300 px-3 py-2 text-indigo-800 font-medium">{row.qualityName}</td>
-                            <td className="border border-gray-300 px-3 py-2 text-right tabular-nums">{formatNumber(row.quantity, 2)}</td>
-                            <td className="border border-gray-300 px-3 py-2 text-right tabular-nums">{formatNumber(row.rate, 2)}</td>
-                            <td className="border border-gray-300 px-3 py-2 text-right tabular-nums font-bold">{formatCurrency(row.amount)}</td>
+                            <td className="border border-gray-300 px-3 py-2 whitespace-nowrap font-semibold text-black">{formatReportDate(row.date)}</td>
+                            <td className="border border-gray-300 px-3 py-2 font-mono font-bold text-black">{row.billNo}</td>
+                            <td className="border border-gray-300 px-3 py-2 font-mono font-semibold text-black">{row.challanNo}</td>
+                            <td className="border border-gray-300 px-3 py-2 font-bold text-black">{row.partyName}</td>
+                            <td className="border border-gray-300 px-3 py-2 text-black font-black">{row.qualityName}</td>
+                            <td className="border border-gray-300 px-3 py-2 text-right tabular-nums font-bold text-black">{formatNumber(row.quantity, 2)}</td>
+                            <td className="border border-gray-300 px-3 py-2 text-right tabular-nums font-semibold text-black">{formatNumber(row.rate, 2)}</td>
+                            <td className="border border-gray-300 px-3 py-2 text-right tabular-nums font-black text-black">{formatCurrency(row.amount)}</td>
                           </tr>
                         )),
-                        <tr key={`sub-${group.qualityName}`} className="bg-purple-50 font-bold">
-                          <td colSpan={5} className="border border-purple-200 px-3 py-2 text-right text-xs uppercase text-purple-800">
+                        <tr key={`sub-${group.qualityName}`} className="bg-purple-50 font-bold text-black">
+                          <td colSpan={5} className="border border-purple-200 px-3 py-2 text-right text-sm uppercase text-black font-black">
                             Subtotal — {group.qualityName}
                           </td>
-                          <td className="border border-purple-200 px-3 py-2 text-right tabular-nums">{formatNumber(group.quantity, 2)}</td>
+                          <td className="border border-purple-200 px-3 py-2 text-right tabular-nums text-black font-black">{formatNumber(group.quantity, 2)}</td>
                           <td className="border border-purple-200 px-3 py-2"></td>
-                          <td className="border border-purple-200 px-3 py-2 text-right tabular-nums">{formatCurrency(group.amount)}</td>
+                          <td className="border border-purple-200 px-3 py-2 text-right tabular-nums text-black font-black">{formatCurrency(group.amount)}</td>
                         </tr>,
                       ])
                     : report.data.map((row, idx) => (
                         <tr key={`${row.billNo}-${row.challanNo}-${idx}`} className={idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
-                          <td className="border border-gray-300 px-3 py-2 whitespace-nowrap">{formatReportDate(row.date)}</td>
-                          <td className="border border-gray-300 px-3 py-2 font-mono font-semibold">{row.billNo}</td>
-                          <td className="border border-gray-300 px-3 py-2 font-mono">{row.challanNo}</td>
-                          <td className="border border-gray-300 px-3 py-2 font-medium">{row.partyName}</td>
-                          <td className="border border-gray-300 px-3 py-2 text-indigo-800 font-medium">{row.qualityName}</td>
-                          <td className="border border-gray-300 px-3 py-2 text-right tabular-nums">{formatNumber(row.quantity, 2)}</td>
-                          <td className="border border-gray-300 px-3 py-2 text-right tabular-nums">{formatNumber(row.rate, 2)}</td>
-                          <td className="border border-gray-300 px-3 py-2 text-right tabular-nums font-bold">{formatCurrency(row.amount)}</td>
+                          <td className="border border-gray-300 px-3 py-2 whitespace-nowrap font-semibold text-black">{formatReportDate(row.date)}</td>
+                          <td className="border border-gray-300 px-3 py-2 font-mono font-bold text-black">{row.billNo}</td>
+                          <td className="border border-gray-300 px-3 py-2 font-mono font-semibold text-black">{row.challanNo}</td>
+                          <td className="border border-gray-300 px-3 py-2 font-bold text-black">{row.partyName}</td>
+                          <td className="border border-gray-300 px-3 py-2 text-black font-black">{row.qualityName}</td>
+                          <td className="border border-gray-300 px-3 py-2 text-right tabular-nums font-bold text-black">{formatNumber(row.quantity, 2)}</td>
+                          <td className="border border-gray-300 px-3 py-2 text-right tabular-nums font-semibold text-black">{formatNumber(row.rate, 2)}</td>
+                          <td className="border border-gray-300 px-3 py-2 text-right tabular-nums font-black text-black">{formatCurrency(row.amount)}</td>
                         </tr>
                       ))
                   )}
-                  <tr className="bg-slate-300 font-black">
-                    <td colSpan={5} className="border border-gray-400 px-3 py-2.5 text-right uppercase text-xs tracking-wider">Grand Total</td>
-                    <td className="border border-gray-400 px-3 py-2.5 text-right tabular-nums">{formatNumber(report.totals.quantity, 2)}</td>
+                  <tr className="bg-slate-300 font-black text-black">
+                    <td colSpan={5} className="border border-gray-400 px-3 py-2.5 text-right uppercase text-sm tracking-wider text-black">Grand Total</td>
+                    <td className="border border-gray-400 px-3 py-2.5 text-right tabular-nums text-black">{formatNumber(report.totals.quantity, 2)}</td>
                     <td className="border border-gray-400 px-3 py-2.5"></td>
-                    <td className="border border-gray-400 px-3 py-2.5 text-right tabular-nums">{formatCurrency(report.totals.amount)}</td>
+                    <td className="border border-gray-400 px-3 py-2.5 text-right tabular-nums text-black">{formatCurrency(report.totals.amount)}</td>
                   </tr>
                 </tbody>
               </table>

@@ -17,7 +17,7 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
     paddingHorizontal: 16,
     fontFamily: 'Helvetica',
-    fontSize: 6,
+    fontSize: 9.5,
     color: '#000',
   },
   brandingBar: {
@@ -30,20 +30,20 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   companyName: {
-    fontSize: 12,
+    fontSize: 18,
     fontWeight: 'bold',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  companyDetail: { fontSize: 6, color: '#333', marginTop: 1 },
+  companyDetail: { fontSize: 9, color: '#333', marginTop: 1 },
   titleBlock: { alignItems: 'flex-end' },
   reportTitle: {
-    fontSize: 11,
+    fontSize: 15,
     fontWeight: 'bold',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
-  metaText: { fontSize: 6, color: '#444', marginTop: 2 },
+  metaText: { fontSize: 9, color: '#444', marginTop: 2 },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -58,31 +58,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: BORDER,
-    minHeight: 14,
+    minHeight: 16,
   },
   tableHeader: { backgroundColor: GRAY_HEADER, fontWeight: 'bold' },
   cell: {
-    padding: 2,
-    fontSize: 5.5,
+    padding: 3,
+    fontSize: 8.5,
     borderRightWidth: 1,
     borderRightColor: BORDER,
     textAlign: 'center',
   },
   cellLeft: {
-    padding: 2,
-    fontSize: 5.5,
+    padding: 3,
+    fontSize: 8.5,
     borderRightWidth: 1,
     borderRightColor: BORDER,
     textAlign: 'left',
   },
   cellRight: {
-    padding: 2,
-    fontSize: 5.5,
+    padding: 3,
+    fontSize: 8.5,
     borderRightWidth: 1,
     borderRightColor: BORDER,
     textAlign: 'right',
   },
-  cellLast: { padding: 2, fontSize: 5.5, textAlign: 'right' },
+  cellLast: { padding: 3, fontSize: 8.5, textAlign: 'right' },
   rowAlt: { backgroundColor: GRAY_ALT },
   summaryBar: {
     flexDirection: 'row',
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     padding: 6,
     marginTop: 0,
   },
-  summaryItem: { fontSize: 6, fontWeight: 'bold' },
+  summaryItem: { fontSize: 9, fontWeight: 'bold' },
   grandTotal: {
     marginTop: 6,
     borderWidth: 1,
@@ -109,26 +109,25 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     textAlign: 'center',
-    fontSize: 6,
+    fontSize: 8,
     color: '#666',
   },
 });
 
 const COL = {
   year: '4%',
-  lot: '7%',
-  bilty: '7%',
-  date: '7%',
-  quality: '11%',
-  than: '4%',
-  in: '8%',
-  out: '8%',
-  total: '8%',
-  do: '6%',
-  kwapsi: '6%',
-  balance: '6%',
+  lot: '9%',
+  bilty: '9%',
+  date: '8%',
+  quality: '15%',
+  than: '5%',
+  in: '9%',
+  out: '9%',
+  total: '9%',
+  do: '7%',
+  kwapsi: '7%',
+  balance: '7%',
   pct: '6%',
-  remarks: '12%',
 };
 
 const Cell = ({
@@ -226,8 +225,7 @@ export const PDFCompletedLots = ({
               <Cell width={COL.do} variant="right" bold>D.O</Cell>
               <Cell width={COL.kwapsi} variant="right" bold>K-Wapsi</Cell>
               <Cell width={COL.balance} variant="right" bold>Balance</Cell>
-              <Cell width={COL.pct} variant="right" bold>%</Cell>
-              <Cell width={COL.remarks} variant="left" last bold>Remarks</Cell>
+              <Cell width={COL.pct} variant="right" last bold>%</Cell>
             </View>
 
             {pageLots.map((lot, idx) => (
@@ -244,10 +242,9 @@ export const PDFCompletedLots = ({
                 <Cell width={COL.do} variant="right">{formatMeters(lot.doQty)}</Cell>
                 <Cell width={COL.kwapsi} variant="right">{formatMeters(lot.kWapsi)}</Cell>
                 <Cell width={COL.balance} variant="right">{formatMeters(lot.balance)}</Cell>
-                <Cell width={COL.pct} variant="right" bold color={pctColor(lot.percentage)}>
+                <Cell width={COL.pct} variant="right" last bold color={pctColor(lot.percentage)}>
                   {lot.percentage > 0 ? `+${lot.percentage}` : String(lot.percentage)}%
                 </Cell>
-                <Cell width={COL.remarks} variant="left" last>{lot.remarks || '—'}</Cell>
               </View>
             ))}
           </View>

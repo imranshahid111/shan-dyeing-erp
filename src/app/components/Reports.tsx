@@ -11,6 +11,13 @@ import DateWiseSalesReportView from './DateWiseSalesReport';
 import { REPORT_CATEGORIES, SELF_CONTAINED_TABS, ReportTabId, getReportMeta } from '../config/reportsConfig';
 import * as XLSX from 'xlsx';
 import React from 'react';
+import { organizationService, Organization } from '../services/organizationService';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { PDFLedger } from './PDFLedger';
+import { PDFOutstanding } from './PDFOutstanding';
+import { PDFPayments } from './PDFPayments';
+import { PDFInvoices } from './PDFInvoices';
+import { PDFStock } from './PDFStock';
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState<ReportTabId>('datesales');
@@ -36,6 +43,7 @@ export default function Reports() {
   const [salesCustomerId, setSalesCustomerId] = useState<number | ''>('');
   const [salesQualityId, setSalesQualityId] = useState<number | ''>('');
   const [qualities, setQualities] = useState<QualityItem[]>([]);
+  const [organization, setOrganization] = useState<Organization | null>(null);
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -54,6 +62,7 @@ export default function Reports() {
 
   useEffect(() => {
     qualityService.getQualities().then((res: any) => setQualities(Array.isArray(res) ? res : [])).catch(console.error);
+    organizationService.getOrganization().then(setOrganization).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -241,21 +250,91 @@ export default function Reports() {
                 <p className="text-sm text-gray-500 mt-0.5">{activeMeta?.description}</p>
               </div>
               {!isSelfContained && (
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <button
                     onClick={handlePrint}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 font-bold text-sm"
+                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20 font-black text-sm"
                   >
-                    <Printer size={16} />
+                    <Printer size={20} />
                     Print
                   </button>
                   <button
                     onClick={exportToExcel}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-bold text-sm"
+                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/20 font-black text-sm"
                   >
-                    <Download size={16} />
+                    <Download size={20} />
                     Excel
                   </button>
+                  {activeTab === 'ledger' && organization && ledgerData.length > 0 && (
+                    <PDFDownloadLink
+                      document={<PDFLedger data={ledgerData} customerName={selectedCustomerName} org={organization} fromDate={fromDate} toDate={toDate} />}
+                      fileName={`Ledger_${selectedCustomerName.replace(/\s+/g, '-')}_${fromDate}_to_${toDate}.pdf`}
+                      className="flex items-center gap-2 px-6 py-3 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors shadow-lg shadow-rose-500/20 font-black text-sm no-underline"
+                    >
+                      {({ loading }) => (
+                        <>
+                          <Download size={20} />
+                          {loading ? 'Generating...' : 'PDF'}
+                        </>
+                      )}
+                    </PDFDownloadLink>
+                  )}
+                  {activeTab === 'outstanding' && organization && outstandingData.length > 0 && (
+                    <PDFDownloadLink
+                      document={<PDFOutstanding data={outstandingData} org={organization} />}
+                      fileName="Outstanding_Summary.pdf"
+                      className="flex items-center gap-2 px-6 py-3 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors shadow-lg shadow-rose-500/20 font-black text-sm no-underline"
+                    >
+                      {({ loading }) => (
+                        <>
+                          <Download size={20} />
+                          {loading ? 'Generating...' : 'PDF'}
+                        </>
+                      )}
+                    </PDFDownloadLink>
+                  )}
+                  {activeTab === 'payments' && organization && paymentsData.length > 0 && (
+                    <PDFDownloadLink
+                      document={<PDFPayments data={paymentsData} org={organization} fromDate={fromDate} toDate={toDate} />}
+                      fileName={`Payments_${fromDate}_to_${toDate}.pdf`}
+                      className="flex items-center gap-2 px-6 py-3 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors shadow-lg shadow-rose-500/20 font-black text-sm no-underline"
+                    >
+                      {({ loading }) => (
+                        <>
+                          <Download size={20} />
+                          {loading ? 'Generating...' : 'PDF'}
+                        </>
+                      )}
+                    </PDFDownloadLink>
+                  )}
+                  {activeTab === 'invoices' && organization && invoicesData.length > 0 && (
+                    <PDFDownloadLink
+                      document={<PDFInvoices data={invoicesData} org={organization} fromDate={fromDate} toDate={toDate} />}
+                      fileName={`Invoices_${fromDate}_to_${toDate}.pdf`}
+                      className="flex items-center gap-2 px-6 py-3 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors shadow-lg shadow-rose-500/20 font-black text-sm no-underline"
+                    >
+                      {({ loading }) => (
+                        <>
+                          <Download size={20} />
+                          {loading ? 'Generating...' : 'PDF'}
+                        </>
+                      )}
+                    </PDFDownloadLink>
+                  )}
+                  {activeTab === 'stock' && organization && (stockData.length > 0 || qualityStockData.length > 0) && (
+                    <PDFDownloadLink
+                      document={<PDFStock stockData={stockData} qualityStockData={qualityStockData} view={stockView} unit={stockUnit} org={organization} />}
+                      fileName={`Stock_Report_${stockView}_${stockUnit}.pdf`}
+                      className="flex items-center gap-2 px-6 py-3 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors shadow-lg shadow-rose-500/20 font-black text-sm no-underline"
+                    >
+                      {({ loading }) => (
+                        <>
+                          <Download size={20} />
+                          {loading ? 'Generating...' : 'PDF'}
+                        </>
+                      )}
+                    </PDFDownloadLink>
+                  )}
                 </div>
               )}
             </div>
@@ -389,11 +468,11 @@ export default function Reports() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50/80 border-b border-gray-100 print:bg-gray-200">
                   <tr>
-                    <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Date</th>
-                    <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Description</th>
-                    <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Debit</th>
-                    <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Credit</th>
-                    <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Balance</th>
+                    <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Date</th>
+                    <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Description</th>
+                    <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Debit</th>
+                    <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Credit</th>
+                    <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Balance</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 print:divide-gray-300">
@@ -402,15 +481,15 @@ export default function Reports() {
                   )}
                   {ledgerData.map((entry, index) => (
                     <tr key={index} className="hover:bg-blue-50/30 transition-colors group">
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500 font-medium">{entry.date}</td>
-                      <td className="px-6 py-4 text-gray-800 font-bold max-w-[300px] truncate group-hover:text-blue-700 transition-colors">{entry.description}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-red-600/90">
+                      <td className="px-6 py-4 whitespace-nowrap text-black font-semibold text-sm">{entry.date}</td>
+                      <td className="px-6 py-4 text-black font-bold max-w-[300px] truncate group-hover:text-blue-700 transition-colors text-sm">{entry.description}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-black text-sm">
                         {entry.debit > 0 ? entry.debit.toLocaleString() : '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-emerald-600/90">
+                      <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-black text-sm">
                         {entry.credit > 0 ? entry.credit.toLocaleString() : '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right font-black text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-right font-black text-black text-sm">
                         {entry.balance.toLocaleString()}
                       </td>
                     </tr>
@@ -437,10 +516,10 @@ export default function Reports() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50/80 border-b border-gray-100 print:bg-gray-200">
                   <tr>
-                    <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Customer</th>
-                    <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Total Billed</th>
-                    <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Total Paid</th>
-                    <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Outstanding</th>
+                    <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Customer</th>
+                    <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Total Billed</th>
+                    <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Total Paid</th>
+                    <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Outstanding</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 print:divide-gray-300">
@@ -449,19 +528,19 @@ export default function Reports() {
                   )}
                   {outstandingData.map((entry, index) => (
                     <tr key={index} className="hover:bg-blue-50/30 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-800 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs">
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-black flex items-center gap-3 text-sm">
+                        <div className="w-8 h-8 rounded-full bg-gray-100 text-black flex items-center justify-center text-xs font-bold">
                           {entry.customer.charAt(0)}
                         </div>
                         {entry.customer}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-gray-500 font-semibold">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-black font-semibold text-sm">
                         {entry.totalBilled.toLocaleString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-emerald-600/90 font-semibold">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-black font-bold text-sm">
                         {entry.totalPaid.toLocaleString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right font-black text-red-600">
+                      <td className="px-6 py-4 whitespace-nowrap text-right font-black text-black text-sm">
                         {entry.outstanding.toLocaleString()}
                       </td>
                     </tr>
@@ -469,14 +548,14 @@ export default function Reports() {
                 </tbody>
                 <tfoot className="bg-gray-50 border-t border-gray-200 print:bg-gray-200">
                   <tr>
-                    <td className="px-6 py-5 font-black text-gray-900 uppercase tracking-widest">Grand Total</td>
-                    <td className="px-6 py-5 text-right font-black text-gray-700">
+                    <td className="px-6 py-5 font-black text-black uppercase tracking-widest text-sm">Grand Total</td>
+                    <td className="px-6 py-5 text-right font-black text-black text-sm">
                       Rs {outstandingData.reduce((sum, e) => sum + e.totalBilled, 0).toLocaleString()}
                     </td>
-                    <td className="px-6 py-5 text-right font-black text-emerald-600">
+                    <td className="px-6 py-5 text-right font-black text-black text-sm">
                       Rs {outstandingData.reduce((sum, e) => sum + e.totalPaid, 0).toLocaleString()}
                     </td>
-                    <td className="px-6 py-5 text-right font-black text-red-600 text-lg">
+                    <td className="px-6 py-5 text-right font-black text-black text-lg">
                       Rs {outstandingData.reduce((sum, e) => sum + e.outstanding, 0).toLocaleString()}
                     </td>
                   </tr>
@@ -502,13 +581,13 @@ export default function Reports() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50/80 border-b border-gray-100 print:bg-gray-200">
                   <tr>
-                    <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Date</th>
-                    <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Invoice #</th>
-                    <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Customer</th>
-                    <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Lot #</th>
-                    <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Ready Stock</th>
-                    <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Rate</th>
-                    <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Amount</th>
+                    <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Date</th>
+                    <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Invoice #</th>
+                    <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Customer</th>
+                    <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Lot #</th>
+                    <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Ready Stock</th>
+                    <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Rate</th>
+                    <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Amount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 print:divide-gray-300">
@@ -517,21 +596,21 @@ export default function Reports() {
                   )}
                   {invoicesData.map((entry, index) => (
                     <tr key={index} className="hover:bg-blue-50/30 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500 font-medium">{entry.date}</td>
-                      <td className="px-6 py-4 whitespace-nowrap font-black text-gray-900">{entry.invoiceNo}</td>
-                      <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-700">{entry.customer}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-black font-semibold text-sm">{entry.date}</td>
+                      <td className="px-6 py-4 whitespace-nowrap font-black text-black text-sm">{entry.invoiceNo}</td>
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-black text-sm">{entry.customer}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md font-mono text-xs font-bold border border-gray-200">
+                        <span className="bg-gray-100 text-black px-2.5 py-1 rounded-md font-mono text-xs font-bold border border-gray-200">
                           {entry.lotNo}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-blue-600">
-                        {entry.readyStock} <span className="text-xs text-blue-400 uppercase">{entry.unit}</span>
+                      <td className="px-6 py-4 whitespace-nowrap text-right font-bold text-black text-sm">
+                        {entry.readyStock} <span className="text-xs text-black uppercase font-bold">{entry.unit}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-gray-500 font-semibold">
-                        {entry.rate} <span className="text-[10px] uppercase text-gray-400">/ {entry.rateUnit === 'yard' ? 'Gaz' : 'Mtr'}</span>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-black font-semibold text-sm">
+                        {entry.rate} <span className="text-[10px] uppercase text-black font-bold">/ {entry.rateUnit === 'yard' ? 'Gaz' : 'Mtr'}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right font-black text-emerald-600">
+                      <td className="px-6 py-4 whitespace-nowrap text-right font-black text-black text-sm">
                         {entry.amount.toLocaleString()}
                       </td>
                     </tr>
@@ -539,8 +618,8 @@ export default function Reports() {
                 </tbody>
                 <tfoot className="bg-gray-50 border-t border-gray-200 print:bg-gray-200">
                   <tr>
-                    <td colSpan={6} className="px-6 py-5 font-black text-gray-900 uppercase tracking-widest text-right">Total Amount</td>
-                    <td className="px-6 py-5 text-right font-black text-emerald-600 text-lg">
+                    <td colSpan={6} className="px-6 py-5 font-black text-black uppercase tracking-widest text-right text-sm">Total Amount</td>
+                    <td className="px-6 py-5 text-right font-black text-black text-lg">
                       Rs {invoicesData.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
                     </td>
                   </tr>
@@ -566,12 +645,12 @@ export default function Reports() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50/80 border-b border-gray-100 print:bg-gray-200">
                   <tr>
-                    <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Date</th>
-                    <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Customer</th>
-                    <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Invoice Ref</th>
-                    <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Method</th>
-                    <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Reference</th>
-                    <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Amount</th>
+                    <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Date</th>
+                    <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Customer</th>
+                    <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Invoice Ref</th>
+                    <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Method</th>
+                    <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Reference</th>
+                    <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Amount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 print:divide-gray-300">
@@ -580,19 +659,16 @@ export default function Reports() {
                   )}
                   {paymentsData.map((entry, index) => (
                     <tr key={index} className="hover:bg-blue-50/30 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500 font-medium">{entry.date}</td>
-                      <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-800">{entry.customer}</td>
-                      <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-500">{entry.invoiceNo || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-black font-semibold text-sm">{entry.date}</td>
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-black text-sm">{entry.customer}</td>
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-black text-sm">{entry.invoiceNo || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${
-                          entry.method.toLowerCase().includes('cash') ? 'bg-emerald-100 text-emerald-700' : 
-                          entry.method.toLowerCase().includes('cheque') ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-                        }`}>
+                        <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-gray-100 text-black border border-gray-200">
                           {entry.method}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-500">{entry.reference || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right font-black text-emerald-600">
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-black text-sm">{entry.reference || '-'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right font-black text-black text-sm">
                         {entry.amount.toLocaleString()}
                       </td>
                     </tr>
@@ -600,8 +676,8 @@ export default function Reports() {
                 </tbody>
                 <tfoot className="bg-gray-50 border-t border-gray-200 print:bg-gray-200">
                   <tr>
-                    <td colSpan={5} className="px-6 py-5 font-black text-gray-900 uppercase tracking-widest text-right">Total Collected</td>
-                    <td className="px-6 py-5 text-right font-black text-emerald-600 text-lg">
+                    <td colSpan={5} className="px-6 py-5 font-black text-black uppercase tracking-widest text-right text-sm">Total Collected</td>
+                    <td className="px-6 py-5 text-right font-black text-black text-lg">
                       Rs {paymentsData.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
                     </td>
                   </tr>
@@ -664,12 +740,12 @@ export default function Reports() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50/80 border-b border-gray-100 print:bg-gray-200">
                     <tr>
-                      <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Lot No</th>
-                      <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Quality</th>
-                      <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Received</th>
-                      <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Gray Stock</th>
-                      <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Ready Stock</th>
-                      <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Pending</th>
+                      <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Lot No</th>
+                      <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Quality</th>
+                      <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Received</th>
+                      <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Gray Stock</th>
+                      <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Ready Stock</th>
+                      <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Pending</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 print:divide-gray-300">
@@ -679,21 +755,21 @@ export default function Reports() {
                     {stockData.map((entry, index) => (
                       <tr key={index} className="hover:bg-blue-50/30 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-md font-mono text-xs font-bold border border-gray-200">
+                          <span className="bg-gray-100 text-black px-2.5 py-1 rounded-md font-mono text-xs font-bold border border-gray-200">
                             {entry.lotNo}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap font-black text-purple-700">{entry.quality}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-gray-500 font-semibold">
+                        <td className="px-6 py-4 whitespace-nowrap font-black text-black text-sm">{entry.quality}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-black font-semibold text-sm">
                           {stockUnit === 'gaz' ? entry.totalGazana.toLocaleString() : entry.totalMeters.toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-gray-800 font-bold">
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-black font-bold text-sm">
                           {stockUnit === 'gaz' ? entry.grayStock.toLocaleString() : entry.grayStockMeters.toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-emerald-600 font-bold">
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-black font-bold text-sm">
                           {stockUnit === 'gaz' ? entry.readyStock.toLocaleString() : entry.readyStockMeters.toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-amber-600 font-bold">
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-black font-bold text-sm">
                           {stockUnit === 'gaz' ? entry.pending.toLocaleString() : entry.pendingMeters.toLocaleString()}
                         </td>
                       </tr>
@@ -706,11 +782,11 @@ export default function Reports() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50/80 border-b border-gray-100 print:bg-gray-200">
                     <tr>
-                      <th className="px-6 py-4 text-left font-black text-gray-500 uppercase tracking-wider text-[10px]">Quality</th>
-                      <th className="px-6 py-4 text-center font-black text-gray-500 uppercase tracking-wider text-[10px]">Lots</th>
-                      <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Total Received</th>
-                      <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Ready Stock</th>
-                      <th className="px-6 py-4 text-right font-black text-gray-500 uppercase tracking-wider text-[10px]">Total Pending</th>
+                      <th className="px-6 py-4 text-left font-black text-black uppercase tracking-wider text-xs md:text-sm">Quality</th>
+                      <th className="px-6 py-4 text-center font-black text-black uppercase tracking-wider text-xs md:text-sm">Lots</th>
+                      <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Total Received</th>
+                      <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Ready Stock</th>
+                      <th className="px-6 py-4 text-right font-black text-black uppercase tracking-wider text-xs md:text-sm">Total Pending</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 print:divide-gray-300">
@@ -719,19 +795,19 @@ export default function Reports() {
                     )}
                     {qualityStockData.map((entry, index) => (
                       <tr key={index} className="hover:bg-blue-50/30 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap font-black text-purple-700 text-base">{entry.quality}</td>
+                        <td className="px-6 py-4 whitespace-nowrap font-black text-black text-base">{entry.quality}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-bold text-xs">
+                          <span className="bg-blue-50 text-black px-3 py-1 rounded-full font-bold text-xs border border-blue-200">
                             {entry.lotCount} Lots
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600 font-bold">
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-black font-bold text-sm">
                           {stockUnit === 'gaz' ? entry.totalGaz.toLocaleString() : entry.totalMeters.toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-emerald-600 font-black">
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-black font-black text-sm">
                           {stockUnit === 'gaz' ? entry.readyGaz.toLocaleString() : entry.readyMeters.toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-amber-600 font-black">
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-black font-black text-sm">
                           {stockUnit === 'gaz' ? entry.pendingGaz.toLocaleString() : entry.pendingMeters.toLocaleString()}
                         </td>
                       </tr>
@@ -752,19 +828,57 @@ export default function Reports() {
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
         @media print {
-          @page { size: A4 landscape; margin: 15mm; }
+          @page { size: A4 landscape; margin: 10mm; }
           body { background: white !important; }
-          body * { visibility: hidden; }
-          .print\\:block, .print\\:block * { visibility: visible; }
-          .report-container, .report-container * { visibility: visible; }
+          body * { visibility: hidden !important; }
+          .print\:block, .print\:block * { visibility: visible !important; }
+          .report-container, .report-container * { visibility: visible !important; }
           .report-container {
-            position: absolute; left: 0; top: 120px; width: 100%;
-            background: white !important; color: black !important;
+            position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important;
+            background: white !important; color: #000000 !important;
             border: none !important; box-shadow: none !important;
+            padding: 0 !important; margin: 0 !important;
           }
-          .print\\:hidden { display: none !important; }
-          th { background-color: #f3f4f6 !important; color: #374151 !important; border-bottom: 2px solid #e5e7eb !important; -webkit-print-color-adjust: exact; }
-          td { border-bottom: 1px solid #e5e7eb !important; }
+          .print\:hidden { display: none !important; }
+          
+          /* Set border colors to black for print */
+          .border, .border-black, .border-gray-300, .border-gray-400, .border-purple-200, .border-purple-300 {
+            border-color: #000000 !important;
+          }
+          
+          /* Set all text colors to black for print */
+          .text-blue-600, .text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700, .text-gray-800, .text-gray-900, .text-red-600, .text-red-700, .text-orange-600, .text-green-600, .text-emerald-600, .text-emerald-700, .text-purple-800, .text-purple-900, .text-indigo-800, .text-indigo-900, .text-amber-600 {
+            color: #000000 !important;
+          }
+          
+          /* Table styles for print */
+          table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+          
+          th, td {
+            font-size: 15px !important;
+            padding: 6px 4px !important;
+            color: #000000 !important;
+            border: 1px solid #000000 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          
+          th {
+            background-color: #f3f4f6 !important;
+            font-weight: 900 !important;
+          }
+          
+          .report-container h1, .report-container h2 {
+            font-size: 20px !important;
+          }
+          
+          .report-container p, .report-container span {
+            font-size: 13px !important;
+          }
+          
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
       `}</style>

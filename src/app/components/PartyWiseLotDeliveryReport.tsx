@@ -284,28 +284,28 @@ export default function PartyWiseLotDeliveryReport({ fromDate, toDate }: PartyWi
             <button
               onClick={handlePdfPrint}
               disabled={!report || !organization}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-bold text-sm disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20 font-black text-sm disabled:opacity-50"
             >
-              <Printer size={16} />
+              <Printer size={20} />
               Print Report
             </button>
             <button
               onClick={handleExcelExport}
               disabled={!report}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold text-sm disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/20 font-black text-sm disabled:opacity-50"
             >
-              <Download size={16} />
+              <Download size={20} />
               Export Excel
             </button>
             {organization && report && (
               <PDFDownloadLink
                 document={<PDFPartyWiseLotDelivery report={report} org={organization} />}
                 fileName={`Party-Lot-Delivery_${report.party.name.replace(/\s+/g, '-')}_${fromDate}_${toDate}.pdf`}
-                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-bold text-sm no-underline"
+                className="flex items-center gap-2 px-6 py-3 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors shadow-lg shadow-rose-500/20 font-black text-sm no-underline"
               >
                 {({ loading: pdfLoading }) => (
                   <>
-                    <Download size={16} />
+                    <Download size={20} />
                     {pdfLoading ? 'Generating...' : 'Export PDF'}
                   </>
                 )}
@@ -347,15 +347,15 @@ export default function PartyWiseLotDeliveryReport({ fromDate, toDate }: PartyWi
             </div>
 
             <div className="border border-t-0 border-black overflow-x-auto max-h-[600px] overflow-y-auto">
-              <table className="w-full border-collapse text-[10px]">
+              <table className="w-full border-collapse text-sm text-black">
                 <thead className="sticky top-0 z-[1]">
-                  <tr className="bg-gray-300">
+                  <tr className="bg-gray-300 text-black">
                     {[
                       'Sr No', 'Lot No', 'Party Lot No', 'Delivery Date', 'Fabric Type', 'Party Name',
                       'Quality', 'Meters Sent', 'Meters Delivered', 'D.O No', 'D.O Date',
                       'Delivery Challan No', 'Challan Date', 'Status',
                     ].map((h) => (
-                      <th key={h} className="border border-black p-1.5 text-left whitespace-nowrap font-black uppercase text-[8px]">
+                      <th key={h} className="border border-black p-1.5 text-left whitespace-nowrap font-black uppercase text-xs md:text-sm text-black">
                         {h}
                       </th>
                     ))}
@@ -366,7 +366,7 @@ export default function PartyWiseLotDeliveryReport({ fromDate, toDate }: PartyWi
                     <Fragment key={`${row.srNo}-${row.doNo}-${idx}`}>
                       {groupLabel && groupBy !== 'party' && (
                         <tr className="bg-blue-100">
-                          <td colSpan={14} className="border border-black p-2 font-black text-blue-800 uppercase text-[9px]">
+                          <td colSpan={14} className="border border-black p-2 font-black text-black uppercase text-xs md:text-sm">
                             {groupPrefix}{groupLabel}
                           </td>
                         </tr>
@@ -374,20 +374,20 @@ export default function PartyWiseLotDeliveryReport({ fromDate, toDate }: PartyWi
                       <tr className={idx % 2 === 1 ? 'bg-gray-50' : 'bg-white'}>
                         <td className="border border-black p-1.5 text-center font-bold">{row.srNo}</td>
                         <td className="border border-black p-1.5 font-mono font-bold">{row.lotNo}</td>
-                        <td className="border border-black p-1.5 font-mono">{row.partyLotNo}</td>
-                        <td className="border border-black p-1.5 whitespace-nowrap">{formatReportDate(row.deliveryDate)}</td>
+                        <td className="border border-black p-1.5 font-mono font-semibold">{row.partyLotNo}</td>
+                        <td className="border border-black p-1.5 whitespace-nowrap font-semibold">{formatReportDate(row.deliveryDate)}</td>
                         <td className="border border-black p-1.5">
-                          <span className="px-1.5 py-0.5 rounded bg-gray-100 font-semibold">{row.fabricType}</span>
+                          <span className="px-1.5 py-0.5 rounded bg-gray-100 font-semibold text-black">{row.fabricType}</span>
                         </td>
-                        <td className="border border-black p-1.5 font-semibold">{row.partyName}</td>
-                        <td className="border border-black p-1.5 text-purple-800 font-semibold">{row.quality}</td>
-                        <td className="border border-black p-1.5 text-right">{formatMeters(row.metersSent)}</td>
+                        <td className="border border-black p-1.5 font-semibold text-black">{row.partyName}</td>
+                        <td className="border border-black p-1.5 text-black font-bold">{row.quality}</td>
+                        <td className="border border-black p-1.5 text-right font-semibold">{formatMeters(row.metersSent)}</td>
                         <td className="border border-black p-1.5 text-right font-bold">{formatMeters(row.metersDelivered)}</td>
-                        <td className="border border-black p-1.5 font-mono">{row.doNo}</td>
-                        <td className="border border-black p-1.5 whitespace-nowrap">{formatReportDate(row.doDate)}</td>
-                        <td className="border border-black p-1.5 font-mono">{row.challanNo}</td>
-                        <td className="border border-black p-1.5 whitespace-nowrap">{formatReportDate(row.challanDate)}</td>
-                        <td className="border border-black p-1.5 font-bold" style={{ color: getStatusColor(row.status) }}>
+                        <td className="border border-black p-1.5 font-mono font-semibold">{row.doNo}</td>
+                        <td className="border border-black p-1.5 whitespace-nowrap font-semibold">{formatReportDate(row.doDate)}</td>
+                        <td className="border border-black p-1.5 font-mono font-semibold">{row.challanNo}</td>
+                        <td className="border border-black p-1.5 whitespace-nowrap font-semibold">{formatReportDate(row.challanDate)}</td>
+                        <td className="border border-black p-1.5 font-bold text-black">
                           {row.status}
                         </td>
                       </tr>
@@ -397,7 +397,7 @@ export default function PartyWiseLotDeliveryReport({ fromDate, toDate }: PartyWi
               </table>
             </div>
 
-            <div className="border border-t-0 border-black bg-gray-200 p-4 grid grid-cols-2 md:grid-cols-5 gap-4 text-[11px] font-bold">
+            <div className="border border-t-0 border-black bg-gray-200 p-4 grid grid-cols-2 md:grid-cols-5 gap-4 text-sm font-bold text-black">
               <span>Total Lots: {report.summary.totalLots}</span>
               <span>Sent: {formatMeters(report.summary.totalMetersSent)} M</span>
               <span>Delivered: {formatMeters(report.summary.totalMetersDelivered)} M</span>

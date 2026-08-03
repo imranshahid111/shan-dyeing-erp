@@ -226,28 +226,28 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
             <button
               onClick={handlePdfPrint}
               disabled={!report || !organization}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-bold text-sm disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20 font-black text-sm disabled:opacity-50"
             >
-              <Printer size={16} />
+              <Printer size={20} />
               Print Report
             </button>
             <button
               onClick={handleExcelExport}
               disabled={!report}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold text-sm disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/20 font-black text-sm disabled:opacity-50"
             >
-              <Download size={16} />
+              <Download size={20} />
               Export Excel
             </button>
             {organization && report && (
               <PDFDownloadLink
                 document={<PDFCompletedLots report={report} org={organization} reportType={reportType} />}
                 fileName={`${reportType === 'incomplete' ? 'Incomplete' : 'Completed'}-Lots_${report.party.name.replace(/\s+/g, '-')}_${fromDate}_${toDate}.pdf`}
-                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-bold text-sm no-underline"
+                className="flex items-center gap-2 px-6 py-3 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors shadow-lg shadow-rose-500/20 font-black text-sm no-underline"
               >
                 {({ loading: pdfLoading }) => (
                   <>
-                    <Download size={16} />
+                    <Download size={20} />
                     {pdfLoading ? 'Generating...' : 'Export PDF'}
                   </>
                 )}
@@ -289,14 +289,14 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
             </div>
 
             <div className="border border-t-0 border-black overflow-x-auto">
-              <table className="w-full border-collapse text-[10px]">
+              <table className="w-full border-collapse text-sm text-black">
                 <thead className="sticky top-0 z-[1]">
-                  <tr className="bg-gray-300">
+                  <tr className="bg-gray-300 text-black">
                     {(reportType === 'incomplete' 
-                      ? ['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Ready Meters', 'D.O', 'K-Wapsi', 'Balance', 'Remarks']
-                      : ['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Ready Meters', 'D.O', 'K-Wapsi', 'Balance', 'Percentage', 'Remarks']
+                      ? ['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Ready Meters', 'D.O', 'K-Wapsi', 'Balance']
+                      : ['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Ready Meters', 'D.O', 'K-Wapsi', 'Balance', 'Percentage']
                     ).map((h) => (
-                      <th key={h} className="border border-black p-1.5 text-left whitespace-nowrap font-black uppercase text-[9px]">
+                      <th key={h} className="border border-black p-1.5 text-left whitespace-nowrap font-black uppercase text-xs md:text-sm text-black">
                         {h}
                       </th>
                     ))}
@@ -305,46 +305,44 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
                   <tbody>
                     {report.lots.map((lot, idx) => (
                       <tr key={`${lot.lotNo}-${idx}`} className={idx % 2 === 1 ? 'bg-gray-50' : 'bg-white'}>
-                      <td className="border border-black p-1.5 text-center">{lot.year}</td>
+                      <td className="border border-black p-1.5 text-center font-semibold">{lot.year}</td>
                       <td className="border border-black p-1.5 font-mono font-bold">{lot.lotNo}</td>
-                      <td className="border border-black p-1.5 font-mono">{lot.biltyNo}</td>
-                      <td className="border border-black p-1.5 whitespace-nowrap">{formatReportDate(lot.date)}</td>
-                      <td className="border border-black p-1.5 font-semibold text-purple-800">{lot.quality}</td>
-                      <td className="border border-black p-1.5 text-right">{lot.than}</td>
-                      <td className="border border-black p-1.5 text-right">{formatMeters(lot.metersIn)}</td>
-                      <td className="border border-black p-1.5 text-right">{formatMeters(lot.metersOut)}</td>
+                      <td className="border border-black p-1.5 font-mono font-semibold">{lot.biltyNo}</td>
+                      <td className="border border-black p-1.5 whitespace-nowrap font-semibold">{formatReportDate(lot.date)}</td>
+                      <td className="border border-black p-1.5 font-bold text-black">{lot.quality}</td>
+                      <td className="border border-black p-1.5 text-right font-semibold">{lot.than}</td>
+                      <td className="border border-black p-1.5 text-right font-semibold">{formatMeters(lot.metersIn)}</td>
+                      <td className="border border-black p-1.5 text-right font-semibold">{formatMeters(lot.metersOut)}</td>
                       <td className="border border-black p-1.5 text-right font-bold">{formatMeters(lot.totalMeters)}</td>
-                      <td className="border border-black p-1.5 text-right">{formatMeters(lot.doQty)}</td>
-                      <td className="border border-black p-1.5 text-right">{formatMeters(lot.kWapsi)}</td>
-                      <td className="border border-black p-1.5 text-right">{formatMeters(lot.balance)}</td>
+                      <td className="border border-black p-1.5 text-right font-semibold">{formatMeters(lot.doQty)}</td>
+                      <td className="border border-black p-1.5 text-right font-semibold">{formatMeters(lot.kWapsi)}</td>
+                      <td className="border border-black p-1.5 text-right font-bold">{formatMeters(lot.balance)}</td>
                       {reportType !== 'incomplete' && (
                         <td
-                          className="border border-black p-1.5 text-right font-bold"
-                          style={{ color: getPercentageColor(lot.percentage) }}
+                          className="border border-black p-1.5 text-right font-bold text-black"
                         >
                           {lot.percentage > 0 ? '+' : ''}{lot.percentage}%
                         </td>
                       )}
-                      <td className="border border-black p-1.5 text-gray-600">{lot.remarks || '—'}</td>
                     </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-            <div className="border border-black bg-gray-200 p-3 flex flex-wrap gap-6 text-[11px] font-bold">
+            <div className="border border-black bg-gray-200 p-3 flex flex-wrap gap-6 text-sm font-bold text-black">
               <span>Total Lots: {report.summary.totalLots}</span>
               <span>Total Bundles: {formatMeters(report.summary.totalBundles)}</span>
               <span>Total Meters In: {formatMeters(report.summary.totalMetersIn)}</span>
               <span>Total Meters Out: {formatMeters(report.summary.totalMetersOut)}</span>
               {reportType !== 'incomplete' && (
-                <span style={{ color: getPercentageColor(-report.summary.productionDifference) }}>
+                <span className="text-black">
                   Production Difference: {formatMeters(report.summary.productionDifference)}
                 </span>
               )}
             </div>
 
-            <div className="border border-t-0 border-black bg-gray-300 p-4 text-[11px] font-black">
+            <div className="border border-t-0 border-black bg-gray-300 p-4 text-sm font-black text-black">
               <p className="mb-2 uppercase tracking-wider">Grand Totals</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <span>Bundles: {formatMeters(report.summary.totalBundles)}</span>
