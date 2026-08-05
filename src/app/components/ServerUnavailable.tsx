@@ -1,10 +1,15 @@
-import { RefreshCcw, ServerCrash, Wifi } from 'lucide-react';
+import { useState } from 'react';
+import { RefreshCcw, ServerCrash, Wifi, Settings } from 'lucide-react';
 import { useServerStatus } from '../hooks/useServerStatus';
+import { getCustomServerIpRaw, setCustomServerIp } from '../config/runtimeConfig';
+
 
 export default function ServerUnavailable() {
   const { status, lastErrorMessage } = useServerStatus();
+  const [serverIp, setServerIp] = useState(getCustomServerIpRaw() || '');
 
   if (status === 'connected') return null;
+
 
   return (
     <div style={{
@@ -94,6 +99,63 @@ export default function ServerUnavailable() {
           <RefreshCcw size={17} />
           Retry Connection
         </button>
+
+        {/* Connection Settings */}
+        <div style={{
+          marginTop: '1.5rem',
+          paddingTop: '1.5rem',
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          textAlign: 'left',
+        }}>
+          <h4 style={{
+            fontSize: '0.8125rem', fontWeight: 600, color: 'rgba(255,255,255,0.7)',
+            margin: '0 0 0.5rem', display: 'flex', alignItems: 'center', gap: '6px'
+          }}>
+            <Settings size={14} />
+            Server Connection Settings
+          </h4>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              type="text"
+              placeholder="e.g. 192.168.1.100 or localhost"
+              value={serverIp}
+              onChange={e => setServerIp(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '0.625rem 0.875rem',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '0.875rem',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setCustomServerIp(serverIp);
+                window.location.reload();
+              }}
+              style={{
+                padding: '0.625rem 1rem',
+                background: '#2563eb',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Save
+            </button>
+          </div>
+          <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.375rem', margin: '0.375rem 0 0', lineHeight: 1.3 }}>
+            Enter the IP/domain of the host machine. Leave empty to use auto-detected IP.
+          </p>
+        </div>
       </div>
     </div>
   );

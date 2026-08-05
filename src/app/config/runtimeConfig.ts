@@ -44,11 +44,51 @@ export async function getLocalIp(): Promise<string | null> {
   });
 }
 
+export function formatApiUrl(input: string): string {
+  let trimmed = input.trim();
+  if (!trimmed) return '';
+
+  // If it already has http:// or https://, use as is
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+
+  // If it's a hostname or IP with a port, e.g. 192.168.1.10:3000
+  if (trimmed.includes(':')) {
+    return `http://${trimmed}/api`;
+  }
+
+  // Otherwise, default port is 5001 and path is /api
+  return `http://${trimmed}:5001/api`;
+}
+
+export function setCustomServerIp(rawInput: string): void {
+  const trimmed = rawInput.trim();
+  if (!trimmed) {
+    localStorage.removeItem('custom_server_ip_raw');
+    localStorage.removeItem('custom_api_base_url');
+    return;
+  }
+  
+  const computedUrl = formatApiUrl(trimmed);
+  localStorage.setItem('custom_server_ip_raw', trimmed);
+  localStorage.setItem('custom_api_base_url', computedUrl);
+}
+
+export function getCustomServerIpRaw(): string {
+  return localStorage.getItem('custom_server_ip_raw') || '';
+}
+
+export function getCustomApiBaseUrl(): string {
+  return localStorage.getItem('custom_api_base_url') || '';
+}
+
 export const defaultRuntimeConfig: RuntimeConfig = {
   apiBaseUrl: 'http://127.0.0.1:5001/api',
 };
 
 export async function getRuntimeConfig(): Promise<RuntimeConfig> {
+  const customUrl = localStorage.getItem('custom_api_base_url')?.trim();
   const runtimeValue = window.__APP_CONFIG__?.apiBaseUrl?.trim();
   const envValue = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
 
@@ -57,7 +97,16 @@ export async function getRuntimeConfig(): Promise<RuntimeConfig> {
   const localIp = await getLocalIp();
   console.log('Detected local IP:', localIp);
 
-  // 2. Highest Priority: Manual override in window.__APP_CONFIG__ (from app-config.json)
+  // 1.5. Highest Priority: Manual user-inputted IP saved in localStorage
+  if (customUrl) {
+    console.log('Using Custom LocalStorage Base URL (User Settings):', customUrl);
+    return {
+      apiBaseUrl: customUrl,
+      localIp: localIp
+    };
+  }
+
+  // 2. Second Priority: Manual override in window.__APP_CONFIG__ (from app-config.json)
   if (runtimeValue) {
     console.log('Using Runtime Config Base URL (Manual Override):', runtimeValue);
     return { 
@@ -66,7 +115,7 @@ export async function getRuntimeConfig(): Promise<RuntimeConfig> {
     };
   }
 
-  // 3. Second Priority: Use detected local IP if available
+  // 3. Third Priority: Use detected local IP if available
   if (localIp) {
     const autoUrl = `http://${localIp}:5001/api`;
     console.log('Using Auto-Detected Base URL:', autoUrl);
@@ -76,7 +125,7 @@ export async function getRuntimeConfig(): Promise<RuntimeConfig> {
     };
   }
 
-  // 4. Third Priority: Environment variable (VITE_API_BASE_URL)
+  // 4. Fourth Priority: Environment variable (VITE_API_BASE_URL)
   if (envValue) {
     console.log('Using Environment Variable Base URL:', envValue);
     return { 

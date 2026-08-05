@@ -1,7 +1,10 @@
 import { confirmDialog } from "../utils/confirmDialog";
-import React, { useState, useRef } from 'react';
-import { Database, AlertTriangle, Upload, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Database, AlertTriangle, Upload, CheckCircle2, XCircle, Loader2, Network } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getCustomServerIpRaw, setCustomServerIp, getRuntimeConfig } from '../config/runtimeConfig';
+import { toast } from 'sonner';
+
 
 export default function Settings() {
   const [file, setFile] = useState<File | null>(null);
@@ -13,6 +16,24 @@ export default function Settings() {
 
   const [password, setPassword] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+
+  const [serverIp, setServerIp] = useState(getCustomServerIpRaw() || '');
+  const [activeApiUrl, setActiveApiUrl] = useState('');
+
+  useEffect(() => {
+    getRuntimeConfig().then(config => {
+      setActiveApiUrl(config.apiBaseUrl);
+    });
+  }, []);
+
+  const handleSaveServerIp = () => {
+    setCustomServerIp(serverIp);
+    toast.success('Server connection settings updated. Reloading...');
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  };
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -91,6 +112,97 @@ export default function Settings() {
       <div style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--gray-900)' }}>System Settings</h2>
         <p style={{ color: 'var(--gray-500)', fontSize: '0.875rem' }}>Manage application configuration and database.</p>
+      </div>
+
+      {/* Server IP Settings Card */}
+      <div style={{ 
+        background: 'white', 
+        borderRadius: '16px', 
+        border: '1px solid var(--gray-200)',
+        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
+        overflow: 'hidden',
+        marginBottom: '2rem'
+      }}>
+        <div style={{
+          padding: '1.5rem',
+          borderBottom: '1px solid var(--gray-200)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem'
+        }}>
+          <div style={{
+            width: '2.5rem', height: '2.5rem',
+            background: 'rgba(59, 130, 246, 0.1)',
+            color: 'rgb(59, 130, 246)',
+            borderRadius: '10px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <Network size={20} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--gray-900)', margin: 0 }}>Server Connection Settings</h3>
+            <p style={{ color: 'var(--gray-500)', fontSize: '0.8125rem', margin: 0, marginTop: '2px' }}>Configure the backend server IP address or base API URL.</p>
+          </div>
+        </div>
+
+        <div style={{ padding: '1.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '30rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '0.5rem' }}>
+                Server IP / Base API URL
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                  type="text"
+                  placeholder="e.g. 192.168.1.100 or localhost"
+                  value={serverIp}
+                  onChange={e => setServerIp(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '0.625rem 0.875rem',
+                    border: '1px solid var(--gray-300)',
+                    borderRadius: '8px',
+                    fontSize: '0.9375rem',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveServerIp}
+                  style={{
+                    padding: '0.625rem 1.25rem',
+                    background: 'var(--brand-500, #2563eb)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '0.9375rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Save
+                </button>
+              </div>
+              <p style={{ color: 'var(--gray-500)', fontSize: '0.75rem', marginTop: '0.5rem', lineHeight: 1.4, margin: '0.5rem 0 0' }}>
+                Enter the IP address of the local system hosting the database/server (e.g. <code>192.168.1.100</code>). 
+                If left empty, the application will try to automatically detect the IP in your local network.
+              </p>
+            </div>
+            
+            {/* Show currently active URL */}
+            <div style={{ 
+              background: 'var(--gray-50)', 
+              borderRadius: '8px', 
+              padding: '0.75rem 1rem', 
+              border: '1px solid var(--gray-200)',
+              fontSize: '0.8125rem',
+              color: 'var(--gray-600)'
+            }}>
+              Active API Endpoint: <strong style={{ color: 'var(--gray-900)', fontFamily: 'monospace' }}>{activeApiUrl}</strong>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div style={{ 

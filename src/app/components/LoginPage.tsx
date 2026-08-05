@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Package, Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Package, Mail, Lock, ArrowRight, Eye, EyeOff, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
+import { getCustomServerIpRaw, setCustomServerIp } from '../config/runtimeConfig';
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -11,6 +13,17 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  const [showServerSettings, setShowServerSettings] = useState(false);
+  const [serverIp, setServerIp] = useState(getCustomServerIpRaw() || '');
+
+  const handleSaveServerIp = () => {
+    setCustomServerIp(serverIp);
+    toast.success('Connection settings updated. Reloading...');
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,9 +146,83 @@ export default function LoginPage() {
               fontSize: '1.625rem', fontWeight: 800, color: 'white',
               letterSpacing: '-0.02em', margin: '0 0 0.375rem',
             }}>Welcome back</h3>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem', margin: 0 }}>
-              Sign in to your ERP dashboard
-            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem', margin: 0 }}>
+                Sign in to your ERP dashboard
+              </p>
+              <button 
+                type="button" 
+                onClick={() => setShowServerSettings(!showServerSettings)}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  color: 'rgba(99,179,237,0.8)', 
+                  fontSize: '0.8125rem', 
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: 0
+                }}
+              >
+                <Settings size={14} />
+                Server IP
+              </button>
+            </div>
+
+            {showServerSettings && (
+              <div style={{
+                marginTop: '1rem',
+                padding: '1rem',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '12px',
+                animation: 'dialogIn 0.3s ease both',
+              }}>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>
+                  Server IP / API URL
+                </label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    placeholder="e.g. 192.168.1.100 or localhost"
+                    value={serverIp}
+                    onChange={e => setServerIp(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '0.625rem 0.875rem',
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1.5px solid rgba(255,255,255,0.1)',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontSize: '0.875rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveServerIp}
+                    style={{
+                      padding: '0.625rem 1rem',
+                      background: '#2563eb',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Save
+                  </button>
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: '0.375rem', margin: '0.375rem 0 0' }}>
+                  Leave empty to use auto-detected IP.
+                </p>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
