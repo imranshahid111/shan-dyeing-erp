@@ -261,17 +261,24 @@ export const PDFSubLedger = ({
               </Cell>
             </View>
           ))}
+
+          {/* Table Totals Row */}
+          <View style={[styles.tableRow, styles.tableHeader]} wrap={false}>
+            <Cell width={COL.date}>""</Cell>
+            <Cell width={COL.refType} variant="left">""</Cell>
+            <Cell width={COL.refNo}>""</Cell>
+            <Cell width={COL.lot}>""</Cell>
+            <Cell width={COL.desc} variant="left" bold>Total Qty</Cell>
+            <Cell width={COL.rate} variant="right">""</Cell>
+            <Cell width={COL.gray} variant="right" bold>{formatAmount(totalGray)}</Cell>
+            <Cell width={COL.meter} variant="right" bold>{formatAmount(totalReady)}</Cell>
+            <Cell width={COL.debit} variant="right">""</Cell>
+            <Cell width={COL.credit} variant="right">""</Cell>
+            <Cell width={COL.balance} variant="right" last>""</Cell>
+          </View>
         </View>
 
         <View style={styles.summaryBox}>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total Gray</Text>
-            <Text style={styles.summaryValue}>{formatAmount(totalGray)}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total Finish</Text>
-            <Text style={styles.summaryValue}>{formatAmount(totalReady)}</Text>
-          </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total Debit Amount</Text>
             <Text style={styles.summaryValue}>{formatCurrency(report.summary.totalDebit)}</Text>

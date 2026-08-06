@@ -327,13 +327,12 @@ exports.getSubLedgerReport = async (req, res, next) => {
         quality += ` - ${extras.join(", ")}`;
       }
 
-      const isLotMeter = String(lot.measurement || "").toLowerCase() === "meter";
       const rawGray = Number(o.total_gray_gazana || 0);
       const rawReady = Number(o.total_ready_gazana || 0);
 
-      // Convert DB gazana (which is always in GAZ / Yard) to Meters (* 0.9144) if lot or DO is in meters
-      const grayMeters = isLotMeter ? (rawGray * 0.9144) : rawGray;
-      const readyMeters = (o.input_unit || 'meter') === 'gaz' ? (rawReady * 0.9144) : rawReady;
+      // Convert DB gazana (which is always in GAZ / Yard) to Meters (* 0.9144)
+      const grayMeters = rawGray * 0.9144;
+      const readyMeters = rawReady * 0.9144;
 
       periodEntries.push({
         date: o.order_date,

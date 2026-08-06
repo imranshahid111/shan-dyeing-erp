@@ -301,19 +301,19 @@ export default function SubLedgerReportView({ fromDate, toDate }: SubLedgerRepor
                     </td>
                   </tr>
                 ))}
+                <tr className="bg-gray-300 text-black font-black">
+                  <td colSpan={6} className="border border-black p-1.5 text-right">Total Qty</td>
+                  <td className="border border-black p-1.5 text-right">{formatAmount(totalGray)}</td>
+                  <td className="border border-black p-1.5 text-right">{formatAmount(totalReady)}</td>
+                  <td className="border border-black p-1.5 text-right"></td>
+                  <td className="border border-black p-1.5 text-right"></td>
+                  <td className="border border-black p-1.5 text-right"></td>
+                </tr>
               </tbody>
             </table>
 
             <div className="flex justify-end p-4 border-t border-black">
               <div className="w-72 border border-black text-sm text-black">
-                <div className="flex justify-between p-2 border-b border-black bg-gray-100">
-                  <span className="font-bold">Total Gray</span>
-                  <span className="font-bold">{formatAmount(totalGray)}</span>
-                </div>
-                <div className="flex justify-between p-2 border-b border-black bg-gray-100">
-                  <span className="font-bold">Total Finish</span>
-                  <span className="font-bold">{formatAmount(totalReady)}</span>
-                </div>
                 <div className="flex justify-between p-2 border-b border-black bg-gray-100">
                   <span className="font-bold">Total Debit Amount</span>
                   <span className="font-bold">{formatCurrency(report.summary.totalDebit)}</span>
