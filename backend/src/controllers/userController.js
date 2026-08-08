@@ -46,6 +46,8 @@ exports.createUser = async (req, res, next) => {
       can_view_staff: isAppAdmin ? true : (privileges?.can_view_staff ?? false),
       can_view_activity_logs: isAppAdmin ? true : (privileges?.can_view_activity_logs ?? false),
       can_view_reports: isAppAdmin ? true : (privileges?.can_view_reports ?? false),
+      can_edit: isAppAdmin ? true : (privileges?.can_edit ?? false),
+      allowed_reports: isAppAdmin ? "ledger,subledger,outstanding,payments,invoices,datesales,challan,completedlots,incompletelots,partylotdelivery,stock" : (privileges?.allowed_reports ?? ""),
       can_delete: isAppAdmin ? true : (privileges?.can_delete ?? false),
     };
 
@@ -135,6 +137,8 @@ exports.updateUser = async (req, res, next) => {
       can_view_staff: isAppAdmin ? true : (privileges?.can_view_staff ?? false),
       can_view_activity_logs: isAppAdmin ? true : (privileges?.can_view_activity_logs ?? false),
       can_view_reports: isAppAdmin ? true : (privileges?.can_view_reports ?? false),
+      can_edit: isAppAdmin ? true : (privileges?.can_edit ?? false),
+      allowed_reports: isAppAdmin ? "ledger,subledger,outstanding,payments,invoices,datesales,challan,completedlots,incompletelots,partylotdelivery,stock" : (privileges?.allowed_reports ?? ""),
       can_delete: isAppAdmin ? true : (privileges?.can_delete ?? false),
     };
 

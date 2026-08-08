@@ -32,6 +32,8 @@ export default function StaffForm() {
       can_view_staff: false,
       can_view_activity_logs: false,
       can_view_reports: false,
+      can_edit: false,
+      allowed_reports: '',
       can_delete: false,
     }
   });
@@ -59,6 +61,8 @@ export default function StaffForm() {
               can_view_staff: (user.privilege || user.Privilege)?.can_view_staff ?? false,
               can_view_activity_logs: (user.privilege || user.Privilege)?.can_view_activity_logs ?? false,
               can_view_reports: (user.privilege || user.Privilege)?.can_view_reports ?? false,
+              can_edit: (user.privilege || user.Privilege)?.can_edit ?? false,
+              allowed_reports: (user.privilege || user.Privilege)?.allowed_reports ?? '',
               can_delete: (user.privilege || user.Privilege)?.can_delete ?? false,
             }
           });
@@ -117,6 +121,24 @@ export default function StaffForm() {
       privileges: {
         ...prev.privileges,
         [key]: checked
+      }
+    }));
+  };
+
+  const toggleReportPrivilege = (reportId: string, checked: boolean) => {
+    if (isView) return;
+    const allowedStr = formData.privileges.allowed_reports || '';
+    let allowedList = allowedStr.split(',').filter(Boolean);
+    if (checked) {
+      if (!allowedList.includes(reportId)) allowedList.push(reportId);
+    } else {
+      allowedList = allowedList.filter(id => id !== reportId);
+    }
+    setFormData(prev => ({
+      ...prev,
+      privileges: {
+        ...prev.privileges,
+        allowed_reports: allowedList.join(',')
       }
     }));
   };
@@ -329,6 +351,7 @@ export default function StaffForm() {
                   { key: 'can_view_staff', label: 'Access Staff Management' },
                   { key: 'can_view_activity_logs', label: 'Access Activity Logs' },
                   { key: 'can_view_reports', label: 'Access Reports' },
+                  { key: 'can_edit', label: 'Allow Record Editing' },
                 ].map(item => (
                   <label
                     key={item.key}
@@ -358,6 +381,66 @@ export default function StaffForm() {
                 ))}
               </div>
 
+              {/* Nested Allowed Reports list */}
+              {formData.privileges.can_view_reports && (
+                <div style={{
+                  padding: '1.25rem',
+                  background: 'white',
+                  borderRadius: '12px',
+                  border: '1px solid var(--gray-200)',
+                  marginTop: '0.25rem',
+                  boxShadow: 'var(--shadow-sm)',
+                }}>
+                  <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.75rem', fontWeight: 800, color: 'var(--gray-600)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Select Allowed Reports:
+                  </p>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '0.625rem',
+                  }}>
+                    {[
+                      { id: 'subledger', label: 'Customer Ledger' },
+                      { id: 'outstanding', label: 'Outstanding Summary' },
+                      { id: 'payments', label: 'Payments Log' },
+                      { id: 'invoices', label: 'Invoices Log' },
+                      { id: 'datesales', label: 'Date Wise Sales' },
+                      { id: 'challan', label: 'Delivery Challan' },
+                      { id: 'completedlots', label: 'Completed Lots' },
+                      { id: 'incompletelots', label: 'Incomplete Lots' },
+                      { id: 'partylotdelivery', label: 'Party Lot Delivery' },
+                      { id: 'stock', label: 'Stock Report' },
+                    ].map(rep => {
+                      const allowedList = (formData.privileges.allowed_reports || '').split(',').filter(Boolean);
+                      const isChecked = allowedList.includes(rep.id);
+                      return (
+                        <label
+                          key={rep.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            fontSize: '0.75rem',
+                            color: 'var(--gray-700)',
+                            fontWeight: 600,
+                            cursor: isView ? 'default' : 'pointer',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            disabled={isView}
+                            style={{ cursor: isView ? 'default' : 'pointer', width: '14px', height: '14px' }}
+                            checked={isChecked}
+                            onChange={e => toggleReportPrivilege(rep.id, e.target.checked)}
+                          />
+                          {rep.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Danger Zone Privilege */}
               <div style={{
                 borderTop: '1.5px solid var(--gray-150)',
@@ -377,10 +460,10 @@ export default function StaffForm() {
                 />
                 <label htmlFor="chk-can-delete" style={{ cursor: isView ? 'default' : 'pointer', display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: '0.8125rem', fontWeight: 800, color: 'var(--error)' }}>
-                    Allow Record Deletion Capabilities
+                    Allow Invoice Deletion Capabilities
                   </span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', marginTop: '0.125rem' }}>
-                    Authorizes this member to permanently delete lots, delivery orders, gate passes, or invoices.
+                    Authorizes this member to permanently delete invoices (associated payments will be reverted).
                   </span>
                 </label>
               </div>

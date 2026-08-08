@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 export default function ReturnLots() {
   const [returnLots, setReturnLots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [canDelete, setCanDelete] = useState(true);
+  const [canEdit, setCanEdit] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [grayLots, setGrayLots] = useState<any[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -114,6 +116,21 @@ export default function ReturnLots() {
   useEffect(() => {
     fetchReturnLots();
     fetchGrayLots();
+    try {
+      const saved = localStorage.getItem('erp_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role === 'admin') {
+          setCanDelete(true);
+          setCanEdit(true);
+        } else {
+          setCanDelete(false);
+          setCanEdit(parsed.privileges?.can_edit ?? false);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }, []);
 
   useEffect(() => {
@@ -199,16 +216,18 @@ export default function ReturnLots() {
           <h1 className="text-2xl font-bold text-gray-900">Return Lots</h1>
           <p className="text-sm text-gray-500">Manage damaged and returned quantities from Gray Lots</p>
         </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setIsModalOpen(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-        >
-          <Plus size={18} />
-          Add Return Lot
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => {
+              resetForm();
+              setIsModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            <Plus size={18} />
+            Add Return Lot
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[400px]">
@@ -254,13 +273,15 @@ export default function ReturnLots() {
                       {rl.reason || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                      <button
-                        onClick={() => handleEdit(rl)}
-                        className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors mr-2"
-                        title="Edit"
-                      >
-                        <Edit size={18} />
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => handleEdit(rl)}
+                          className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors mr-2"
+                          title="Edit"
+                        >
+                          <Edit size={18} />
+                        </button>
+                      )}
                       <button
                         onClick={() => setPreviewLot(rl)}
                         className="text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors mr-2"
@@ -268,13 +289,15 @@ export default function ReturnLots() {
                       >
                         <Printer size={18} />
                       </button>
-                      <button
-                        onClick={() => handleDelete(rl.id)}
-                        className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={() => handleDelete(rl.id)}
+                          className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

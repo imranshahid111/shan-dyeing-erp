@@ -49,8 +49,8 @@ export default function GrayLotManagement() {
           setCanDelete(true);
           setCanEdit(true);
         } else {
-          setCanDelete(parsed.privileges?.can_delete ?? false);
-          setCanEdit(false);
+          setCanDelete(false);
+          setCanEdit(parsed.privileges?.can_edit ?? false);
         }
       }
     } catch (e) {
@@ -77,10 +77,12 @@ export default function GrayLotManagement() {
           <h2>Gray Lot Management</h2>
           <p>{lots.length} lots in inventory</p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/gray-lots/new')}>
-          <Plus size={16} />
-          New Gray Lot
-        </button>
+        {canEdit && (
+          <button className="btn btn-primary" onClick={() => navigate('/gray-lots/new')}>
+            <Plus size={16} />
+            New Gray Lot
+          </button>
+        )}
       </div>
 
       {/* Card */}

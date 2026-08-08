@@ -13,6 +13,7 @@ export default function Qualities() {
   const [search, setSearch] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [canDelete, setCanDelete] = useState(true);
+  const [canEdit, setCanEdit] = useState(true);
 
   const fetchQualities = async () => {
     try {
@@ -34,8 +35,10 @@ export default function Qualities() {
         const parsed = JSON.parse(saved);
         if (parsed.role === 'admin') {
           setCanDelete(true);
+          setCanEdit(true);
         } else {
-          setCanDelete(parsed.privileges?.can_delete ?? false);
+          setCanDelete(false);
+          setCanEdit(parsed.privileges?.can_edit ?? false);
         }
       }
     } catch (e) {
@@ -93,10 +96,12 @@ export default function Qualities() {
           <h2>Fabric Qualities</h2>
           <p>Manage standard quality types for gray lots</p>
         </div>
-        <button className="btn btn-primary" onClick={() => openModal()}>
-          <Plus size={16} />
-          Add Quality
-        </button>
+        {canEdit && (
+          <button className="btn btn-primary" onClick={() => openModal()}>
+            <Plus size={16} />
+            Add Quality
+          </button>
+        )}
       </div>
 
       {/* Card */}
@@ -162,9 +167,11 @@ export default function Qualities() {
                 >
                   <span style={{ fontWeight: 600, color: 'var(--gray-800)', fontSize: '0.875rem' }}>{q.name}</span>
                   <div style={{ display: 'flex', gap: '0.125rem' }}>
-                    <button className="icon-btn primary" onClick={() => openModal(q.id, q.name)} title="Edit">
-                      <Edit2 size={14} />
-                    </button>
+                    {canEdit && (
+                      <button className="icon-btn primary" onClick={() => openModal(q.id, q.name)} title="Edit">
+                        <Edit2 size={14} />
+                      </button>
+                    )}
                     {canDelete && (
                       <button className="icon-btn danger" onClick={() => handleDelete(q.id)} title="Delete">
                         <Trash2 size={14} />

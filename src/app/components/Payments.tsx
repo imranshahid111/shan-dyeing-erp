@@ -37,6 +37,7 @@ export default function Payments() {
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [historySearch, setHistorySearch] = useState('');
   const [canDelete, setCanDelete] = useState(true);
+  const [canEdit, setCanEdit] = useState(true);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -239,6 +240,24 @@ export default function Payments() {
   useEffect(() => {
     loadData();
   }, [currentPage, historySearch]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('erp_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role === 'admin') {
+          setCanDelete(true);
+          setCanEdit(true);
+        } else {
+          setCanDelete(false);
+          setCanEdit(parsed.privileges?.can_edit ?? false);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
   return (
     <div className="space-y-6 min-h-[calc(100vh-140px)] flex flex-col">
       <div className="flex items-center justify-between">
@@ -246,13 +265,15 @@ export default function Payments() {
           <h2 className="text-2xl font-bold text-gray-800">Payments & Receipts</h2>
           <p className="text-sm text-gray-500 mt-1">Receive payments and allocate to invoices</p>
         </div>
-        <button
-          onClick={() => { resetForm(); setShowModal(true); }}
-          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20 font-bold"
-        >
-          <Plus size={20} />
-          Record New Payment
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => { resetForm(); setShowModal(true); }}
+            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20 font-bold"
+          >
+            <Plus size={20} />
+            Record New Payment
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -613,13 +634,15 @@ export default function Payments() {
                         >
                           <Eye size={15} />
                         </button>
-                        <button
-                          onClick={() => handleStartEdit(p)}
-                          className="text-amber-500 hover:text-amber-700 hover:bg-amber-50 p-1.5 rounded-lg transition-colors"
-                          title="Edit Payment"
-                        >
-                          <Edit2 size={15} />
-                        </button>
+                        {canEdit && (
+                          <button
+                            onClick={() => handleStartEdit(p)}
+                            className="text-amber-500 hover:text-amber-700 hover:bg-amber-50 p-1.5 rounded-lg transition-colors"
+                            title="Edit Payment"
+                          >
+                            <Edit2 size={15} />
+                          </button>
+                        )}
                         {canDelete && (
                           <button
                             onClick={() => handleDelete(p.id)}

@@ -8,6 +8,7 @@ export default function Staff() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -21,7 +22,18 @@ export default function Staff() {
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    fetchUsers();
+    try {
+      const saved = localStorage.getItem('erp_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setIsAdmin(parsed.role === 'admin');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to remove this staff member?')) return;
@@ -42,10 +54,12 @@ export default function Staff() {
           <h2>Staff Management</h2>
           <p>Manage team members and access roles</p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/staff/new')}>
-          <Plus size={16} />
-          Add Staff Member
-        </button>
+        {isAdmin && (
+          <button className="btn btn-primary" onClick={() => navigate('/staff/new')}>
+            <Plus size={16} />
+            Add Staff Member
+          </button>
+        )}
       </div>
 
       {/* Card */}
@@ -154,34 +168,38 @@ export default function Staff() {
                         >
                           <Eye size={15} />
                         </button>
-                        <button
-                          className="icon-btn"
-                          style={{
-                            background: '#fffbeb',
-                            color: '#d97706',
-                            border: 'none',
-                            padding: '0.4rem',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s',
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.background = '#fef3c7'}
-                          onMouseLeave={e => e.currentTarget.style.background = '#fffbeb'}
-                          title="Edit Staff Member"
-                          onClick={() => navigate(`/staff/edit/${user.id}`)}
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        <button
-                          className="icon-btn danger"
-                          title="Remove Staff Member"
-                          onClick={() => handleDelete(user.id)}
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        {isAdmin && (
+                          <button
+                            className="icon-btn"
+                            style={{
+                              background: '#fffbeb',
+                              color: '#d97706',
+                              border: 'none',
+                              padding: '0.4rem',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#fef3c7'}
+                            onMouseLeave={e => e.currentTarget.style.background = '#fffbeb'}
+                            title="Edit Staff Member"
+                            onClick={() => navigate(`/staff/edit/${user.id}`)}
+                          >
+                            <Pencil size={15} />
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <button
+                            className="icon-btn danger"
+                            title="Remove Staff Member"
+                            onClick={() => handleDelete(user.id)}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

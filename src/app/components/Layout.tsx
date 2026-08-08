@@ -177,6 +177,7 @@ export default function Layout() {
           {sections.map(({ key, label }) => {
             const items = navItems.filter(i => {
               if (i.section !== key) return false;
+              if (i.path === '/settings') return isAdmin;
               if (isAdmin) return true;
               return !!privileges[i.privilegeKey];
             });

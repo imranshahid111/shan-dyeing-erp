@@ -36,6 +36,7 @@ export default function GatePass() {
   const [isSaving, setIsSaving] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [canDelete, setCanDelete] = useState(true);
+  const [canEdit, setCanEdit] = useState(true);
   const [doRows, setDoRows] = useState<FormDORow[]>([]);
   const [doSearch, setDoSearch] = useState('');
   const [doDropdownOpen, setDoDropdownOpen] = useState(false);
@@ -63,7 +64,16 @@ export default function GatePass() {
     organizationService.getOrganization().then(org => setOrganization(org)).catch(console.error);
     try {
       const saved = localStorage.getItem('erp_user');
-      if (saved) { const p = JSON.parse(saved); setCanDelete(p.role === 'admin' ? true : (p.privileges?.can_delete ?? false)); }
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (p.role === 'admin') {
+          setCanDelete(true);
+          setCanEdit(true);
+        } else {
+          setCanDelete(false);
+          setCanEdit(p.privileges?.can_edit ?? false);
+        }
+      }
     } catch (e) { console.error(e); }
   }, []);
 
@@ -257,7 +267,7 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
         <div>
           {showAddForm
             ? <button className="btn btn-secondary" onClick={resetForm}><ArrowLeft size={16} />Back to List</button>
-            : <button className="btn btn-primary" onClick={handleOpenAddForm}><Plus size={16} />Add Gate Pass</button>
+            : canEdit && <button className="btn btn-primary" onClick={handleOpenAddForm}><Plus size={16} />Add Gate Pass</button>
           }
         </div>
       </div>

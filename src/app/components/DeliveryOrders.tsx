@@ -20,6 +20,7 @@ export default function DeliveryOrders() {
   const [statusFilter, setStatusFilter] = useState('');
   const [total, setTotal] = useState(0);
   const [canDelete, setCanDelete] = useState(true);
+  const [canEdit, setCanEdit] = useState(true);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,8 +72,10 @@ export default function DeliveryOrders() {
         const parsed = JSON.parse(saved);
         if (parsed.role === 'admin') {
           setCanDelete(true);
+          setCanEdit(true);
         } else {
-          setCanDelete(parsed.privileges?.can_delete ?? false);
+          setCanDelete(false);
+          setCanEdit(parsed.privileges?.can_edit ?? false);
         }
       }
     } catch (e) {
@@ -89,10 +92,12 @@ export default function DeliveryOrders() {
           <h2>Delivery Orders</h2>
           <p>{total} order{total !== 1 ? 's' : ''} found</p>
         </div>
-        <button className="btn btn-primary" id="btn-add-do" onClick={() => navigate('/delivery-orders/new')}>
-          <Plus size={16} />
-          Add Delivery Order
-        </button>
+        {canEdit && (
+          <button className="btn btn-primary" id="btn-add-do" onClick={() => navigate('/delivery-orders/new')}>
+            <Plus size={16} />
+            Add Delivery Order
+          </button>
+        )}
       </div>
 
       {/* Card */}
@@ -219,7 +224,7 @@ export default function DeliveryOrders() {
                             <Eye size={13} />
                             View
                           </button>
-                          {order.status === 'completed' && (
+                          {canEdit && order.status === 'completed' && (
                             <button
                               className="row-action-btn view"
                               style={{ color: 'var(--brand-600)', backgroundColor: 'var(--brand-50)' }}

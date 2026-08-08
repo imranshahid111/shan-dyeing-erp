@@ -20,6 +20,7 @@ export default function Customers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [canDelete, setCanDelete] = useState(true);
+  const [canEdit, setCanEdit] = useState(true);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -64,8 +65,10 @@ export default function Customers() {
         const parsed = JSON.parse(saved);
         if (parsed.role === 'admin') {
           setCanDelete(true);
+          setCanEdit(true);
         } else {
-          setCanDelete(parsed.privileges?.can_delete ?? false);
+          setCanDelete(false);
+          setCanEdit(parsed.privileges?.can_edit ?? false);
         }
       }
     } catch (e) {
@@ -99,10 +102,12 @@ export default function Customers() {
           <h2>Customers</h2>
           <p>{totalItems} registered customers</p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/customers/new')}>
-          <Plus size={16} />
-          Add Customer
-        </button>
+        {canEdit && (
+          <button className="btn btn-primary" onClick={() => navigate('/customers/new')}>
+            <Plus size={16} />
+            Add Customer
+          </button>
+        )}
       </div>
 
       {/* Card */}
@@ -193,13 +198,15 @@ export default function Customers() {
                         >
                           <Eye size={15} />
                         </button>
-                        <button
-                          className="icon-btn primary"
-                          title="Edit Customer"
-                          onClick={() => navigate(`/customers/edit/${customer.id}`)}
-                        >
-                          <Edit size={15} />
-                        </button>
+                        {canEdit && (
+                          <button
+                            className="icon-btn primary"
+                            title="Edit Customer"
+                            onClick={() => navigate(`/customers/edit/${customer.id}`)}
+                          >
+                            <Edit size={15} />
+                          </button>
+                        )}
                         {canDelete && (
                           <button 
                             className="icon-btn danger" 

@@ -15,6 +15,8 @@ module.exports = (sequelize, DataTypes) =>
       can_view_staff: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       can_view_activity_logs: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
       can_view_reports: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      can_edit: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      allowed_reports: { type: DataTypes.TEXT, allowNull: true },
       can_delete: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     },
     {

@@ -35,6 +35,8 @@ exports.login = async (req, res, next) => {
       can_view_staff: user.role === "admin",
       can_view_activity_logs: user.role === "admin",
       can_view_reports: user.role === "admin",
+      can_edit: user.role === "admin",
+      allowed_reports: user.role === "admin" ? "ledger,subledger,outstanding,payments,invoices,datesales,challan,completedlots,incompletelots,partylotdelivery,stock" : "",
       can_delete: user.role === "admin"
     };
 

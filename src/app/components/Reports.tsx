@@ -20,7 +20,50 @@ import { PDFInvoices } from './PDFInvoices';
 import { PDFStock } from './PDFStock';
 
 export default function Reports() {
-  const [activeTab, setActiveTab] = useState<ReportTabId>('datesales');
+  const allowedCategories = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('erp_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role === 'admin') {
+          return REPORT_CATEGORIES;
+        }
+        const allowedReportsStr = parsed.privileges?.allowed_reports;
+        if (allowedReportsStr === undefined || allowedReportsStr === null) {
+          return REPORT_CATEGORIES;
+        }
+        const allowedList = allowedReportsStr.split(',').filter(Boolean);
+        return REPORT_CATEGORIES.map(cat => ({
+          ...cat,
+          tabs: cat.tabs.filter(tab => allowedList.includes(tab.id))
+        })).filter(cat => cat.tabs.length > 0);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return REPORT_CATEGORIES;
+  }, []);
+
+  const [activeTab, setActiveTab] = useState<ReportTabId>(() => {
+    try {
+      const saved = localStorage.getItem('erp_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role === 'admin') return 'datesales';
+        const allowedReportsStr = parsed.privileges?.allowed_reports;
+        if (allowedReportsStr === undefined || allowedReportsStr === null) {
+          return 'datesales';
+        }
+        const allowedList = allowedReportsStr.split(',').filter(Boolean);
+        if (allowedList.length > 0) {
+          return allowedList[0] as ReportTabId;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return 'datesales';
+  });
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [fromDate, setFromDate] = useState(() => {
@@ -206,7 +249,7 @@ export default function Reports() {
               </div>
             </div>
             <nav className="p-2 max-h-[calc(100vh-12rem)] overflow-y-auto">
-              {REPORT_CATEGORIES.map((category) => (
+              {allowedCategories.map((category) => (
                 <div key={category.id} className="mb-3">
                   <p className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
                     {category.label}
