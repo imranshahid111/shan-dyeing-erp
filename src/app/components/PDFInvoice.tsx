@@ -135,17 +135,17 @@ const styles = StyleSheet.create({
 });
 
 const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organization }) => {
-  const isDoMeter = inv.input_unit === 'meter';
-  const isRateMeter = inv.rate_unit !== 'yard';
-  const readyGaz   = Number(inv.total_ready_gazana || 0);
-  const readyMeter = readyGaz * 0.9144;
-  const effectiveQty = isRateMeter ? readyMeter : readyGaz;
-  
   // Calculate bundles from grid_data if available
   let gridData: any = inv.grid_data;
   if (typeof gridData === 'string') {
     try { gridData = JSON.parse(gridData); } catch (e) {}
   }
+
+  const isDoMeter = (inv.input_unit || gridData?.inputUnit || 'meter') === 'meter';
+  const isRateMeter = inv.rate_unit !== 'yard';
+  const readyGaz   = Number(inv.total_ready_gazana || 0);
+  const readyMeter = readyGaz * 0.9144;
+  const effectiveQty = isRateMeter ? readyMeter : readyGaz;
   
   let gridCoraBundle = 0;
   let gridFinishBundle = 0;

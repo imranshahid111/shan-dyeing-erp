@@ -6,8 +6,8 @@ exports.getOrganization = async (req, res, next) => {
     if (!org) {
       org = await Organization.create({
         name: "Shan Dyeing",
-        address: "Sheikhupura Road, Faisalabad",
-        phone: "+92 300 1234567",
+        address: "Sheikhupura Road",
+        phone: "",
         email: "info@shandyeing.com",
         currency: "Rs"
       });
