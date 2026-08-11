@@ -308,11 +308,46 @@ exports.generateInvoice = async (req, res, next) => {
       return res.status(404).json({ message: "Delivery Order not found" });
     }
 
-    if (deliveryOrder.status === "billed") {
-      await t.rollback();
-      return res.status(400).json({ message: "Delivery order is already billed" });
+    const isEditMode = deliveryOrder.status === "billed" || deliveryOrder.status === "paid";
+
+    if (isEditMode) {
+      // Edit mode: adjust customer outstanding by the difference
+      const oldAmount = Number(deliveryOrder.total_amount || 0);
+      const newAmount = Number(netAmount || 0);
+      const diff = newAmount - oldAmount;
+
+      if (diff !== 0) {
+        if (diff > 0) {
+          await Customer.increment("outstanding_amount", {
+            by: diff,
+            where: { id: deliveryOrder.customer_id },
+            transaction: t,
+          });
+        } else {
+          await Customer.decrement("outstanding_amount", {
+            by: Math.abs(diff),
+            where: { id: deliveryOrder.customer_id },
+            transaction: t,
+          });
+        }
+      }
+
+      await deliveryOrder.update({
+        total_amount: newAmount,
+        rate: Number(rate || 0),
+        rate_unit: rateUnit || 'meter',
+        kinar_cut_amount: Number(kinarCutAmount || 0),
+        packing_amount: Number(packingAmount || 0),
+        kinar_cut_qty: kinarCutQty != null ? Number(kinarCutQty) : null,
+        packing_qty: packingQty != null ? Number(packingQty) : null,
+        order_date: invoiceDate || deliveryOrder.order_date
+      }, { transaction: t });
+
+      await t.commit();
+      return res.json(deliveryOrder);
     }
 
+    // Create mode: increment customer outstanding and assign invoice number
     await Customer.increment("outstanding_amount", {
       by: Number(netAmount || 0),
       where: { id: deliveryOrder.customer_id },

@@ -53,6 +53,9 @@ export const gatePassService = {
   createGatePass: (payload: CreateGatePassPayload) => {
     return apiClient.post<unknown, GatePassItem>('/gate-passes', payload);
   },
+  updateGatePass: (id: number, payload: CreateGatePassPayload) => {
+    return apiClient.put<unknown, GatePassItem>(`/gate-passes/${id}`, payload);
+  },
   deleteGatePass: (id: number) => {
     return apiClient.delete<unknown, { success: boolean; message: string }>(`/gate-passes/${id}`);
   }

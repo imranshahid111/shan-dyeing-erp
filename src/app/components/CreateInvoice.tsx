@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { FileText, Printer, ArrowLeft, Search, ChevronDown, Check } from 'lucide-react';
+import { FileText, Printer, ArrowLeft, Search, ChevronDown, Check, Pencil } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
 import { toast } from 'sonner';
 
@@ -37,6 +37,10 @@ export default function CreateInvoice() {
   const [rateUnit, setRateUnit] = useState<'meter' | 'yard'>('meter');
   const [invoiceDate, setInvoiceDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
+  // Edit mode: invoice passed via navigation state
+  const editInvoice: DeliveryOrderItem | undefined = location.state?.editInvoice;
+  const isEditMode = !!editInvoice;
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -52,6 +56,31 @@ export default function CreateInvoice() {
     const fetchDOs = async () => {
       try {
         setLoading(true);
+
+        if (isEditMode && editInvoice) {
+          // In edit mode: lock DO to the existing invoice, no need to fetch completed DOs
+          setSelectedDO(editInvoice);
+          // Pre-populate pricing fields
+          const existingRate = Number(editInvoice.rate || 0);
+          setRate(existingRate);
+          setRateInput(existingRate > 0 ? String(existingRate) : '');
+          setRateUnit((editInvoice.rate_unit as 'meter' | 'yard') || 'meter');
+          const existingKinarCut = Number(editInvoice.kinar_cut_amount || 0);
+          setKinarCutAmount(existingKinarCut);
+          setKinarCutInput(existingKinarCut > 0 ? String(existingKinarCut) : '');
+          const existingPacking = Number(editInvoice.packing_amount || 0);
+          setPackingAmount(existingPacking);
+          setPackingInput(existingPacking > 0 ? String(existingPacking) : '');
+          const existingPackingQty = Number(editInvoice.packing_qty || 0);
+          if (existingPackingQty > 0) setPackingQtyInput(String(existingPackingQty));
+          const dateStr = (editInvoice.invoice_date || editInvoice.order_date || '');
+          if (dateStr) {
+            setInvoiceDate(dateStr.split('T')[0]);
+          }
+          setLoading(false);
+          return;
+        }
+
         const response = await deliveryOrderService.getDeliveryOrders('completed', 1, 100);
         setDos(response.data);
         
@@ -105,16 +134,27 @@ export default function CreateInvoice() {
         >
           <ArrowLeft size={20} />
         </button>
-        <h2 className="text-2xl font-bold text-gray-800">Create New Invoice</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">
+            {isEditMode ? 'Edit Invoice' : 'Create New Invoice'}
+          </h2>
+          {isEditMode && editInvoice && (
+            <p className="text-xs text-amber-600 font-semibold mt-0.5">
+              Editing: {editInvoice.invoice_no || editInvoice.order_no}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* DO Selection */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Select Delivery Order</h3>
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+          {isEditMode ? 'Delivery Order' : 'Select Delivery Order'}
+        </h3>
         <div className="relative" ref={dropdownRef}>
           <div 
-            className={`w-full px-4 py-3 rounded-xl border ${isDoDropdownOpen ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'} bg-white flex items-center justify-between cursor-pointer transition-all ${loading ? 'opacity-50 pointer-events-none' : ''}`}
-            onClick={() => setIsDoDropdownOpen(!isDoDropdownOpen)}
+            className={`w-full px-4 py-3 rounded-xl border ${isDoDropdownOpen ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'} bg-white flex items-center justify-between transition-all ${isEditMode ? 'cursor-default bg-gray-50' : 'cursor-pointer'} ${loading ? 'opacity-50 pointer-events-none' : ''}`}
+            onClick={() => !isEditMode && setIsDoDropdownOpen(!isDoDropdownOpen)}
           >
             <div className="flex flex-col">
               {selectedDO ? (
@@ -126,7 +166,9 @@ export default function CreateInvoice() {
                 <span className="text-gray-500">{loading ? 'Loading DOs...' : 'Choose Delivery Order...'}</span>
               )}
             </div>
-            <ChevronDown size={20} className={`text-gray-400 transition-transform ${isDoDropdownOpen ? 'rotate-180' : ''}`} />
+            {isEditMode 
+              ? <span className="text-xs text-amber-500 font-semibold uppercase tracking-wider">Locked</span>
+              : <ChevronDown size={20} className={`text-gray-400 transition-transform ${isDoDropdownOpen ? 'rotate-180' : ''}`} />}
           </div>
 
           {isDoDropdownOpen && (
@@ -298,6 +340,7 @@ export default function CreateInvoice() {
                     setRateInput(e.target.value);
                     setRate(parseFloat(e.target.value) || 0);
                   }}
+                  onWheel={(e) => e.currentTarget.blur()}
                   onBlur={() => {
                     if (rateInput === '' || isNaN(parseFloat(rateInput))) {
                       setRateInput('');
@@ -341,6 +384,7 @@ export default function CreateInvoice() {
                         setKinarCutInput(e.target.value);
                         setKinarCutAmount(parseFloat(e.target.value) || 0);
                       }}
+                      onWheel={(e) => e.currentTarget.blur()}
                       onBlur={() => {
                         if (kinarCutInput === '' || isNaN(parseFloat(kinarCutInput))) {
                           setKinarCutInput('');
@@ -366,6 +410,7 @@ export default function CreateInvoice() {
                       step="0.01"
                       value={kinarCutQtyInput}
                       onChange={(e) => setKinarCutQtyInput(e.target.value)}
+                      onWheel={(e) => e.currentTarget.blur()}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -396,6 +441,7 @@ export default function CreateInvoice() {
                         setPackingInput(e.target.value);
                         setPackingAmount(parseFloat(e.target.value) || 0);
                       }}
+                      onWheel={(e) => e.currentTarget.blur()}
                       onBlur={() => {
                         if (packingInput === '' || isNaN(parseFloat(packingInput))) {
                           setPackingInput('');
@@ -421,6 +467,7 @@ export default function CreateInvoice() {
                       step="0.01"
                       value={packingQtyInput}
                       onChange={(e) => setPackingQtyInput(e.target.value)}
+                      onWheel={(e) => e.currentTarget.blur()}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();
@@ -469,6 +516,7 @@ export default function CreateInvoice() {
                   setDiscountInput(e.target.value);
                   setDiscountValue(parseFloat(e.target.value) || 0);
                 }}
+                onWheel={(e) => e.currentTarget.blur()}
                 onBlur={() => {
                   if (discountInput === '' || isNaN(parseFloat(discountInput))) {
                     setDiscountInput('');
@@ -520,20 +568,27 @@ export default function CreateInvoice() {
                     finalPackingQty,
                     invoiceDate
                   );
-                  toast.success("Invoice generated and customer ledger updated!");
+                  toast.success(isEditMode ? 'Invoice updated successfully!' : 'Invoice generated and customer ledger updated!');
                   navigate('/billing');
                 } catch (err) {
                   console.error(err);
-                  toast.error("Failed to generate invoice");
+                  toast.error(isEditMode ? 'Failed to update invoice' : 'Failed to generate invoice');
                 } finally {
                   setIsSubmitting(false);
                 }
               }}
               disabled={isSubmitting || rate <= 0}
-              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className={`flex items-center gap-2 px-6 py-3 text-white rounded-xl transition-colors disabled:opacity-50 ${
+                isEditMode
+                  ? 'bg-amber-500 hover:bg-amber-600'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
             >
-              <FileText size={18} />
-              {isSubmitting ? 'Generating...' : 'Confirm & Save Invoice'}
+              {isEditMode ? <Pencil size={18} /> : <FileText size={18} />}
+              {isSubmitting 
+                ? (isEditMode ? 'Updating...' : 'Generating...') 
+                : (isEditMode ? 'Update Invoice' : 'Confirm & Save Invoice')
+              }
             </button>
             <button className="flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors">
               <Printer size={18} />

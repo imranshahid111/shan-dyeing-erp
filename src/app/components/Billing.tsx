@@ -390,7 +390,7 @@ export default function Billing() {
                 {invoices.map((inv) => {
                   const isSelected = selectedIds.includes(inv.id);
                   const lotNo = inv.gray_lot?.lot_no || (inv as any).GrayLot?.lot_no || '—';
-                  const isYard = inv.rate_unit === 'yard' || inv.input_unit === 'gaz';
+                  const isYard = inv.rate_unit === 'yard';
                   const readyGaz = Number(inv.total_ready_gazana || 0);
                   const displayQty = isYard ? readyGaz : (readyGaz * 0.9144);
                   const unitLabel = isYard ? 'Gaz' : 'Mtr';
@@ -447,6 +447,20 @@ export default function Billing() {
                               className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 transition-colors font-semibold"
                             >
                               <Eye size={16} /> View Invoice
+                            </button>
+                            <button 
+                              onClick={async () => {
+                                try {
+                                  const fullDo = await deliveryOrderService.getDeliveryOrderById(inv.id);
+                                  navigate('/billing/new', { state: { editInvoice: fullDo } });
+                                } catch (e) {
+                                  navigate('/billing/new', { state: { editInvoice: inv } });
+                                }
+                                setActiveDropdown(null);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-amber-600 hover:bg-amber-50 transition-colors font-semibold"
+                            >
+                              <FileEdit size={16} /> Edit Invoice
                             </button>
                             {canDelete && (
                               <button 

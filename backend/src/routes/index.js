@@ -48,6 +48,7 @@ router.delete("/delivery-orders/:id", deliveryOrderController.deleteOrder);
 router.get("/gate-passes", gatePassController.getGatePasses);
 router.get("/gate-passes/next-number", gatePassController.getNextGatePassNumber);
 router.post("/gate-passes", gatePassController.createGatePass);
+router.put("/gate-passes/:id", gatePassController.updateGatePass);
 router.delete("/gate-passes/:id", gatePassController.deleteGatePass);
 
 router.get("/payments", paymentController.getAllPayments);

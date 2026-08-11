@@ -1,7 +1,7 @@
 import { confirmDialog } from "../utils/confirmDialog";
 //@ts-nocheck
 import { useState, useEffect } from 'react';
-import { Printer, Save, ClipboardCheck, Loader2, Plus, Search, CalendarDays, Hash, ArrowLeft, Truck, User, Trash2, X } from 'lucide-react';
+import { Printer, Save, ClipboardCheck, Loader2, Plus, Search, CalendarDays, Hash, ArrowLeft, Truck, User, Trash2, X, Pencil, MoreVertical, Download } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
 import { gatePassService, GatePassItem, GatePassDOItem } from '../services/gatePassService';
 import { organizationService } from '../services/organizationService';
@@ -41,6 +41,8 @@ export default function GatePass() {
   const [doSearch, setDoSearch] = useState('');
   const [doDropdownOpen, setDoDropdownOpen] = useState(false);
   const [organization, setOrganization] = useState<any>(null);
+  const [editingGatePass, setEditingGatePass] = useState<GatePassItem | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
 
   const fetchGatePassHistory = async () => {
     try { setLoadingList(true); const res = await gatePassService.getGatePasses(); setGatePasses(res || []); }
@@ -77,6 +79,14 @@ export default function GatePass() {
     } catch (e) { console.error(e); }
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = () => setActiveDropdown(null);
+    if (activeDropdown !== null) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeDropdown]);
+
   const handleOpenAddForm = () => { fetchDOsAndGPNo(); setShowAddForm(true); };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -96,7 +106,29 @@ export default function GatePass() {
 
   const resetForm = () => {
     setShowAddForm(false); setDoRows([]); setVehicleNo(''); setDriverName('');
-    setDriverMobile(''); setNotes(''); setDoSearch('');
+    setDriverMobile(''); setNotes(''); setDoSearch(''); setEditingGatePass(null);
+  };
+
+  const handleEdit = (gp: GatePassItem) => {
+    setEditingGatePass(gp);
+    setDate(gp.gate_pass_date ? gp.gate_pass_date.split('T')[0] : new Date().toISOString().split('T')[0]);
+    setVehicleNo(gp.vehicle_no || '');
+    setDriverName(gp.driver_name || '');
+    setDriverMobile(gp.driver_mobile || '');
+    setNotes(gp.notes || '');
+    // Pre-populate DO rows from existing items
+    const rows: FormDORow[] = (gp.items || []).map(item => ({
+      delivery_order_id: item.delivery_order_id || item.delivery_order?.id || 0,
+      order_no: item.delivery_order?.order_no || '',
+      party_name: item.delivery_order?.customer?.name || '',
+      lot_no: item.delivery_order?.gray_lot?.lot_no || '',
+      description: item.description || '',
+      bundles: String(item.bundles || 0),
+      gazana_total: String(item.gazana_total || 0),
+    }));
+    setDoRows(rows);
+    fetchDOsAndGPNo();
+    setShowAddForm(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -106,7 +138,11 @@ export default function GatePass() {
   };
 
   // Collect all DO IDs that are already assigned to an existing saved Gate Pass
-  const savedDoIds = gatePasses.flatMap(gp => (gp.items || []).map(item => item.delivery_order_id || item.delivery_order?.id)).filter(Boolean);
+  // In edit mode, exclude the currently-editing GP's own DO IDs so they remain selectable
+  const editingGpDoIds = editingGatePass ? (editingGatePass.items || []).map(item => item.delivery_order_id || item.delivery_order?.id).filter(Boolean) : [];
+  const savedDoIds = gatePasses
+    .filter(gp => !editingGatePass || gp.id !== editingGatePass.id)
+    .flatMap(gp => (gp.items || []).map(item => item.delivery_order_id || item.delivery_order?.id)).filter(Boolean);
 
   // Available DOs not already added in current form rows AND not in any saved Gate Pass
   const usedIds = [...doRows.map(r => r.delivery_order_id), ...savedDoIds];
@@ -182,7 +218,7 @@ export default function GatePass() {
     if (doRows.length === 0) { toast.error('Add at least one Delivery Order'); return; }
     try {
       setIsSaving(true);
-      await gatePassService.createGatePass({
+      const payload = {
         gate_pass_date: date, vehicle_no: vehicleNo, driver_name: driverName,
         driver_mobile: driverMobile, notes,
         items: doRows.map(r => ({
@@ -190,8 +226,15 @@ export default function GatePass() {
           description: r.description, bundles: Number(r.bundles) || 0,
           gazana_total: Number(r.gazana_total) || 0,
         }))
-      });
-      toast.success('Gate Pass saved!'); resetForm(); fetchGatePassHistory();
+      };
+      if (editingGatePass) {
+        await gatePassService.updateGatePass(editingGatePass.id, payload);
+        toast.success('Gate Pass updated!');
+      } else {
+        await gatePassService.createGatePass(payload);
+        toast.success('Gate Pass saved!');
+      }
+      resetForm(); fetchGatePassHistory();
     } catch (err: any) { toast.error(err.response?.data?.message || 'Failed'); }
     finally { setIsSaving(false); }
   };
@@ -260,9 +303,9 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
       <div className="page-header">
         <div className="page-header-left">
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-            <ClipboardCheck size={22} style={{ color: 'var(--brand-500)' }} />Gate Pass Management
+            <ClipboardCheck size={22} style={{ color: 'var(--brand-500)' }} />{editingGatePass ? `Edit Gate Pass — ${editingGatePass.gate_pass_no}` : 'Gate Pass Management'}
           </h2>
-          <p>{showAddForm ? 'Create a new gate pass with multiple DOs' : `${gatePasses.length} gate pass record(s)`}</p>
+          <p>{showAddForm ? (editingGatePass ? 'Update gate pass details and DOs' : 'Create a new gate pass with multiple DOs') : `${gatePasses.length} gate pass record(s)`}</p>
         </div>
         <div>
           {showAddForm
@@ -326,40 +369,67 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
                           <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:2 }}><User size={13} style={{ color:'var(--gray-400)' }} /><span style={{ fontSize:'0.8rem', color:'var(--gray-600)' }}>{gp.driver_name || '—'}</span></div>
                         </td>
                         <td><span style={{ fontWeight:700, color:'var(--brand-700)' }}>{totalGaz.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} {firstUnit}</span></td>
-                        <td style={{ textAlign: 'center' }}>
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}>
-    {/* Print Button - Opens PDF for printing */}
-    {organization && (
-      <button 
-        className="icon-btn" 
-        title="Print Gate Pass (2 Copies)" 
-        onClick={() => handlePrint(gp)}
-        style={{ background: 'var(--brand-50)', color: 'var(--brand-600)' }}
-      >
-        <Printer size={13} />
-      </button>
-    )}
-    
-    {/* Download PDF Button */}
-    {organization && (
-      <button
-        className="icon-btn"
-        title="Download PDF (2 Copies)"
-        onClick={() => handleDownloadPDF(gp)}
-        style={{ background: 'var(--success-50)', color: 'var(--success-600)' }}
-      >
-        <Save size={13} />
-      </button>
-    )}
-    
-    {/* Delete Button */}
-    {canDelete && (
-      <button className="icon-btn danger" title="Delete" onClick={() => handleDelete(gp.id)}>
-        <Trash2 size={13} />
-      </button>
-    )}
-  </div>
-</td>
+                        <td style={{ textAlign: 'center', position: 'relative' }}>
+                          <button
+                            onClick={() => setActiveDropdown(activeDropdown === gp.id ? null : gp.id)}
+                            className="icon-btn"
+                            title="Actions"
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+                          {activeDropdown === gp.id && (
+                            <div
+                              onMouseDown={e => e.stopPropagation()}
+                              style={{
+                              position: 'absolute', right: '2rem', top: '2rem',
+                              background: 'white', border: '1px solid var(--gray-100)',
+                              borderRadius: '0.75rem', boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
+                              zIndex: 50, minWidth: '160px', padding: '0.375rem 0',
+                              overflow: 'hidden'
+                            }}>
+                              {organization && (
+                                <button
+                                  onClick={() => { handlePrint(gp); setActiveDropdown(null); }}
+                                  style={{ width:'100%', display:'flex', alignItems:'center', gap:'0.625rem', padding:'0.5rem 1rem', background:'none', border:'none', cursor:'pointer', fontSize:'0.875rem', fontWeight:600, color:'var(--gray-700)', textAlign:'left' }}
+                                  onMouseEnter={e => (e.currentTarget.style.background='#eff6ff')}
+                                  onMouseLeave={e => (e.currentTarget.style.background='none')}
+                                >
+                                  <Printer size={14} style={{ color: '#2563eb' }} /> Print
+                                </button>
+                              )}
+                              {organization && (
+                                <button
+                                  onClick={() => { handleDownloadPDF(gp); setActiveDropdown(null); }}
+                                  style={{ width:'100%', display:'flex', alignItems:'center', gap:'0.625rem', padding:'0.5rem 1rem', background:'none', border:'none', cursor:'pointer', fontSize:'0.875rem', fontWeight:600, color:'var(--gray-700)', textAlign:'left' }}
+                                  onMouseEnter={e => (e.currentTarget.style.background='#f0fdf4')}
+                                  onMouseLeave={e => (e.currentTarget.style.background='none')}
+                                >
+                                  <Download size={14} style={{ color: '#16a34a' }} /> Download PDF
+                                </button>
+                              )}
+                              {canEdit && (
+                                <button
+                                  onClick={() => { handleEdit(gp); setActiveDropdown(null); }}
+                                  style={{ width:'100%', display:'flex', alignItems:'center', gap:'0.625rem', padding:'0.5rem 1rem', background:'none', border:'none', cursor:'pointer', fontSize:'0.875rem', fontWeight:600, color:'#d97706', textAlign:'left' }}
+                                  onMouseEnter={e => (e.currentTarget.style.background='#fffbeb')}
+                                  onMouseLeave={e => (e.currentTarget.style.background='none')}
+                                >
+                                  <Pencil size={14} /> Edit Gate Pass
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={() => { handleDelete(gp.id); setActiveDropdown(null); }}
+                                  style={{ width:'100%', display:'flex', alignItems:'center', gap:'0.625rem', padding:'0.5rem 1rem', background:'none', border:'none', cursor:'pointer', fontSize:'0.875rem', fontWeight:600, color:'#dc2626', textAlign:'left' }}
+                                  onMouseEnter={e => (e.currentTarget.style.background='#fef2f2')}
+                                  onMouseLeave={e => (e.currentTarget.style.background='none')}
+                                >
+                                  <Trash2 size={14} /> Delete
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -375,7 +445,8 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
             <div className="card-header"><h3 style={{ fontSize:'0.9375rem', fontWeight:700, margin:0 }}>Gate Pass Details</h3></div>
             <div className="card-body" style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'1rem' }}>
               <div><label className="form-label">Date</label><input autoFocus type="date" className="input-field" value={date} onChange={e => setDate(e.target.value)} onKeyDown={handleKeyDown} required /></div>
-              <div><label className="form-label">Gate Pass No</label><input type="text" className="input-field" value={gatePassNo} disabled /></div>
+  {/* Edit GP Number read-only when editing */}
+              <div><label className="form-label">Gate Pass No</label><input type="text" className="input-field" value={editingGatePass ? editingGatePass.gate_pass_no : gatePassNo} disabled /></div>
               <div><label className="form-label">Vehicle Number</label><input type="text" className="input-field" placeholder="LHR-123" value={vehicleNo} onChange={e => setVehicleNo(e.target.value)} onKeyDown={handleKeyDown} required /></div>
               <div><label className="form-label">Driver Name</label><input type="text" className="input-field" placeholder="Driver name" value={driverName} onChange={e => setDriverName(e.target.value)} onKeyDown={handleKeyDown} required /></div>
               <div><label className="form-label">Driver Mobile</label><input type="tel" className="input-field" placeholder="+92 300 0000000" value={driverMobile} onChange={e => setDriverMobile(e.target.value)} onKeyDown={handleKeyDown} /></div>
@@ -475,8 +546,13 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
             </div>
             <div style={{ padding:'1rem 1.5rem', borderTop:'1px solid var(--gray-100)', display:'flex', gap:'0.75rem', justifyContent:'flex-end' }}>
               <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={isSaving || doRows.length === 0}>
-                {isSaving ? <><Loader2 className="animate-spin" size={16} />Saving...</> : <><Save size={16} />Save Gate Pass</>}
+              <button type="submit" className="btn btn-primary" disabled={isSaving || doRows.length === 0}
+                style={editingGatePass ? { background: '#d97706', borderColor: '#d97706', color: '#fff' } : {}}
+              >
+                {isSaving 
+                  ? <><Loader2 className="animate-spin" size={16} />{editingGatePass ? ' Updating...' : ' Saving...'}</>
+                  : <><Save size={16} />{editingGatePass ? ' Update Gate Pass' : ' Save Gate Pass'}</>
+                }
               </button>
             </div>
           </div>

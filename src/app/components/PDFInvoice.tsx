@@ -141,11 +141,20 @@ const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organizatio
     try { gridData = JSON.parse(gridData); } catch (e) {}
   }
 
-  const isDoMeter = (inv.input_unit || gridData?.inputUnit || 'meter') === 'meter';
   const isRateMeter = inv.rate_unit !== 'yard';
   const readyGaz   = Number(inv.total_ready_gazana || 0);
   const readyMeter = readyGaz * 0.9144;
   const effectiveQty = isRateMeter ? readyMeter : readyGaz;
+
+  // Determine gray lot unit from the lot's own measurement field
+  // coraGazanaDB is stored internally in yards/gaz
+  const lotMeasurement = String(
+    (inv as any).gray_lot?.measurement ||
+    (inv as any).GrayLot?.measurement ||
+    gridData?.measurement ||
+    'gaz'
+  ).toLowerCase();
+  const isLotMeter = lotMeasurement === 'meter';
   
   let gridCoraBundle = 0;
   let gridFinishBundle = 0;
@@ -167,8 +176,9 @@ const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organizatio
 
   const coraBundle = gridCoraBundle > 0 ? gridCoraBundle : Number((inv as any).total_pcs || (inv as any).pcs || (inv as any).than || 0);
   const coraGazanaDB = Number(inv.total_gray_gazana || 0);
-  const displayCoraLabel = isDoMeter ? 'Cora Mtr:' : 'Cora Gazana:';
-  const displayCoraValue = isDoMeter ? (coraGazanaDB * 0.9144) : coraGazanaDB;
+  // Show cora in the same unit as the gray lot's measurement
+  const displayCoraLabel = isLotMeter ? 'Cora Mtr:' : 'Cora Gazana:';
+  const displayCoraValue = isLotMeter ? (coraGazanaDB * 0.9144) : coraGazanaDB;
   const finishBundle = gridFinishBundle > 0 ? gridFinishBundle : Number((inv as any).total_pcs_finish || (inv as any).finish_pcs || 0);
   
   const processingAmount = effectiveQty * Number(inv.rate || 0);
@@ -262,7 +272,7 @@ const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organizatio
           <View style={{ flexDirection: 'row' }}>
             <View style={[styles.td1, { flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 4, borderBottomWidth: 0 }]}>
               <View style={styles.innerCol1}><Text style={styles.labelSmall}>Cora Bundle</Text><Text style={styles.valueSmall}>{coraBundle}</Text></View>
-              <View style={styles.innerCol2}><Text style={styles.labelSmall}>{isDoMeter ? 'Cora Mtr' : 'Cora Gazana'}</Text><Text style={styles.valueSmall}>{displayCoraValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
+              <View style={styles.innerCol2}><Text style={styles.labelSmall}>{isLotMeter ? 'Cora Mtr' : 'Cora Gazana'}</Text><Text style={styles.valueSmall}>{displayCoraValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</Text></View>
               <View style={styles.innerCol3}><Text style={styles.labelSmall}>Rate</Text><Text style={styles.valueSmall}>-</Text></View>
             </View>
             <View style={[styles.td2, { paddingVertical: 4, paddingHorizontal: 4, justifyContent: 'flex-end', borderBottomWidth: 0 }]}>
@@ -324,9 +334,9 @@ const InvoiceContent = ({ inv, org }: { inv: DeliveryOrderItem; org: Organizatio
 
       <View style={styles.bottomSection}>
         <View style={styles.balanceBox}>
-          <Text style={styles.labelSmall}>Balance Cora</Text>
+          <Text style={styles.labelSmall}>{isLotMeter ? 'Balance Cora Mtr' : 'Balance Cora Gaz'}</Text>
           <Text style={[styles.valueSmall, { fontWeight: 'bold', fontSize: 10 }]}>
-            {balanceCora.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {(isLotMeter ? balanceCora : balanceCora).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </Text>
         </View>
         <View style={styles.conditionBox}>

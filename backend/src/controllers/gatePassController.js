@@ -126,3 +126,77 @@ exports.deleteGatePass = async (req, res, next) => {
     return next(error);
   }
 };
+
+exports.updateGatePass = async (req, res, next) => {
+  const t = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { gate_pass_date, vehicle_no, driver_name, driver_mobile, notes, items } = req.body;
+
+    const gatePass = await GatePass.findByPk(id, { transaction: t });
+    if (!gatePass) {
+      await t.rollback();
+      return res.status(404).json({ message: "Gate Pass not found" });
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      await t.rollback();
+      return res.status(400).json({ message: "At least one Delivery Order item is required" });
+    }
+
+    // Update header fields
+    await gatePass.update({
+      gate_pass_date: gate_pass_date || gatePass.gate_pass_date,
+      vehicle_no,
+      driver_name,
+      driver_mobile,
+      notes,
+    }, { transaction: t });
+
+    // Replace all items: delete existing, bulk-create new
+    await GatePassItem.destroy({ where: { gate_pass_id: id }, transaction: t });
+
+    const itemRecords = items.map((item) => ({
+      gate_pass_id: gatePass.id,
+      delivery_order_id: item.delivery_order_id,
+      description: item.description || null,
+      bundles: item.bundles || 0,
+      gazana_total: item.gazana_total || 0,
+    }));
+
+    await GatePassItem.bulkCreate(itemRecords, { transaction: t });
+
+    await t.commit();
+
+    await logActivity("Gate Passes", `Updated Gate Pass #${gatePass.gate_pass_no}`, `Updated items and details`, req);
+
+    // Return full updated record
+    const full = await GatePass.findByPk(id, {
+      include: [
+        {
+          model: GatePassItem,
+          as: "items",
+          include: [
+            {
+              model: DeliveryOrder,
+              as: "delivery_order",
+              attributes: ["id", "order_no", "total_gray_gazana", "total_ready_gazana", "input_unit", "grid_data"],
+              include: [
+                { model: Customer, attributes: ["id", "name", "customer_code"] },
+                { model: GrayLot, attributes: ["id", "lot_no", "party_name", "measurement"],
+                  include: [{ model: require("../models").Quality, attributes: ["id", "name"] }]
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    return res.json(full);
+  } catch (error) {
+    await t.rollback();
+    return next(error);
+  }
+};
+

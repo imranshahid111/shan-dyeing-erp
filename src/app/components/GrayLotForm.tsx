@@ -133,6 +133,33 @@ export default function GrayLotForm() {
     }
   }, [id]);
 
+  const resetFormForNew = async () => {
+    setFormData({
+      entryDate: new Date().toISOString().split('T')[0],
+      processType: 'Dyeing',
+      measurement: 'Meter',
+      lotNo: '',
+      partyName: '',
+      biltiNo: '',
+      qualityId: '',
+      than: 0,
+      gazana: 0,
+      notes: '',
+    });
+    setPartySearchQuery('');
+    setSubmitError('');
+    try {
+      const res = await grayLotService.getNextLotNumber();
+      setFormData(prev => ({ ...prev, lotNo: res.nextLotNo }));
+    } catch (e) {
+      console.error('Failed to fetch next lot number', e);
+    }
+    // Focus party dropdown after a tick
+    setTimeout(() => {
+      setIsPartyDropdownOpen(true);
+    }, 80);
+  };
+
   useEffect(() => {
     if (!isView) {
       if (!id) {
@@ -183,12 +210,12 @@ export default function GrayLotForm() {
       if (isEdit && id) {
         await grayLotService.updateGrayLot(id, payload);
         toast.success('Gray Lot updated successfully!');
+        navigate('/gray-lots');
       } else {
         await grayLotService.createGrayLot(payload);
-        toast.success('New Gray Lot added successfully!');
+        toast.success('New Gray Lot added successfully! Add another or go back.');
+        await resetFormForNew();
       }
-
-      navigate('/gray-lots');
     } catch (error) {
       console.log(error);
       setSubmitError('Gray lot save failed. Please check backend connection.');
