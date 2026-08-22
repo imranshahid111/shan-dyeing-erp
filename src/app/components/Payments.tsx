@@ -482,6 +482,32 @@ export default function Payments() {
                         No customers found
                       </div>
                     )}
+
+                    {/* Selected Customer Due Balance Card */}
+                    {selectedCustomer && (
+                      <div className="mt-3 p-4 bg-blue-50/70 rounded-2xl border border-blue-100 flex items-center justify-between animate-in fade-in zoom-in-95 duration-150">
+                        <div>
+                          <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest block">Selected Customer</span>
+                          <p className="font-bold text-gray-900 text-sm">{selectedCustomer.name}</p>
+                          <p className="text-[11px] font-bold text-gray-400 font-mono">{selectedCustomer.customer_code}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Current Due Balance</span>
+                          <p className="text-lg font-black text-blue-700">
+                            Rs {Number(selectedCustomer.outstanding_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                          {Number(selectedCustomer.outstanding_amount || 0) > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setPaymentAmount(String(Number(selectedCustomer.outstanding_amount || 0)))}
+                              className="text-[10px] font-bold text-blue-600 hover:text-blue-800 underline mt-0.5 cursor-pointer"
+                            >
+                              Fill Full Balance
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
