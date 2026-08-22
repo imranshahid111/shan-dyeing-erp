@@ -104,9 +104,15 @@ export default function GatePass() {
     }
   };
 
-  const resetForm = () => {
-    setShowAddForm(false); setDoRows([]); setVehicleNo(''); setDriverName('');
+  const resetFormFields = () => {
+    setDoRows([]); setVehicleNo(''); setDriverName('');
     setDriverMobile(''); setNotes(''); setDoSearch(''); setEditingGatePass(null);
+    setDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const resetForm = () => {
+    setShowAddForm(false);
+    resetFormFields();
   };
 
   const handleEdit = (gp: GatePassItem) => {
@@ -230,11 +236,14 @@ export default function GatePass() {
       if (editingGatePass) {
         await gatePassService.updateGatePass(editingGatePass.id, payload);
         toast.success('Gate Pass updated!');
+        resetForm(); // Close form after edit
       } else {
         await gatePassService.createGatePass(payload);
-        toast.success('Gate Pass saved!');
+        toast.success('Gate Pass saved! You can create another one below.');
+        resetFormFields(); // Keep form open, clear fields
+        fetchDOsAndGPNo(); // Refresh GP number
       }
-      resetForm(); fetchGatePassHistory();
+      fetchGatePassHistory();
     } catch (err: any) { toast.error(err.response?.data?.message || 'Failed'); }
     finally { setIsSaving(false); }
   };

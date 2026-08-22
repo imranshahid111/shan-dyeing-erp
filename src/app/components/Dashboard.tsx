@@ -133,68 +133,71 @@ export default function Dashboard() {
     });
   }, [statCards, privileges]);
 
-  const showMonthlyProduction = privileges.role === 'admin' || privileges.can_view_gray_lots;
-  const showCustomerDistribution = privileges.role === 'admin' || privileges.can_view_customers;
+  const isAdmin = privileges.role === 'admin';
+  const showMonthlyProduction = isAdmin;
+  const showCustomerDistribution = isAdmin;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--section-gap)' }}>
 
-      {/* Stat Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-        gap: '1rem',
-      }}>
-        {visibleStatCards.map((stat) => {
-          const Icon = stat.icon;
-          const TrendIcon = stat.trend === 'up' ? ArrowUpRight : ArrowDownRight;
-          return (
-            <div
-              key={stat.label}
-              className="stat-card"
-              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <div style={{
-                  width: '3rem', height: '3rem', borderRadius: '14px',
-                  background: stat.iconBg,
-                  boxShadow: `0 6px 16px ${stat.iconShadow}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
-                  <Icon size={20} color="white" />
-                </div>
-                <span style={{
-                  display: 'flex', alignItems: 'center', gap: '3px',
-                  fontSize: '0.6875rem', fontWeight: 700,
-                  color: 'var(--success)',
-                  background: '#f0fdf4',
-                  padding: '3px 8px', borderRadius: '100px',
-                }}>
-                  <TrendIcon size={12} />
-                  {stat.change}
-                </span>
-              </div>
-              <div>
-                <p style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--gray-500)', marginBottom: '4px' }}>
-                  {stat.label}
-                </p>
-                {stat.value === null ? (
-                  <div style={{ height: '2rem', display: 'flex', alignItems: 'center' }}>
-                    <div className="skeleton" style={{ width: '60%', height: '1.5rem' }} />
+      {/* Stat Cards — Admin only */}
+      {isAdmin && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+          gap: '1rem',
+        }}>
+          {visibleStatCards.map((stat) => {
+            const Icon = stat.icon;
+            const TrendIcon = stat.trend === 'up' ? ArrowUpRight : ArrowDownRight;
+            return (
+              <div
+                key={stat.label}
+                className="stat-card"
+                style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  <div style={{
+                    width: '3rem', height: '3rem', borderRadius: '14px',
+                    background: stat.iconBg,
+                    boxShadow: `0 6px 16px ${stat.iconShadow}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <Icon size={20} color="white" />
                   </div>
-                ) : (
-                  <p style={{
-                    fontSize: '1.625rem', fontWeight: 800, color: 'var(--gray-900)',
-                    letterSpacing: '-0.02em', lineHeight: 1.2,
-                  }}>{stat.value}</p>
-                )}
-                <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginTop: '2px' }}>{stat.subtext}</p>
+                  <span style={{
+                    display: 'flex', alignItems: 'center', gap: '3px',
+                    fontSize: '0.6875rem', fontWeight: 700,
+                    color: 'var(--success)',
+                    background: '#f0fdf4',
+                    padding: '3px 8px', borderRadius: '100px',
+                  }}>
+                    <TrendIcon size={12} />
+                    {stat.change}
+                  </span>
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--gray-500)', marginBottom: '4px' }}>
+                    {stat.label}
+                  </p>
+                  {stat.value === null ? (
+                    <div style={{ height: '2rem', display: 'flex', alignItems: 'center' }}>
+                      <div className="skeleton" style={{ width: '60%', height: '1.5rem' }} />
+                    </div>
+                  ) : (
+                    <p style={{
+                      fontSize: '1.625rem', fontWeight: 800, color: 'var(--gray-900)',
+                      letterSpacing: '-0.02em', lineHeight: 1.2,
+                    }}>{stat.value}</p>
+                  )}
+                  <p style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginTop: '2px' }}>{stat.subtext}</p>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Charts Row */}
       {(showMonthlyProduction || showCustomerDistribution) && (

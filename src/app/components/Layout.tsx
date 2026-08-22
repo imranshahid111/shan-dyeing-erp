@@ -279,6 +279,27 @@ export default function Layout() {
               <LogOut size={15} />
             </button>
           </div>
+
+          {/* Xoftsol Branding */}
+          {!sidebarCollapsed && (
+            <div style={{
+              marginTop: '0.5rem',
+              textAlign: 'center',
+              paddingTop: '0.5rem',
+              borderTop: '1px solid rgba(255,255,255,0.05)',
+            }}>
+              <p style={{
+                fontSize: '0.6rem',
+                color: 'rgba(255,255,255,0.2)',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                fontWeight: 600,
+              }}>
+                Powered by{' '}
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 800 }}>Xoftsol</span>
+              </p>
+            </div>
+          )}
         </div>
       </aside>
 

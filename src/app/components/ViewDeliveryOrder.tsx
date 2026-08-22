@@ -203,35 +203,35 @@ export default function ViewDeliveryOrder() {
       {/* Main DO Content - Exact match to physical Challan style */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden print:shadow-none print:border-0">
         {/* Print wrapper */}
-        <div className="print-area p-4 sm:p-6 md:p-8">
+        <div className="print-area p-3 sm:p-4 md:p-5">
           
           {/* Header: SHAN DYEING + Title */}
-          <div className="text-center border-b-2 border-gray-200 pb-4 mb-4">
-            <h1 className="text-3xl font-black tracking-wider uppercase text-gray-900">SHAN DYEING</h1>
-            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Delivery Challan</p>
-            <div className="flex justify-between items-center mt-2 text-xs text-gray-600">
+          <div className="text-center border-b-2 border-gray-200 pb-2 mb-2">
+            <h1 className="text-2xl font-black tracking-wider uppercase text-gray-900">SHAN DYEING</h1>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Delivery Challan</p>
+            <div className="flex justify-between items-center mt-1 text-xs text-gray-600">
               <span>Print Date: {new Date().toLocaleString('en-PK', { weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
               <span>D.C #: {order.order_no}</span>
             </div>
           </div>
 
           {/* Customer & Lot Info Row */}
-          <div className="grid grid-cols-4 gap-4 mb-6 text-sm">
+          <div className="grid grid-cols-4 gap-2 mb-2 text-xs">
             <div>
               <p className="font-bold">Customer:</p>
-              <p className="font-mono text-lg font-black">{order.customer?.name}</p>
+              <p className="font-mono text-base font-black">{order.customer?.name}</p>
             </div>
             <div className="text-center">
               <p className="font-bold">Bilti No:</p>
-              <p className="font-mono text-lg font-black">{order.gray_lot?.bill_no || '—'}</p>
+              <p className="font-mono text-base font-black">{order.gray_lot?.bill_no || '—'}</p>
             </div>
             <div className="text-center">
               <p className="font-bold">Than Qty / Gazana:</p>
-              <p className="font-mono text-lg font-black">{order.gray_lot?.than || '—'} / {order.gray_lot?.gazana || order.gray_lot?.total_gazana ? Number(order.gray_lot?.gazana || order.gray_lot?.total_gazana).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}</p>
+              <p className="font-mono text-base font-black">{order.gray_lot?.than || '—'} / {order.gray_lot?.gazana || order.gray_lot?.total_gazana ? Number(order.gray_lot?.gazana || order.gray_lot?.total_gazana).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}</p>
             </div>
             <div className="text-right">
               <p className="font-bold">Lot #:</p>
-              <p className="font-mono text-lg font-black">{lotNo}</p>
+              <p className="font-mono text-base font-black">{lotNo}</p>
             </div>
             <div>
               <p className="font-bold">Date:</p>
@@ -263,12 +263,12 @@ export default function ViewDeliveryOrder() {
           </div>
 
           {/* Main Grid Table - Exactly like the physical challan */}
-          <div className="overflow-x-auto border border-gray-300 mb-4">
+          <div className="overflow-x-auto border border-gray-300 mb-2">
             <table className="w-full text-xs border-collapse">
               <thead>
                 {/* Color Header Row - Always show Gray & Finish headers (columns visible) */}
                 <tr className="bg-gray-100">
-                  <th rowSpan={2} className="border border-gray-300 p-1 align-middle w-[10%]">Sr. No</th>
+                  <th rowSpan={2} className="border border-gray-300 p-0.5 align-middle w-[10%] text-xs">Sr. No</th>
                   {colors.map(color => (
                     <th key={color.id} colSpan={2} className="border border-gray-300 border-b-0 p-1 text-center">
                       {color.name}
@@ -279,11 +279,11 @@ export default function ViewDeliveryOrder() {
                 <tr className="bg-gray-100">
                   {colors.map(color => (
                     <React.Fragment key={color.id}>
-                      <th className="border border-gray-300 border-t-0 p-1 text-center w-[10%]">
-                        Gray <span className="sub-unit-label text-[10px]">({grayUnitFull})</span>
+                      <th className="border border-gray-300 border-t-0 p-0.5 text-center w-[10%] text-[10px]">
+                        Gray <span className="sub-unit-label text-[9px]">({grayUnitFull})</span>
                       </th>
-                      <th className="border border-gray-300 border-t-0 p-1 text-center w-[10%]">
-                        Finish <span className="sub-unit-label text-[10px]">({readyUnitFull})</span>
+                      <th className="border border-gray-300 border-t-0 p-0.5 text-center w-[10%] text-[10px]">
+                        Finish <span className="sub-unit-label text-[9px]">({readyUnitFull})</span>
                       </th>
                     </React.Fragment>
                   ))}
@@ -300,19 +300,19 @@ export default function ViewDeliveryOrder() {
                   if (!rowHasData && rowIndex > 12) return null;
                   
                   return (
-                    <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="border border-gray-300 p-1 text-center font-bold w-[10%]">{rowIndex + 1}</td>
+                    <tr key={rowIndex} className={`${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'} leading-none`}>
+                      <td className="border border-gray-300 p-0.5 text-center font-bold w-[10%] text-xs">{rowIndex + 1}</td>
                       {colors.map(color => {
                         const grayVal = getCellValue(rowIndex, color.id, 'gray');
                         const readyVal = getCellValue(rowIndex, color.id, 'ready');
                         return (
                           <React.Fragment key={color.id}>
                             {/* Gray column - Show blank when checkbox is unchecked, otherwise show actual value */}
-                            <td className="border border-gray-300 p-1 text-center w-[10%] qty-cell text-sm font-semibold">
+                            <td className="border border-gray-300 p-0.5 text-center w-[10%] qty-cell text-xs font-semibold">
                               {shouldShowGrayValue() && grayVal !== null && grayVal !== undefined && grayVal !== '' ? grayVal : ''}
                             </td>
                             {/* Finish column - Always show with actual value */}
-                            <td className="border border-gray-300 p-1 text-center w-[10%] qty-cell text-sm font-semibold">
+                            <td className="border border-gray-300 p-0.5 text-center w-[10%] qty-cell text-xs font-semibold">
                               {readyVal !== null && readyVal !== undefined && readyVal !== '' ? readyVal : ''}
                             </td>
                           </React.Fragment>
@@ -323,16 +323,16 @@ export default function ViewDeliveryOrder() {
                 })}
                 {/* Totals Row - Always show both Gray and Finish totals */}
                 <tr className="bg-gray-200 font-bold">
-                  <td className="border border-gray-300 p-1 text-center w-[10%]">Total</td>
+                  <td className="border border-gray-300 p-0.5 text-center w-[10%] text-xs">Total</td>
                   {colors.map(color => {
                     const colorGrayTotal = getColorGrayTotal(color.id);
                     const colorReadyTotal = getColorReadyTotal(color.id);
                     return (
                       <React.Fragment key={color.id}>
-                        <td className="border border-gray-300 p-1 text-center w-[10%]">
+                        <td className="border border-gray-300 p-0.5 text-center w-[10%] text-xs">
                           {colorGrayTotal || ''}
                         </td>
-                        <td className="border border-gray-300 p-1 text-center w-[10%]">{colorReadyTotal || ''}</td>
+                        <td className="border border-gray-300 p-0.5 text-center w-[10%] text-xs">{colorReadyTotal || ''}</td>
                       </React.Fragment>
                     );
                   })}
@@ -342,7 +342,7 @@ export default function ViewDeliveryOrder() {
           </div>
 
           {/* Summary Row - Show total Gray amount always, but hide details when unchecked */}
-          <div className="grid grid-cols-4 gap-2 text-sm mb-4 border-t pt-3">
+          <div className="grid grid-cols-4 gap-1 text-xs mb-2 border-t pt-1">
             <div className="font-bold">Gray PCS / {grayUnitFull} :</div>
             <div>{gridGrayPcsCount > 0 ? gridGrayPcsCount : (order.total_pcs || order.pcs || '')} / {primaryGrayQty.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
             <div className="font-bold text-red-600">Shortage {grayUnitFull}:</div>
@@ -353,7 +353,7 @@ export default function ViewDeliveryOrder() {
           </div>
 
           {/* History / Balance Table - Always show Gray columns but values depend on checkbox */}
-          <div className="border border-gray-300 mb-4 text-xs">
+          <div className="border border-gray-300 mb-2 text-xs">
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-gray-100">
@@ -534,16 +534,16 @@ export default function ViewDeliveryOrder() {
           </div>
 
           {/* Urdu Disclaimer */}
-          <div className="text-right text-[11px] text-gray-500 border-t pt-3 mt-2 font-urdu" dir="rtl">
+          <div className="text-right text-[10px] text-gray-500 border-t pt-1 mt-1 font-urdu" dir="rtl">
             <p>نوٹ: کسی بھی قسم کی غلطی کی صورت میں فوراً فیکٹری سے رابطہ کریں۔ تھان / مال کٹنے کے بعد کوئی شکایت قابل قبول نہیں ہوگی۔</p>
           </div>
 
           {/* Signatures for print */}
-          <div className="hidden print:flex justify-between mt-8 pt-4">
-            <div className="w-40 border-t border-black text-center pt-2 text-xs font-bold">
+          <div className="hidden print:flex justify-between mt-4 pt-2">
+            <div className="w-36 border-t border-black text-center pt-1 text-xs font-bold">
               Authorized Sign
             </div>
-            <div className="w-40 border-t border-black text-center pt-2 text-xs font-bold">
+            <div className="w-36 border-t border-black text-center pt-1 text-xs font-bold">
               Receiver Sign
             </div>
           </div>
@@ -562,7 +562,7 @@ export default function ViewDeliveryOrder() {
       <style>{`
         @page {
           size: A4 portrait;
-          margin: 6mm 6mm 6mm 6mm;
+          margin: 4mm 4mm 4mm 4mm;
         }
         @media print {
           /* Hide all UI elements except print-area */
@@ -632,19 +632,19 @@ export default function ViewDeliveryOrder() {
           }
 
           th, td {
-            padding: 2px 1px !important;
-            font-size: 9px !important;
+            padding: 1px 1px !important;
+            font-size: 8px !important;
             word-wrap: break-word;
             color: #000000 !important;
           }
 
           .sub-unit-label {
-            font-size: 7.5px !important;
+            font-size: 6.5px !important;
             font-weight: normal !important;
           }
 
           .qty-cell {
-            font-size: 13px !important;
+            font-size: 11px !important;
             font-weight: 700 !important;
           }
 

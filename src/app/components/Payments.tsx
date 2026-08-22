@@ -192,8 +192,8 @@ export default function Payments() {
         attachment,
         attachmentName
       });
-      toast.success("Payment recorded successfully!");
-      setShowModal(false);
+      toast.success("Payment recorded! You can record another payment below.");
+      // Keep modal open, reset all fields including customer
       resetForm();
       loadData();
     } catch (error) {
@@ -204,15 +204,20 @@ export default function Payments() {
     }
   };
 
-  const resetForm = () => {
-    setSelectedCustomer(null);
-    setCustomerSearch('');
-    
+  const resetPaymentFields = () => {
     setPaymentAmount('0');
+    setPaymentDate(new Date().toISOString().split('T')[0]);
+    setPaymentMethod('cash');
     setReference('');
     setNotes('');
     setAttachment(null);
     setAttachmentName(null);
+  };
+
+  const resetForm = () => {
+    setSelectedCustomer(null);
+    setCustomerSearch('');
+    resetPaymentFields();
   };
 
   const loadData = async () => {

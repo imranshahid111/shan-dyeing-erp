@@ -358,7 +358,8 @@ export default function LoginPage() {
             marginTop: '2rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)',
             textAlign: 'center', lineHeight: 1.5,
           }}>
-            Shan Dyeing ERP &mdash; Developed by Imran Shahid
+            Shan Dyeing ERP &mdash; Powered by{' '}
+            <span style={{ color: 'rgba(255,255,255,0.6)', fontWeight: 700 }}>Xoftsol</span>
           </p>
         </div>
       </div>
