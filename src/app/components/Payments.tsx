@@ -36,6 +36,11 @@ export default function Payments() {
   });
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [historySearch, setHistorySearch] = useState('');
+  const [filterCustomer, setFilterCustomer] = useState<CustomerItem | null>(null);
+  const [filterCustomerSearch, setFilterCustomerSearch] = useState('');
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const [filterCustomers, setFilterCustomers] = useState<CustomerItem[]>([]);
+  const [loadingFilterCustomers, setLoadingFilterCustomers] = useState(false);
   const [canDelete, setCanDelete] = useState(true);
   const [canEdit, setCanEdit] = useState(true);
 
@@ -115,6 +120,23 @@ export default function Payments() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [customerSearch]);
+
+  // Separate fetch for the history filter dropdown
+  useEffect(() => {
+    const fetchFilterCustomers = async () => {
+      try {
+        setLoadingFilterCustomers(true);
+        const res = await customerService.getCustomers(filterCustomerSearch || '');
+        setFilterCustomers(res.data || []);
+      } catch (error) {
+        console.error('Failed to fetch filter customers', error);
+      } finally {
+        setLoadingFilterCustomers(false);
+      }
+    };
+    const t = setTimeout(fetchFilterCustomers, 250);
+    return () => clearTimeout(t);
+  }, [filterCustomerSearch]);
   const handleCustomerSelect = (customer: CustomerItem) => {
     setSelectedCustomer(customer);
     setCustomerSearch(customer.name);
@@ -220,11 +242,14 @@ export default function Payments() {
     resetPaymentFields();
   };
 
-  const loadData = async () => {
+  const loadData = async (overrides?: { search?: string; page?: number; customerId?: number | null }) => {
     try {
       setLoadingPayments(true);
+      const search = overrides?.search !== undefined ? overrides.search : historySearch;
+      const page   = overrides?.page   !== undefined ? overrides.page   : currentPage;
+      const custId = overrides?.customerId !== undefined ? overrides.customerId : (filterCustomer?.id ?? null);
       const [pRes, sRes] = await Promise.all([
-        paymentService.getPayments(historySearch, currentPage, pageSize),
+        paymentService.getPayments(search, page, pageSize, custId),
         paymentService.getPaymentStats()
       ]);
       setPayments(pRes.data);
@@ -240,11 +265,29 @@ export default function Payments() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [historySearch]);
+  }, [historySearch, filterCustomer]);
 
+  // Main data loader — runs whenever filter/page changes, always reads fresh state via explicit args
   useEffect(() => {
-    loadData();
-  }, [currentPage, historySearch]);
+    const fetchNow = async () => {
+      try {
+        setLoadingPayments(true);
+        const [pRes, sRes] = await Promise.all([
+          paymentService.getPayments(historySearch, currentPage, pageSize, filterCustomer?.id ?? null),
+          paymentService.getPaymentStats()
+        ]);
+        setPayments(pRes.data);
+        setTotalItems(pRes.total);
+        setTotalPages(Math.ceil(pRes.total / pageSize) || 1);
+        setStats(sRes);
+      } catch (error) {
+        console.error("Failed to load payment history/stats", error);
+      } finally {
+        setLoadingPayments(false);
+      }
+    };
+    fetchNow();
+  }, [currentPage, historySearch, filterCustomer]);
 
   useEffect(() => {
     try {
@@ -566,17 +609,71 @@ export default function Payments() {
 
       {/* Recent Payments Table */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex-1 flex flex-col">
-        <div className="p-8 border-b border-gray-50 flex items-center justify-between">
+        <div className="p-8 border-b border-gray-50 flex items-center justify-between gap-4 flex-wrap">
           <h3 className="font-black text-gray-900 uppercase tracking-widest text-sm">Recent Collection Log</h3>
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl border border-gray-100">
-            <Search size={16} className="text-gray-400" />
-            <input
-              type="text"
-              placeholder="Filter history..."
-              className="bg-transparent border-none outline-none text-xs font-bold text-gray-700"
-              value={historySearch}
-              onChange={(e) => setHistorySearch(e.target.value)}
-            />
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Party Filter Dropdown */}
+            <div className="relative">
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100 min-w-[200px]">
+                <User size={14} className="text-gray-400 flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Filter by party..."
+                  className="bg-transparent border-none outline-none text-xs font-bold text-gray-700 flex-1 min-w-0"
+                  value={filterCustomer ? filterCustomer.name : filterCustomerSearch}
+                  onChange={(e) => {
+                    setFilterCustomerSearch(e.target.value);
+                    if (filterCustomer) setFilterCustomer(null);
+                    setFilterDropdownOpen(true);
+                  }}
+                  onFocus={() => setFilterDropdownOpen(true)}
+                  onClick={() => setFilterDropdownOpen(true)}
+                />
+                {filterCustomer && (
+                  <button
+                    type="button"
+                    onClick={() => { setFilterCustomer(null); setFilterCustomerSearch(''); }}
+                    className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+              {filterDropdownOpen && !filterCustomer && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setFilterDropdownOpen(false)} />
+                  <div className="absolute top-full left-0 w-full bg-white border border-gray-100 rounded-xl mt-1 shadow-2xl z-20 max-h-52 overflow-y-auto divide-y divide-gray-50 min-w-[220px]">
+                    {loadingFilterCustomers ? (
+                      <div className="px-4 py-3 flex items-center gap-2 text-xs text-gray-400 font-bold">
+                        <Loader2 size={13} className="animate-spin" /> Loading...
+                      </div>
+                    ) : filterCustomers.length > 0 ? filterCustomers.map(c => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => { setFilterCustomer(c); setFilterDropdownOpen(false); setFilterCustomerSearch(''); }}
+                        className="w-full text-left px-4 py-2.5 hover:bg-blue-50 transition-colors text-xs font-semibold text-gray-700"
+                      >
+                        {c.name}
+                      </button>
+                    )) : (
+                      <p className="px-4 py-3 text-xs text-gray-400 font-bold">No customers found</p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+            {/* Search */}
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl border border-gray-100">
+              <Search size={16} className="text-gray-400" />
+              <input
+                type="text"
+                placeholder="Filter history..."
+                className="bg-transparent border-none outline-none text-xs font-bold text-gray-700"
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 

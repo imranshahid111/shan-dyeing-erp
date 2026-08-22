@@ -6,32 +6,52 @@ exports.getAllPayments = async (req, res, next) => {
     const page = Math.max(Number(req.query.page || 1), 1);
     const pageSize = Math.min(Math.max(Number(req.query.pageSize || 50), 1), 100);
     const search = String(req.query.search || "").trim();
+    const customerId = req.query.customer_id ? Number(req.query.customer_id) : null;
 
-    const where = {};
-    if (search) {
-      where[Op.or] = [
-        { reference_no: { [Op.like]: `%${search}%` } },
-        { '$DeliveryOrder.order_no$': { [Op.like]: `%${search}%` } },
-        { '$DeliveryOrder.Customer.name$': { [Op.like]: `%${search}%` } }
-      ];
+    const andConditions = [];
+
+    if (customerId) {
+      andConditions.push({
+        [Op.or]: [
+          { customer_id: customerId },
+          sequelize.where(sequelize.col("delivery_order.customer_id"), customerId)
+        ]
+      });
     }
+
+    if (search) {
+      andConditions.push({
+        [Op.or]: [
+          { reference_no: { [Op.like]: `%${search}%` } },
+          { mode: { [Op.like]: `%${search}%` } },
+          sequelize.where(sequelize.col("delivery_order.order_no"), { [Op.like]: `%${search}%` }),
+          sequelize.where(sequelize.col("customer.name"), { [Op.like]: `%${search}%` }),
+          sequelize.where(sequelize.col("delivery_order.customer.name"), { [Op.like]: `%${search}%` })
+        ]
+      });
+    }
+
+    const where = andConditions.length > 0 ? { [Op.and]: andConditions } : {};
 
     const { count, rows } = await Payment.findAndCountAll({
       where,
       include: [
         {
           model: DeliveryOrder,
-          attributes: ["id", "order_no"],
-          include: [{ model: Customer, attributes: ["id", "name"] }]
+          attributes: ["id", "order_no", "customer_id"],
+          required: false,
+          include: [{ model: Customer, attributes: ["id", "name"], required: false }]
         },
         {
           model: Customer,
-          attributes: ["id", "name"]
+          attributes: ["id", "name"],
+          required: false
         }
       ],
       order: [["payment_date", "DESC"], ["id", "DESC"]],
       limit: pageSize,
       offset: (page - 1) * pageSize,
+      distinct: true,
     });
 
     return res.json({
