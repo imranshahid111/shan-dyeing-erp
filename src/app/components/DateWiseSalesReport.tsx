@@ -7,6 +7,7 @@ import { organizationService, Organization } from '../services/organizationServi
 import { customerService, CustomerItem } from '../services/customerService';
 import { qualityService, QualityItem } from '../services/qualityService';
 import { PDFDateWiseSales } from './PDFDateWiseSales';
+import SearchablePartySelect from './SearchablePartySelect';
 import {
   formatCurrency,
   formatNumber,
@@ -160,19 +161,16 @@ export default function DateWiseSalesReportView({
       <div className="p-5 border-b border-gray-100 flex flex-col gap-4 print:hidden bg-gradient-to-r from-slate-50 to-white">
         {!filtersControlledExternally && (
           <div className="flex flex-wrap gap-3">
-            <div className="min-w-[180px] relative">
-              <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-indigo-600 uppercase tracking-wider">Party</label>
-              <select
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 font-semibold text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none"
-                value={selectedCustomerId}
-                onChange={(e) => setSelectedCustomerId(e.target.value ? Number(e.target.value) : '')}
-              >
-                <option value="">All Parties</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
+            <SearchablePartySelect
+              value={selectedCustomerId}
+              onChange={(id) => setSelectedCustomerId(id)}
+              customers={customers}
+              label="Party"
+              placeholder="All Parties"
+              allowAll={true}
+              className="min-w-[180px] relative flex-1"
+              labelColorClass="text-indigo-600"
+            />
             <div className="min-w-[200px] relative">
               <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-purple-600 uppercase tracking-wider">Quality Wise</label>
               <select

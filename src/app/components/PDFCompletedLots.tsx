@@ -130,6 +130,22 @@ const COL = {
   pct: '6%',
 };
 
+const COL_INCOMPLETE = {
+  year: '4%',
+  party: '15%',
+  lot: '8%',
+  bilty: '8%',
+  date: '8%',
+  quality: '13%',
+  than: '5%',
+  in: '8%',
+  out: '8%',
+  total: '8%',
+  do: '7%',
+  kwapsi: '7%',
+  balance: '9%',
+};
+
 const Cell = ({
   children,
   width,
@@ -174,6 +190,7 @@ export const PDFCompletedLots = ({
 }) => {
   const companyName = org?.name || 'SHAN DYEING';
   const printDate = getPrintDateTime();
+  const col = reportType === 'incomplete' ? COL_INCOMPLETE : COL;
   const ROWS_PER_PAGE = 22;
   const pages: typeof report.lots[] = [];
   for (let i = 0; i < report.lots.length; i += ROWS_PER_PAGE) {
@@ -213,38 +230,44 @@ export const PDFCompletedLots = ({
 
           <View style={styles.table}>
             <View style={[styles.tableRow, styles.tableHeader]} fixed>
-              <Cell width={COL.year} bold>Yr</Cell>
-              <Cell width={COL.lot} bold>Lot No</Cell>
-              <Cell width={COL.bilty} bold>Bilty No</Cell>
-              <Cell width={COL.date} bold>Date</Cell>
-              <Cell width={COL.quality} variant="left" bold>Raw Quality</Cell>
-              <Cell width={COL.than} bold>Than</Cell>
-              <Cell width={COL.in} variant="right" bold>Meters In</Cell>
-              <Cell width={COL.out} variant="right" bold>Meters Out</Cell>
-              <Cell width={COL.total} variant="right" bold>Ready Mtr</Cell>
-              <Cell width={COL.do} variant="right" bold>D.O</Cell>
-              <Cell width={COL.kwapsi} variant="right" bold>K-Wapsi</Cell>
-              <Cell width={COL.balance} variant="right" bold>Balance</Cell>
-              <Cell width={COL.pct} variant="right" last bold>%</Cell>
+              <Cell width={col.year} bold>Yr</Cell>
+              {reportType === 'incomplete' && <Cell width={COL_INCOMPLETE.party} variant="left" bold>Party</Cell>}
+              <Cell width={col.lot} bold>Lot No</Cell>
+              <Cell width={col.bilty} bold>Bilty No</Cell>
+              <Cell width={col.date} bold>Date</Cell>
+              <Cell width={col.quality} variant="left" bold>Raw Quality</Cell>
+              <Cell width={col.than} bold>Than</Cell>
+              <Cell width={col.in} variant="right" bold>Meters In</Cell>
+              <Cell width={col.out} variant="right" bold>Meters Out</Cell>
+              <Cell width={col.total} variant="right" bold>Ready Mtr</Cell>
+              <Cell width={col.do} variant="right" bold>D.O</Cell>
+              <Cell width={col.kwapsi} variant="right" bold>K-Wapsi</Cell>
+              <Cell width={col.balance} variant="right" last={reportType === 'incomplete'} bold>Balance</Cell>
+              {reportType !== 'incomplete' && <Cell width={COL.pct} variant="right" last bold>%</Cell>}
             </View>
 
             {pageLots.map((lot, idx) => (
               <View key={`${lot.lotNo}-${idx}`} style={[styles.tableRow, idx % 2 === 1 ? styles.rowAlt : {}]} wrap={false}>
-                <Cell width={COL.year}>{String(lot.year)}</Cell>
-                <Cell width={COL.lot} bold>{lot.lotNo}</Cell>
-                <Cell width={COL.bilty}>{lot.biltyNo}</Cell>
-                <Cell width={COL.date}>{formatReportDate(lot.date)}</Cell>
-                <Cell width={COL.quality} variant="left" bold color="#6b21a8">{lot.quality}</Cell>
-                <Cell width={COL.than}>{String(lot.than)}</Cell>
-                <Cell width={COL.in} variant="right">{formatMeters(lot.metersIn)}</Cell>
-                <Cell width={COL.out} variant="right">{formatMeters(lot.metersOut)}</Cell>
-                <Cell width={COL.total} variant="right" bold>{formatMeters(lot.totalMeters)}</Cell>
-                <Cell width={COL.do} variant="right">{formatMeters(lot.doQty)}</Cell>
-                <Cell width={COL.kwapsi} variant="right">{formatMeters(lot.kWapsi)}</Cell>
-                <Cell width={COL.balance} variant="right">{formatMeters(lot.balance)}</Cell>
-                <Cell width={COL.pct} variant="right" last bold color={pctColor(lot.percentage)}>
-                  {lot.percentage > 0 ? `+${lot.percentage}` : String(lot.percentage)}%
-                </Cell>
+                <Cell width={col.year}>{String(lot.year)}</Cell>
+                {reportType === 'incomplete' && (
+                  <Cell width={COL_INCOMPLETE.party} variant="left" bold>{lot.partyName || '—'}</Cell>
+                )}
+                <Cell width={col.lot} bold>{lot.lotNo}</Cell>
+                <Cell width={col.bilty}>{lot.biltyNo}</Cell>
+                <Cell width={col.date}>{formatReportDate(lot.date)}</Cell>
+                <Cell width={col.quality} variant="left" bold color="#6b21a8">{lot.quality}</Cell>
+                <Cell width={col.than}>{String(lot.than)}</Cell>
+                <Cell width={col.in} variant="right">{formatMeters(lot.metersIn)}</Cell>
+                <Cell width={col.out} variant="right">{formatMeters(lot.metersOut)}</Cell>
+                <Cell width={col.total} variant="right" bold>{formatMeters(lot.totalMeters)}</Cell>
+                <Cell width={col.do} variant="right">{formatMeters(lot.doQty)}</Cell>
+                <Cell width={col.kwapsi} variant="right">{formatMeters(lot.kWapsi)}</Cell>
+                <Cell width={col.balance} variant="right" last={reportType === 'incomplete'}>{formatMeters(lot.balance)}</Cell>
+                {reportType !== 'incomplete' && (
+                  <Cell width={COL.pct} variant="right" last bold color={pctColor(lot.percentage)}>
+                    {lot.percentage > 0 ? `+${lot.percentage}` : String(lot.percentage)}%
+                  </Cell>
+                )}
               </View>
             ))}
           </View>
@@ -256,9 +279,11 @@ export const PDFCompletedLots = ({
                 <Text style={styles.summaryItem}>Bundles: {formatMeters(report.summary.totalBundles)}</Text>
                 <Text style={styles.summaryItem}>Meters In: {formatMeters(report.summary.totalMetersIn)}</Text>
                 <Text style={styles.summaryItem}>Meters Out: {formatMeters(report.summary.totalMetersOut)}</Text>
-                <Text style={styles.summaryItem}>
-                  Difference: {formatMeters(report.summary.productionDifference)}
-                </Text>
+                {reportType !== 'incomplete' && (
+                  <Text style={styles.summaryItem}>
+                    Difference: {formatMeters(report.summary.productionDifference)}
+                  </Text>
+                )}
               </View>
               <View style={styles.grandTotal}>
                 <View style={styles.grandRow}>
@@ -271,9 +296,13 @@ export const PDFCompletedLots = ({
                 </View>
                 <View style={styles.grandRow}>
                   <Text>Meters Out: {formatMeters(report.summary.totalMetersOut)}</Text>
-                  <Text style={{ color: pctColor(-report.summary.productionDifference) }}>
-                    Difference: {formatMeters(report.summary.productionDifference)}
-                  </Text>
+                  {reportType !== 'incomplete' ? (
+                    <Text style={{ color: pctColor(-report.summary.productionDifference) }}>
+                      Difference: {formatMeters(report.summary.productionDifference)}
+                    </Text>
+                  ) : (
+                    <Text />
+                  )}
                 </View>
               </View>
             </>

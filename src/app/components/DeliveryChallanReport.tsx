@@ -5,6 +5,7 @@ import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrd
 import { organizationService, Organization } from '../services/organizationService';
 import { customerService, CustomerItem } from '../services/customerService';
 import { PDFDeliveryChallan } from './PDFDeliveryChallan';
+import SearchablePartySelect from './SearchablePartySelect';
 import {
   computeDeliveryChallan,
   DeliveryOrderWithGrid,
@@ -136,23 +137,16 @@ export default function DeliveryChallanReport({ fromDate, toDate }: DeliveryChal
       {/* Filters & Actions */}
       <div className="p-6 border-b border-gray-100 flex flex-col lg:flex-row gap-4 justify-between print:hidden">
         <div className="flex flex-wrap gap-4 flex-1">
-          <div className="min-w-[200px] relative">
-            <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-blue-600 uppercase tracking-wider">
-              Customer
-            </label>
-            <select
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 font-bold text-gray-700 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              value={selectedCustomerId}
-              onChange={(e) => setSelectedCustomerId(e.target.value ? Number(e.target.value) : '')}
-            >
-              <option value="">All Customers</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <SearchablePartySelect
+            value={selectedCustomerId}
+            onChange={(id) => setSelectedCustomerId(id)}
+            customers={customers}
+            label="Customer"
+            placeholder="All Customers"
+            allLabel="All Customers"
+            allowAll={true}
+            className="min-w-[200px] relative"
+          />
           <div className="min-w-[220px] relative">
             <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-blue-600 uppercase tracking-wider">
               Delivery Challan (DC)

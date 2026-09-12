@@ -18,6 +18,7 @@ import { PDFOutstanding } from './PDFOutstanding';
 import { PDFPayments } from './PDFPayments';
 import { PDFInvoices } from './PDFInvoices';
 import { PDFStock } from './PDFStock';
+import SearchablePartySelect from './SearchablePartySelect';
 
 export default function Reports() {
   const allowedCategories = useMemo(() => {
@@ -407,34 +408,29 @@ export default function Reports() {
                   />
                 </div>
                 {activeTab === 'ledger' && (
-                  <div className="relative min-w-[220px] flex-1">
-                    <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-indigo-600 uppercase">Customer</label>
-                    <select
-                      className="w-full px-3 py-2.5 rounded-lg border border-gray-200 font-bold text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                      value={selectedCustomerId || ''}
-                      onChange={(e) => setSelectedCustomerId(Number(e.target.value))}
-                    >
-                      {customers.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <SearchablePartySelect
+                    value={selectedCustomerId}
+                    onChange={(id) => setSelectedCustomerId(id ? Number(id) : null)}
+                    customers={customers}
+                    label="Customer"
+                    placeholder="Select Customer"
+                    allowAll={false}
+                    className="relative min-w-[220px] flex-1"
+                    labelColorClass="text-indigo-600"
+                  />
                 )}
                 {activeTab === 'datesales' && (
                   <>
-                    <div className="relative min-w-[200px]">
-                      <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-indigo-600 uppercase">Party</label>
-                      <select
-                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 font-bold text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                        value={salesCustomerId}
-                        onChange={(e) => setSalesCustomerId(e.target.value ? Number(e.target.value) : '')}
-                      >
-                        <option value="">All Parties</option>
-                        {customers.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <SearchablePartySelect
+                      value={salesCustomerId}
+                      onChange={(id) => setSalesCustomerId(id)}
+                      customers={customers}
+                      label="Party"
+                      placeholder="All Parties"
+                      allowAll={true}
+                      className="relative min-w-[200px]"
+                      labelColorClass="text-indigo-600"
+                    />
                     <div className="relative min-w-[220px]">
                       <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-purple-600 uppercase">Quality Wise</label>
                       <select

@@ -7,6 +7,7 @@ import { organizationService, Organization } from '../services/organizationServi
 import { customerService, CustomerItem } from '../services/customerService';
 import { qualityService, QualityItem } from '../services/qualityService';
 import { PDFPartyWiseLotDelivery } from './PDFPartyWiseLotDelivery';
+import SearchablePartySelect from './SearchablePartySelect';
 import {
   exportPartyLotDeliveryExcel,
   formatMeters,
@@ -181,21 +182,15 @@ export default function PartyWiseLotDeliveryReport({ fromDate, toDate }: PartyWi
     <div className="flex flex-col h-full">
       <div className="p-6 border-b border-gray-100 space-y-4 print:hidden">
         <div className="flex flex-wrap gap-3">
-          <div className="min-w-[180px] flex-1 relative">
-            <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-blue-600 uppercase tracking-wider">
-              Party / Customer
-            </label>
-            <select
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 font-bold text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              value={selectedCustomerId}
-              onChange={(e) => setSelectedCustomerId(e.target.value ? Number(e.target.value) : '')}
-            >
-              <option value="">All Parties</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
+          <SearchablePartySelect
+            value={selectedCustomerId}
+            onChange={(id) => setSelectedCustomerId(id)}
+            customers={customers}
+            label="Party / Customer"
+            placeholder="All Parties"
+            allowAll={true}
+            className="min-w-[180px] flex-1 relative"
+          />
           <div className="min-w-[160px] flex-1 relative">
             <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-blue-600 uppercase tracking-wider">
               Quality

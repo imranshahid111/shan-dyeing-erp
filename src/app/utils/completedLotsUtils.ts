@@ -38,18 +38,21 @@ export function exportCompletedLotsExcel(report: CompletedLotsReport, fileName: 
   const rows = report.lots.map((lot) => {
     const r: any = {
       Year: lot.year,
-      'Lot No': lot.lotNo,
-      'Bilty No': lot.biltyNo,
-      Date: lot.date,
-      'Raw Quality': lot.quality,
-      Than: lot.than,
-      'Meters In': lot.metersIn,
-      'Meters Out': lot.metersOut,
-      'Ready Meters': lot.totalMeters,
-      'D.O': lot.doQty,
-      'K-Wapsi': lot.kWapsi,
-      Balance: lot.balance,
     };
+    if (isIncomplete || lot.partyName) {
+      r.Party = lot.partyName || '—';
+    }
+    r['Lot No'] = lot.lotNo;
+    r['Bilty No'] = lot.biltyNo;
+    r.Date = lot.date;
+    r['Raw Quality'] = lot.quality;
+    r.Than = lot.than;
+    r['Meters In'] = lot.metersIn;
+    r['Meters Out'] = lot.metersOut;
+    r['Ready Meters'] = lot.totalMeters;
+    r['D.O'] = lot.doQty;
+    r['K-Wapsi'] = lot.kWapsi;
+    r.Balance = lot.balance;
     if (!isIncomplete) {
       r.Percentage = lot.percentage;
     }
@@ -59,18 +62,21 @@ export function exportCompletedLotsExcel(report: CompletedLotsReport, fileName: 
 
   const grandTotal: any = {
     Year: '',
-    'Lot No': 'GRAND TOTAL',
-    'Bilty No': '',
-    Date: '',
-    'Raw Quality': '',
-    Than: report.summary.totalBundles,
-    'Meters In': report.summary.totalMetersIn,
-    'Meters Out': report.summary.totalMetersOut,
-    'Total Meters': report.summary.totalMeters,
-    'D.O': '',
-    'K-Wapsi': '',
-    Balance: '',
   };
+  if (isIncomplete || report.lots.some((l) => l.partyName)) {
+    grandTotal.Party = '';
+  }
+  grandTotal['Lot No'] = 'GRAND TOTAL';
+  grandTotal['Bilty No'] = '';
+  grandTotal.Date = '';
+  grandTotal['Raw Quality'] = '';
+  grandTotal.Than = report.summary.totalBundles;
+  grandTotal['Meters In'] = report.summary.totalMetersIn;
+  grandTotal['Meters Out'] = report.summary.totalMetersOut;
+  grandTotal['Ready Meters'] = report.summary.totalMeters;
+  grandTotal['D.O'] = '';
+  grandTotal['K-Wapsi'] = '';
+  grandTotal.Balance = '';
   
   if (!isIncomplete) {
     grandTotal.Percentage = report.summary.productionDifference;

@@ -616,6 +616,8 @@ exports.getCompletedLotsReport = async (req, res, next) => {
       lotNo: "lotNo",
       totalMeters: "totalMeters",
       quality: "quality",
+      party: "partyName",
+      partyName: "partyName",
     };
     const field = sortFieldMap[sortBy] || "date";
     const dir = sortOrder === "desc" ? -1 : 1;
@@ -626,6 +628,11 @@ exports.getCompletedLotsReport = async (req, res, next) => {
       }
       if (field === "totalMeters") {
         return (a.totalMeters - b.totalMeters) * dir;
+      }
+      if (field === "partyName") {
+        const cmp = String(a.partyName || "").localeCompare(String(b.partyName || "")) * dir;
+        if (cmp !== 0) return cmp;
+        return (new Date(a.date).getTime() - new Date(b.date).getTime()) * dir;
       }
       return String(a[field]).localeCompare(String(b[field])) * dir;
     });

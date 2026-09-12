@@ -64,15 +64,53 @@ export default function CreateInvoice() {
           const existingRate = Number(editInvoice.rate || 0);
           setRate(existingRate);
           setRateInput(existingRate > 0 ? String(existingRate) : '');
-          setRateUnit((editInvoice.rate_unit as 'meter' | 'yard') || 'meter');
-          const existingKinarCut = Number(editInvoice.kinar_cut_amount || 0);
-          setKinarCutAmount(existingKinarCut);
-          setKinarCutInput(existingKinarCut > 0 ? String(existingKinarCut) : '');
-          const existingPacking = Number(editInvoice.packing_amount || 0);
-          setPackingAmount(existingPacking);
-          setPackingInput(existingPacking > 0 ? String(existingPacking) : '');
+          const existingRateUnit = (editInvoice.rate_unit as 'meter' | 'yard') || 'meter';
+          setRateUnit(existingRateUnit);
+
+          const yardQty = Number(editInvoice.total_ready_gazana || 0);
+          const meterQty = yardQty * 0.9144;
+          const effQty = existingRateUnit === 'meter' ? meterQty : yardQty;
+
+          // Kinar Cut: breakdown calculation (Rate = Total Amount / Quantity)
+          const existingKinarCutAmount = Number(editInvoice.kinar_cut_amount || 0);
+          const existingKinarCutQty = Number(editInvoice.kinar_cut_qty || 0);
+          if (existingKinarCutAmount > 0) {
+            if (existingKinarCutQty > 0) {
+              const computedRate = parseFloat((existingKinarCutAmount / existingKinarCutQty).toFixed(4));
+              setKinarCutAmount(computedRate);
+              setKinarCutInput(String(computedRate));
+              setKinarCutQtyInput(String(existingKinarCutQty));
+            } else if (effQty > 0) {
+              const computedRate = parseFloat((existingKinarCutAmount / effQty).toFixed(4));
+              setKinarCutAmount(computedRate);
+              setKinarCutInput(String(computedRate));
+              setKinarCutQtyInput(String(parseFloat(effQty.toFixed(2))));
+            } else {
+              setKinarCutAmount(existingKinarCutAmount);
+              setKinarCutInput(String(existingKinarCutAmount));
+            }
+          }
+
+          // Packing: breakdown calculation (Rate = Total Amount / Quantity)
+          const existingPackingAmount = Number(editInvoice.packing_amount || 0);
           const existingPackingQty = Number(editInvoice.packing_qty || 0);
-          if (existingPackingQty > 0) setPackingQtyInput(String(existingPackingQty));
+          if (existingPackingAmount > 0) {
+            if (existingPackingQty > 0) {
+              const computedRate = parseFloat((existingPackingAmount / existingPackingQty).toFixed(4));
+              setPackingAmount(computedRate);
+              setPackingInput(String(computedRate));
+              setPackingQtyInput(String(existingPackingQty));
+            } else if (effQty > 0) {
+              const computedRate = parseFloat((existingPackingAmount / effQty).toFixed(4));
+              setPackingAmount(computedRate);
+              setPackingInput(String(computedRate));
+              setPackingQtyInput(String(parseFloat(effQty.toFixed(2))));
+            } else {
+              setPackingAmount(existingPackingAmount);
+              setPackingInput(String(existingPackingAmount));
+            }
+          }
+
           const dateStr = (editInvoice.invoice_date || editInvoice.order_date || '');
           if (dateStr) {
             setInvoiceDate(dateStr.split('T')[0]);
@@ -367,13 +405,18 @@ export default function CreateInvoice() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <label className="block text-sm text-gray-600">Kinar Cut Amount (Per {rateUnit === 'meter' ? 'Mtr' : 'Gaz'})</label>
+                  <label className="block text-sm font-semibold text-gray-700">Kinar Cut (Per {rateUnit === 'meter' ? 'Mtr' : 'Gaz'})</label>
+                  {kinarCutTotal > 0 && (
+                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                      Total: Rs {kinarCutTotal.toFixed(2)}
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-semibold">Rs</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold uppercase">Rate</span>
                     <input
                       id="kinarCutInput"
                       type="number"
@@ -397,7 +440,7 @@ export default function CreateInvoice() {
                           document.getElementById('kinarCutQtyInput')?.focus();
                         }
                       }}
-                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full pl-12 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-800"
                       placeholder="0.00"
                     />
                   </div>
@@ -417,20 +460,30 @@ export default function CreateInvoice() {
                           document.getElementById('packingInput')?.focus();
                         }
                       }}
-                      className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder=""
+                      className="w-full pl-4 pr-12 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-800"
+                      placeholder={effectiveQuantity ? effectiveQuantity.toFixed(2) : 'Qty'}
                     />
                   </div>
                 </div>
+                {kinarCutAmount > 0 && (
+                  <p className="text-xs text-gray-500 font-medium">
+                    Breakdown: Rs {kinarCutAmount} × {finalKinarCutQty.toFixed(2)} {rateUnit === 'meter' ? 'Mtr' : 'Gaz'} = <strong className="text-gray-800">Rs {kinarCutTotal.toFixed(2)}</strong>
+                  </p>
+                )}
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <label className="block text-sm text-gray-600">Packing Amount (Per {rateUnit === 'meter' ? 'Mtr' : 'Gaz'})</label>
+                  <label className="block text-sm font-semibold text-gray-700">Packing (Per {rateUnit === 'meter' ? 'Mtr' : 'Gaz'})</label>
+                  {packingTotal > 0 && (
+                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                      Total: Rs {packingTotal.toFixed(2)}
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-semibold">Rs</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-bold uppercase">Rate</span>
                     <input
                       id="packingInput"
                       type="number"
@@ -454,7 +507,7 @@ export default function CreateInvoice() {
                           document.getElementById('packingQtyInput')?.focus();
                         }
                       }}
-                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full pl-12 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-800"
                       placeholder="0.00"
                     />
                   </div>
@@ -474,11 +527,16 @@ export default function CreateInvoice() {
                           document.getElementById('discountInput')?.focus();
                         }
                       }}
-                      className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder=""
+                      className="w-full pl-4 pr-12 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-800"
+                      placeholder={effectiveQuantity ? effectiveQuantity.toFixed(2) : 'Qty'}
                     />
                   </div>
                 </div>
+                {packingAmount > 0 && (
+                  <p className="text-xs text-gray-500 font-medium">
+                    Breakdown: Rs {packingAmount} × {finalPackingQty.toFixed(2)} {rateUnit === 'meter' ? 'Mtr' : 'Gaz'} = <strong className="text-gray-800">Rs {packingTotal.toFixed(2)}</strong>
+                  </p>
+                )}
               </div>
             </div>
 
@@ -529,17 +587,33 @@ export default function CreateInvoice() {
                     document.getElementById('saveInvoiceBtn')?.focus();
                   }
                 }}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 mt-3"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 mt-3 font-bold"
                 placeholder={discountType === 'percentage' ? '0%' : 'Rs 0.00'}
               />
             </div>
 
-            <div className="bg-red-50 rounded-xl p-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Discount Amount</span>
-                <span className="text-lg font-medium text-red-600">-Rs {discountAmount.toFixed(2)}</span>
+            {kinarCutTotal > 0 && (
+              <div className="bg-blue-50/70 rounded-xl p-3 border border-blue-100 flex justify-between items-center text-sm">
+                <span className="text-gray-600 font-medium">Kinar Cut (Rs {kinarCutAmount}/{rateUnit === 'meter' ? 'mtr' : 'gaz'} on {finalKinarCutQty.toFixed(2)} {rateUnit === 'meter' ? 'Mtr' : 'Gaz'})</span>
+                <span className="font-bold text-blue-700">+Rs {kinarCutTotal.toFixed(2)}</span>
               </div>
-            </div>
+            )}
+
+            {packingTotal > 0 && (
+              <div className="bg-blue-50/70 rounded-xl p-3 border border-blue-100 flex justify-between items-center text-sm">
+                <span className="text-gray-600 font-medium">Packing (Rs {packingAmount}/{rateUnit === 'meter' ? 'mtr' : 'gaz'} on {finalPackingQty.toFixed(2)} {rateUnit === 'meter' ? 'Mtr' : 'Gaz'})</span>
+                <span className="font-bold text-blue-700">+Rs {packingTotal.toFixed(2)}</span>
+              </div>
+            )}
+
+            {discountAmount > 0 && (
+              <div className="bg-red-50 rounded-xl p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Discount Amount</span>
+                  <span className="text-lg font-medium text-red-600">-Rs {discountAmount.toFixed(2)}</span>
+                </div>
+              </div>
+            )}
 
             <div className="bg-green-50 rounded-xl p-4 border-2 border-green-200">
               <div className="flex justify-between items-center">

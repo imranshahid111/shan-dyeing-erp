@@ -7,6 +7,7 @@ import { organizationService, Organization } from '../services/organizationServi
 import { customerService, CustomerItem } from '../services/customerService';
 import { qualityService, QualityItem } from '../services/qualityService';
 import { PDFCompletedLots } from './PDFCompletedLots';
+import SearchablePartySelect from './SearchablePartySelect';
 import {
   exportCompletedLotsExcel,
   formatMeters,
@@ -22,7 +23,7 @@ interface CompletedLotsReportViewProps {
   reportType?: 'completed' | 'incomplete' | 'all';
 }
 
-type SortField = 'date' | 'lotNo' | 'totalMeters' | 'quality';
+type SortField = 'date' | 'lotNo' | 'totalMeters' | 'quality' | 'party';
 
 export default function CompletedLotsReportView({ fromDate, toDate, reportType = 'all' }: CompletedLotsReportViewProps) {
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
@@ -31,7 +32,7 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
   const [selectedQualityId, setSelectedQualityId] = useState<number | ''>('');
   const [lotNoFilter, setLotNoFilter] = useState('');
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<SortField>('date');
+  const [sortBy, setSortBy] = useState<SortField>(reportType === 'incomplete' ? 'party' : 'date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [report, setReport] = useState<CompletedLotsReport | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
@@ -61,6 +62,16 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
           data.lots = data.lots.filter(l => l.isComplete);
         } else if (reportType === 'incomplete') {
           data.lots = data.lots.filter(l => !l.isComplete);
+        }
+
+        // Client-side sort guarantee for party-wise sequence
+        if (sortBy === 'party') {
+          const dir = sortOrder === 'desc' ? -1 : 1;
+          data.lots.sort((a, b) => {
+            const cmp = String(a.partyName || '').localeCompare(String(b.partyName || '')) * dir;
+            if (cmp !== 0) return cmp;
+            return (new Date(a.date).getTime() - new Date(b.date).getTime()) * dir;
+          });
         }
         
         // Recalculate summary if filtered
@@ -102,7 +113,7 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
       }
     };
     fetchReport();
-  }, [fromDate, toDate, selectedCustomerId, selectedQualityId, lotNoFilter, search, sortBy, sortOrder]);
+  }, [fromDate, toDate, selectedCustomerId, selectedQualityId, lotNoFilter, search, sortBy, sortOrder, reportType]);
 
   const handlePdfPrint = async () => {
     if (!report || !organization) return;
@@ -142,21 +153,14 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
     <div className="flex flex-col h-full">
       <div className="p-6 border-b border-gray-100 space-y-4 print:hidden">
         <div className="flex flex-wrap gap-4">
-          <div className="min-w-[200px] relative flex-1">
-            <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-blue-600 uppercase tracking-wider">
-              Party / Customer
-            </label>
-            <select
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 font-bold text-gray-700 text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              value={selectedCustomerId}
-              onChange={(e) => setSelectedCustomerId(e.target.value ? Number(e.target.value) : '')}
-            >
-              <option value="">All Parties</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
+          <SearchablePartySelect
+            value={selectedCustomerId}
+            onChange={(id) => setSelectedCustomerId(id)}
+            customers={customers}
+            label="Party / Customer"
+            placeholder="All Parties"
+            allowAll={true}
+          />
           <div className="min-w-[180px] relative flex-1">
             <label className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-black text-blue-600 uppercase tracking-wider">
               Fabric Quality
@@ -208,10 +212,23 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortField)}
             >
-              <option value="date">Sort: Date</option>
-              <option value="lotNo">Sort: Lot Number</option>
-              <option value="totalMeters">Sort: Ready Meters</option>
-              <option value="quality">Sort: Quality</option>
+              {reportType === 'incomplete' ? (
+                <>
+                  <option value="party">Sort: Party</option>
+                  <option value="date">Sort: Date</option>
+                  <option value="lotNo">Sort: Lot Number</option>
+                  <option value="totalMeters">Sort: Ready Meters</option>
+                  <option value="quality">Sort: Quality</option>
+                </>
+              ) : (
+                <>
+                  <option value="date">Sort: Date</option>
+                  <option value="party">Sort: Party</option>
+                  <option value="lotNo">Sort: Lot Number</option>
+                  <option value="totalMeters">Sort: Ready Meters</option>
+                  <option value="quality">Sort: Quality</option>
+                </>
+              )}
             </select>
             <select
               className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 bg-white"
@@ -266,7 +283,7 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
 
         {!loading && report && report.lots.length === 0 && (
           <div className="text-center py-20 text-gray-400 font-semibold">
-            No completed lots found for the selected filters.
+            {reportType === 'incomplete' ? 'No incomplete lots found for the selected filters.' : 'No completed lots found for the selected filters.'}
           </div>
         )}
 
@@ -293,7 +310,7 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
                 <thead className="sticky top-0 z-[1]">
                   <tr className="bg-gray-300 text-black">
                     {(reportType === 'incomplete' 
-                      ? ['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Ready Meters', 'D.O', 'K-Wapsi', 'Balance']
+                      ? ['Year', 'Party', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Ready Meters', 'D.O', 'K-Wapsi', 'Balance']
                       : ['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Ready Meters', 'D.O', 'K-Wapsi', 'Balance', 'Percentage']
                     ).map((h) => (
                       <th key={h} className="border border-black p-1.5 text-left whitespace-nowrap font-black uppercase text-xs md:text-sm text-black">
@@ -306,6 +323,9 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
                     {report.lots.map((lot, idx) => (
                       <tr key={`${lot.lotNo}-${idx}`} className={idx % 2 === 1 ? 'bg-gray-50' : 'bg-white'}>
                       <td className="border border-black p-1.5 text-center font-semibold">{lot.year}</td>
+                      {reportType === 'incomplete' && (
+                        <td className="border border-black p-1.5 font-bold text-black whitespace-nowrap">{lot.partyName || '—'}</td>
+                      )}
                       <td className="border border-black p-1.5 font-mono font-bold">{lot.lotNo}</td>
                       <td className="border border-black p-1.5 font-mono font-semibold">{lot.biltyNo}</td>
                       <td className="border border-black p-1.5 whitespace-nowrap font-semibold">{formatReportDate(lot.date)}</td>
