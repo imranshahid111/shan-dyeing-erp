@@ -8,7 +8,9 @@ exports.getDeliveryOrders = async (req, res, next) => {
     const { Quality } = require("../models");
     const status = String(req.query.status || "");
     const page = Math.max(Number(req.query.page || 1), 1);
-    const pageSize = Math.min(Math.max(Number(req.query.pageSize || 20), 1), 100);
+    const pageSize = req.query.all === "true" || req.query.pageSize === "all" 
+      ? 5000 
+      : Math.min(Math.max(Number(req.query.pageSize || 20), 1), 5000);
     const { customer_id, startDate, endDate, search, gray_lot_id } = req.query;
 
     const where = {};

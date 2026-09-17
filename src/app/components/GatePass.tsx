@@ -53,7 +53,7 @@ export default function GatePass() {
     try {
       setLoadingOrders(true);
       const [doRes, gpRes] = await Promise.all([
-        deliveryOrderService.getDeliveryOrders('', 1, 500),
+        deliveryOrderService.getDeliveryOrders('', 1, 5000),
         gatePassService.getNextGatePassNumber()
       ]);
       setDeliveryOrders(doRes.data || []);
@@ -80,14 +80,19 @@ export default function GatePass() {
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = () => setActiveDropdown(null);
-    if (activeDropdown !== null) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [activeDropdown]);
+    const handleClickOutside = () => {
+      setActiveDropdown(null);
+      setDoDropdownOpen(false);
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
-  const handleOpenAddForm = () => { fetchDOsAndGPNo(); setShowAddForm(true); };
+  const handleOpenAddForm = () => { 
+    fetchGatePassHistory();
+    fetchDOsAndGPNo(); 
+    setShowAddForm(true); 
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -133,6 +138,7 @@ export default function GatePass() {
       gazana_total: String(item.gazana_total || 0),
     }));
     setDoRows(rows);
+    fetchGatePassHistory();
     fetchDOsAndGPNo();
     setShowAddForm(true);
   };
@@ -153,10 +159,14 @@ export default function GatePass() {
   // Available DOs not already added in current form rows AND not in any saved Gate Pass
   const usedIds = [...doRows.map(r => r.delivery_order_id), ...savedDoIds];
   const availableDOs = deliveryOrders.filter(o => !usedIds.includes(o.id));
-  const filteredAvailable = availableDOs.filter(o =>
-    o.order_no.toLowerCase().includes(doSearch.toLowerCase()) ||
-    (o.customer?.name || '').toLowerCase().includes(doSearch.toLowerCase())
-  );
+  const filteredAvailable = availableDOs.filter(o => {
+    const term = doSearch.toLowerCase().trim();
+    if (!term) return true;
+    const orderNo = (o.order_no || '').toLowerCase();
+    const custName = (o.customer?.name || '').toLowerCase();
+    const lotNo = (o.gray_lot?.lot_no || (o as any).GrayLot?.lot_no || '').toLowerCase();
+    return orderNo.includes(term) || custName.includes(term) || lotNo.includes(term);
+  });
 
   const addDOToRows = (o: DeliveryOrderItem) => {
     let readyPcsCount = 0;
@@ -480,28 +490,46 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
                     disabled={loadingOrders}
                   />
                 </div>
-                {doDropdownOpen && filteredAvailable.length > 0 && (
-                  <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'white', border:'1px solid var(--gray-200)', borderRadius:'var(--radius-md)', boxShadow:'0 8px 24px rgba(0,0,0,.12)', zIndex:50, maxHeight:220, overflowY:'auto', marginTop:4 }}>
-                    {filteredAvailable.map(o => (
-                      <div key={o.id} onClick={() => addDOToRows(o)}
-                        style={{ padding:'8px 12px', cursor:'pointer', borderBottom:'1px solid var(--gray-50)' }}
-                        onMouseEnter={e => (e.currentTarget.style.background='var(--brand-50)')}
-                        onMouseLeave={e => (e.currentTarget.style.background='white')}>
-                        <div style={{ fontWeight:600, fontFamily:'monospace', fontSize:'0.85rem' }}>{o.order_no}</div>
-                        <div style={{ fontSize:'0.75rem', color:'var(--gray-500)' }}>
-                          {o.customer?.name} — {Number((o as any).total_ready_gazana || o.total_gray_gazana || 0).toLocaleString()} {(o.input_unit || o.grid_data?.inputUnit || 'meter') === 'gaz' ? 'Gaz' : 'Mtr'}
-                        </div>
+                {doDropdownOpen && (
+                  <div style={{ position:'absolute', top:'100%', right:0, width:'340px', maxWidth:'90vw', background:'white', border:'1px solid var(--gray-200)', borderRadius:'var(--radius-md)', boxShadow:'0 8px 24px rgba(0,0,0,.12)', zIndex:50, maxHeight:240, overflowY:'auto', marginTop:4 }}>
+                    {loadingOrders ? (
+                      <div style={{ padding:'12px', textAlign:'center', color:'var(--gray-500)', fontSize:'0.8125rem' }}>
+                        Loading delivery orders...
                       </div>
-                    ))}
+                    ) : filteredAvailable.length === 0 ? (
+                      <div style={{ padding:'12px', textAlign:'center', color:'var(--gray-500)', fontSize:'0.8125rem' }}>
+                        {doSearch ? 'No matching DO found' : 'No available DOs found'}
+                      </div>
+                    ) : (
+                      filteredAvailable.map(o => {
+                        const lotNo = o.gray_lot?.lot_no || (o as any).GrayLot?.lot_no;
+                        return (
+                          <div key={o.id} onClick={() => addDOToRows(o)}
+                            style={{ padding:'8px 12px', cursor:'pointer', borderBottom:'1px solid var(--gray-50)' }}
+                            onMouseEnter={e => (e.currentTarget.style.background='var(--brand-50)')}
+                            onMouseLeave={e => (e.currentTarget.style.background='white')}>
+                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                              <span style={{ fontWeight:700, fontFamily:'monospace', fontSize:'0.85rem', color:'var(--brand-700)' }}>{o.order_no}</span>
+                              {lotNo && <span style={{ fontSize:'0.75rem', color:'var(--gray-500)', fontFamily:'monospace' }}>Lot: {lotNo}</span>}
+                            </div>
+                            <div style={{ fontSize:'0.75rem', color:'var(--gray-600)', marginTop:2, display:'flex', justifyContent:'space-between' }}>
+                              <span>{o.customer?.name}</span>
+                              <span style={{ fontWeight:600 }}>{Number((o as any).total_ready_gazana || o.total_gray_gazana || 0).toLocaleString()} {(o.input_unit || o.grid_data?.inputUnit || 'meter') === 'gaz' ? 'Gaz' : 'Mtr'}</span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 )}
               </div>
             </div>
-            <div style={{ overflowX:'auto' }}>
+            <div style={{ overflowX:'auto', minHeight:'280px', display:'flex', flexDirection:'column', justifyContent: doRows.length === 0 ? 'center' : 'flex-start' }}>
               {doRows.length === 0 ? (
-                <div style={{ padding:'2rem', textAlign:'center', color:'var(--gray-400)' }}>
-                  <ClipboardCheck size={32} style={{ margin:'0 auto 0.5rem', opacity:0.3 }} />
-                  <p style={{ fontSize:'0.875rem' }}>Search and add Delivery Orders above</p>
+                <div style={{ padding:'3.5rem 2rem', textAlign:'center', color:'var(--gray-400)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+                  <ClipboardCheck size={40} style={{ margin:'0 auto 0.75rem', opacity:0.35 }} />
+                  <p style={{ fontSize:'0.9375rem', fontWeight:500, color:'var(--gray-500)' }}>Search and add Delivery Orders above</p>
+                  <p style={{ fontSize:'0.8125rem', color:'var(--gray-400)', marginTop:4 }}>Select DOs from the dropdown to include in this gate pass</p>
                 </div>
               ) : (
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
