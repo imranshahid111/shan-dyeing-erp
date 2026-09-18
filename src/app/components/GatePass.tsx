@@ -1,15 +1,14 @@
 import { confirmDialog } from "../utils/confirmDialog";
 //@ts-nocheck
 import { useState, useEffect } from 'react';
-import { Printer, Save, ClipboardCheck, Loader2, Plus, Search, CalendarDays, Hash, ArrowLeft, Truck, User, Trash2, X, Pencil, MoreVertical, Download } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Printer, Save, ClipboardCheck, Loader2, Plus, Search, CalendarDays, Hash, ArrowLeft, Truck, User, Trash2, X, Pencil, MoreVertical, Download, Eye } from 'lucide-react';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
 import { gatePassService, GatePassItem, GatePassDOItem } from '../services/gatePassService';
 import { organizationService } from '../services/organizationService';
 import { toast } from 'sonner';
-import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
+import { PDFViewer, PDFDownloadLink, pdf } from '@react-pdf/renderer';
 import { PDFGatePass } from './PDFGatePass'; // Make sure the path is correct
-// GatePass.tsx - Imports section mein yeh add karo
-import { pdf } from '@react-pdf/renderer';
 
 interface FormDORow {
   delivery_order_id: number;
@@ -43,6 +42,7 @@ export default function GatePass() {
   const [organization, setOrganization] = useState<any>(null);
   const [editingGatePass, setEditingGatePass] = useState<GatePassItem | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
+  const [selectedGatePassForView, setSelectedGatePassForView] = useState<GatePassItem | null>(null);
 
   const fetchGatePassHistory = async () => {
     try { setLoadingList(true); const res = await gatePassService.getGatePasses(); setGatePasses(res || []); }
@@ -258,11 +258,10 @@ export default function GatePass() {
     finally { setIsSaving(false); }
   };
 
-// In GatePass.tsx - Updated handlePrint function
 const handlePrint = async (gp: GatePassItem) => {
   try {
-    // Create PDF blob
-    const blob = await pdf(<PDFGatePass gp={gp} org={organization} />).toBlob();
+    const orgToUse = organization || { name: 'Shan Dyeing' };
+    const blob = await pdf(<PDFGatePass gp={gp} org={orgToUse} />).toBlob();
     const url = URL.createObjectURL(blob);
     
     // Open in new window for printing
@@ -289,7 +288,8 @@ const handlePrint = async (gp: GatePassItem) => {
 // For direct PDF download with 2 copies
 const handleDownloadPDF = async (gp: GatePassItem) => {
   try {
-    const blob = await pdf(<PDFGatePass gp={gp} org={organization} />).toBlob();
+    const orgToUse = organization || { name: 'Shan Dyeing' };
+    const blob = await pdf(<PDFGatePass gp={gp} org={orgToUse} />).toBlob();
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -305,8 +305,8 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
 
   // Alternative: Direct download link
   const handlePrintWithDownload = (gp: GatePassItem) => {
-    // This will open a new tab with PDF viewer
-    const pdfBlob = pdf(<PDFGatePass gp={gp} org={organization} />).toBlob();
+    const orgToUse = organization || { name: 'Shan Dyeing' };
+    const pdfBlob = pdf(<PDFGatePass gp={gp} org={orgToUse} />).toBlob();
     const url = URL.createObjectURL(pdfBlob);
     window.open(url, '_blank');
   };
@@ -390,7 +390,10 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
                         <td><span style={{ fontWeight:700, color:'var(--brand-700)' }}>{totalGaz.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} {firstUnit}</span></td>
                         <td style={{ textAlign: 'center', position: 'relative' }}>
                           <button
-                            onClick={() => setActiveDropdown(activeDropdown === gp.id ? null : gp.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdown(activeDropdown === gp.id ? null : gp.id);
+                            }}
                             className="icon-btn"
                             title="Actions"
                           >
@@ -398,6 +401,7 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
                           </button>
                           {activeDropdown === gp.id && (
                             <div
+                              onClick={e => e.stopPropagation()}
                               onMouseDown={e => e.stopPropagation()}
                               style={{
                               position: 'absolute', right: '2rem', top: '2rem',
@@ -406,26 +410,30 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
                               zIndex: 50, minWidth: '160px', padding: '0.375rem 0',
                               overflow: 'hidden'
                             }}>
-                              {organization && (
-                                <button
-                                  onClick={() => { handlePrint(gp); setActiveDropdown(null); }}
-                                  style={{ width:'100%', display:'flex', alignItems:'center', gap:'0.625rem', padding:'0.5rem 1rem', background:'none', border:'none', cursor:'pointer', fontSize:'0.875rem', fontWeight:600, color:'var(--gray-700)', textAlign:'left' }}
-                                  onMouseEnter={e => (e.currentTarget.style.background='#eff6ff')}
-                                  onMouseLeave={e => (e.currentTarget.style.background='none')}
-                                >
-                                  <Printer size={14} style={{ color: '#2563eb' }} /> Print
-                                </button>
-                              )}
-                              {organization && (
-                                <button
-                                  onClick={() => { handleDownloadPDF(gp); setActiveDropdown(null); }}
-                                  style={{ width:'100%', display:'flex', alignItems:'center', gap:'0.625rem', padding:'0.5rem 1rem', background:'none', border:'none', cursor:'pointer', fontSize:'0.875rem', fontWeight:600, color:'var(--gray-700)', textAlign:'left' }}
-                                  onMouseEnter={e => (e.currentTarget.style.background='#f0fdf4')}
-                                  onMouseLeave={e => (e.currentTarget.style.background='none')}
-                                >
-                                  <Download size={14} style={{ color: '#16a34a' }} /> Download PDF
-                                </button>
-                              )}
+                              <button
+                                onClick={() => { setSelectedGatePassForView(gp); setActiveDropdown(null); }}
+                                style={{ width:'100%', display:'flex', alignItems:'center', gap:'0.625rem', padding:'0.5rem 1rem', background:'none', border:'none', cursor:'pointer', fontSize:'0.875rem', fontWeight:600, color:'var(--gray-700)', textAlign:'left' }}
+                                onMouseEnter={e => (e.currentTarget.style.background='#eff6ff')}
+                                onMouseLeave={e => (e.currentTarget.style.background='none')}
+                              >
+                                <Eye size={14} style={{ color: '#2563eb' }} /> View Gate Pass
+                              </button>
+                              <button
+                                onClick={() => { handlePrint(gp); setActiveDropdown(null); }}
+                                style={{ width:'100%', display:'flex', alignItems:'center', gap:'0.625rem', padding:'0.5rem 1rem', background:'none', border:'none', cursor:'pointer', fontSize:'0.875rem', fontWeight:600, color:'var(--gray-700)', textAlign:'left' }}
+                                onMouseEnter={e => (e.currentTarget.style.background='#eff6ff')}
+                                onMouseLeave={e => (e.currentTarget.style.background='none')}
+                              >
+                                <Printer size={14} style={{ color: '#2563eb' }} /> Print
+                              </button>
+                              <button
+                                onClick={() => { handleDownloadPDF(gp); setActiveDropdown(null); }}
+                                style={{ width:'100%', display:'flex', alignItems:'center', gap:'0.625rem', padding:'0.5rem 1rem', background:'none', border:'none', cursor:'pointer', fontSize:'0.875rem', fontWeight:600, color:'var(--gray-700)', textAlign:'left' }}
+                                onMouseEnter={e => (e.currentTarget.style.background='#f0fdf4')}
+                                onMouseLeave={e => (e.currentTarget.style.background='none')}
+                              >
+                                <Download size={14} style={{ color: '#16a34a' }} /> Download PDF
+                              </button>
                               {canEdit && (
                                 <button
                                   onClick={() => { handleEdit(gp); setActiveDropdown(null); }}
@@ -595,6 +603,102 @@ const handleDownloadPDF = async (gp: GatePassItem) => {
           </div>
         </form>
       )}
+
+      {/* Gate Pass Viewer Modal */}
+      {selectedGatePassForView && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '1rem',
+          }}
+          onClick={() => setSelectedGatePassForView(null)}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '20px',
+              width: '100%',
+              maxWidth: '1000px',
+              margin: '0 auto',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.3)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Sticky header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '1rem 1.5rem',
+              borderBottom: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              flexShrink: 0,
+            }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Gate Pass Preview</h3>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Pass #{selectedGatePassForView.gate_pass_no}</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <button
+                  onClick={() => handlePrint(selectedGatePassForView)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                    padding: '0.5rem 1.25rem',
+                    background: '#f8fafc', color: '#475569',
+                    borderRadius: '10px', fontWeight: 700,
+                    fontSize: '0.875rem', border: '1px solid #cbd5e1', cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                  }}
+                >
+                  <Printer size={16} /> Print
+                </button>
+                <button
+                  onClick={() => handleDownloadPDF(selectedGatePassForView)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                    padding: '0.5rem 1.25rem',
+                    background: '#16a34a', color: 'white',
+                    borderRadius: '10px', fontWeight: 700,
+                    fontSize: '0.875rem', border: 'none', cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(22,163,74,0.3)',
+                  }}
+                >
+                  <Download size={16} /> Download PDF
+                </button>
+                <button
+                  onClick={() => setSelectedGatePassForView(null)}
+                  style={{
+                    width: '2.25rem', height: '2.25rem',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: '#f1f5f9', border: 'none',
+                    borderRadius: '10px', cursor: 'pointer',
+                    color: '#475569', fontSize: '1.25rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            {/* PDF Viewer */}
+            <div style={{ flex: 1, background: '#e2e8f0', padding: '1rem', overflow: 'hidden' }}>
+              <PDFViewer width="100%" height="100%" showToolbar={false}
+                style={{ borderRadius: '10px', border: '1px solid #cbd5e1' }}
+              >
+                <PDFGatePass gp={selectedGatePassForView} org={organization || { name: 'Shan Dyeing' }} />
+              </PDFViewer>
+            </div>
+          </div>
+        </div>
+      , document.body)}
     </div>
   );
 }
