@@ -356,12 +356,6 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
       return;
     }
 
-    const readyInLotUnit = getReadyInLotUnit(readyAmount);
-    if (readyInLotUnit > grayAmount) {
-      toast.error('Total Ready quantity cannot be greater than Total Gray quantity.');
-      return;
-    }
-
     try {
       setSaving(true);
       
@@ -640,7 +634,7 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
               <div className="pt-2">
                 <button
                   className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                  disabled={!selectedLot || Number(calculateTotalGray().toFixed(2)) > Number((selectedLot?.remaining || 0).toFixed(2)) || Number(getReadyInLotUnit(calculateTotalReady()).toFixed(2)) > Number(calculateTotalGray().toFixed(2)) || saving}
+                  disabled={!selectedLot || Number(calculateTotalGray().toFixed(2)) > Number((selectedLot?.remaining || 0).toFixed(2)) || saving}
                   onClick={handleSaveDO}
                 >
                   <Save size={18} />
@@ -652,8 +646,8 @@ const addRow = () => setRows(prev => [...prev, createRow(prev.length + 1)]);
                   </p>
                 )}
                 {Number(getReadyInLotUnit(calculateTotalReady()).toFixed(2)) > Number(calculateTotalGray().toFixed(2)) && (
-                  <p className="text-red-500 text-xs mt-2 text-center">
-                    Ready miqdar Gray se zyada nahi ho sakti
+                  <p className="text-red-600 font-semibold text-xs mt-2 text-center bg-red-50 py-1.5 px-3 rounded-lg border border-red-200">
+                    ⚠️ Warning: Ready miqdar Gray se zyada hai!
                   </p>
                 )}
               </div>

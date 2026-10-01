@@ -1,6 +1,9 @@
 import { confirmDialog } from "../utils/confirmDialog";
 //@ts-nocheck
-import { Plus, X, Search, User, Calendar, Wallet, CheckCircle2, AlertCircle, Loader2, Trash2, Eye, Edit2, Paperclip } from 'lucide-react';
+import { Plus, X, Search, User, Calendar, Wallet, CheckCircle2, AlertCircle, Loader2, Trash2, Eye, Edit2, Paperclip, Download, FileText } from 'lucide-react';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { PDFPaymentReceipt, PDFPayments } from './PDFPayments';
+import { organizationService, Organization } from '../services/organizationService';
 import { customerService, CustomerItem } from '../services/customerService';
 import { deliveryOrderService, DeliveryOrderItem } from '../services/deliveryOrderService';
 import { paymentService, PaymentItem, PaymentStats } from '../services/paymentService';
@@ -43,6 +46,15 @@ export default function Payments() {
   const [loadingFilterCustomers, setLoadingFilterCustomers] = useState(false);
   const [canDelete, setCanDelete] = useState(true);
   const [canEdit, setCanEdit] = useState(true);
+  const [org, setOrg] = useState<Organization | null>(null);
+
+  // Date Range Filter States
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  useEffect(() => {
+    organizationService.getOrganization().then(setOrg).catch(console.error);
+  }, []);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -242,14 +254,16 @@ export default function Payments() {
     resetPaymentFields();
   };
 
-  const loadData = async (overrides?: { search?: string; page?: number; customerId?: number | null }) => {
+  const loadData = async (overrides?: { search?: string; page?: number; customerId?: number | null; startDate?: string; endDate?: string }) => {
     try {
       setLoadingPayments(true);
       const search = overrides?.search !== undefined ? overrides.search : historySearch;
       const page   = overrides?.page   !== undefined ? overrides.page   : currentPage;
       const custId = overrides?.customerId !== undefined ? overrides.customerId : (filterCustomer?.id ?? null);
+      const sDate  = overrides?.startDate  !== undefined ? overrides.startDate  : startDate;
+      const eDate  = overrides?.endDate    !== undefined ? overrides.endDate    : endDate;
       const [pRes, sRes] = await Promise.all([
-        paymentService.getPayments(search, page, pageSize, custId),
+        paymentService.getPayments(search, page, pageSize, custId, sDate, eDate),
         paymentService.getPaymentStats()
       ]);
       setPayments(pRes.data);
@@ -265,7 +279,7 @@ export default function Payments() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [historySearch, filterCustomer]);
+  }, [historySearch, filterCustomer, startDate, endDate]);
 
   // Main data loader — runs whenever filter/page changes, always reads fresh state via explicit args
   useEffect(() => {
@@ -273,7 +287,7 @@ export default function Payments() {
       try {
         setLoadingPayments(true);
         const [pRes, sRes] = await Promise.all([
-          paymentService.getPayments(historySearch, currentPage, pageSize, filterCustomer?.id ?? null),
+          paymentService.getPayments(historySearch, currentPage, pageSize, filterCustomer?.id ?? null, startDate, endDate),
           paymentService.getPaymentStats()
         ]);
         setPayments(pRes.data);
@@ -287,7 +301,17 @@ export default function Payments() {
       }
     };
     fetchNow();
-  }, [currentPage, historySearch, filterCustomer]);
+  }, [currentPage, historySearch, filterCustomer, startDate, endDate]);
+
+  const filteredPaymentsList = useMemo(() => {
+    return payments.filter(p => {
+      if (!p.payment_date) return true;
+      const pDate = p.payment_date.split('T')[0];
+      if (startDate && pDate < startDate) return false;
+      if (endDate && pDate > endDate) return false;
+      return true;
+    });
+  }, [payments, startDate, endDate]);
 
   useEffect(() => {
     try {
@@ -313,15 +337,50 @@ export default function Payments() {
           <h2 className="text-2xl font-bold text-gray-800">Payments & Receipts</h2>
           <p className="text-sm text-gray-500 mt-1">Receive payments and allocate to invoices</p>
         </div>
-        {canEdit && (
-          <button
-            onClick={() => { resetForm(); setShowModal(true); }}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20 font-bold"
-          >
-            <Plus size={20} />
-            Record New Payment
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {filteredPaymentsList.length > 0 && (
+            <PDFDownloadLink
+              document={
+                <PDFPayments
+                  data={filteredPaymentsList.map(p => ({
+                    date: p.payment_date ? new Date(p.payment_date).toLocaleDateString() : '',
+                    customer: p.customer?.name || p.delivery_order?.customer?.name || (p.customer_id ? customers.find(c => c.id === p.customer_id)?.name : null) || 'N/A',
+                    invoiceNo: p.delivery_order ? `DO #${p.delivery_order.order_no}` : 'Credit',
+                    method: (p.mode || 'CASH').toUpperCase(),
+                    reference: p.reference_no || '—',
+                    amount: typeof p.amount === 'number' ? p.amount : parseFloat(String(p.amount)) || 0
+                  }))}
+                  org={org}
+                  fromDate={startDate || filteredPaymentsList[filteredPaymentsList.length - 1]?.payment_date || ''}
+                  toDate={endDate || filteredPaymentsList[0]?.payment_date || ''}
+                />
+              }
+              fileName={`Payments_Log_${new Date().toISOString().split('T')[0]}.pdf`}
+              className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-bold shadow-sm text-sm"
+              title="Download Payments Log PDF"
+            >
+              {({ loading }) => (
+                loading ? (
+                  <Loader2 size={18} className="animate-spin text-blue-600" />
+                ) : (
+                  <>
+                    <FileText size={18} className="text-blue-600" />
+                    <span>Download PDF Log</span>
+                  </>
+                )
+              )}
+            </PDFDownloadLink>
+          )}
+          {canEdit && (
+            <button
+              onClick={() => { resetForm(); setShowModal(true); }}
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20 font-bold"
+            >
+              <Plus size={20} />
+              Record New Payment
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -689,6 +748,50 @@ export default function Payments() {
                 </>
               )}
             </div>
+            {/* From Date Filter */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100">
+              <Calendar size={14} className="text-gray-400 flex-shrink-0" />
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">From:</span>
+              <input
+                type="date"
+                className="bg-transparent border-none outline-none text-xs font-bold text-gray-700 cursor-pointer"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+              {startDate && (
+                <button
+                  type="button"
+                  onClick={() => setStartDate('')}
+                  className="text-gray-400 hover:text-red-500 transition-colors"
+                  title="Clear From Date"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            {/* To Date Filter */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100">
+              <Calendar size={14} className="text-gray-400 flex-shrink-0" />
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">To:</span>
+              <input
+                type="date"
+                className="bg-transparent border-none outline-none text-xs font-bold text-gray-700 cursor-pointer"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+              {endDate && (
+                <button
+                  type="button"
+                  onClick={() => setEndDate('')}
+                  className="text-gray-400 hover:text-red-500 transition-colors"
+                  title="Clear To Date"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
             {/* Search */}
             <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl border border-gray-100">
               <Search size={16} className="text-gray-400" />
@@ -700,6 +803,25 @@ export default function Payments() {
                 onChange={(e) => setHistorySearch(e.target.value)}
               />
             </div>
+
+            {/* Reset All Filters Button */}
+            {(startDate || endDate || filterCustomer || historySearch) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                  setFilterCustomer(null);
+                  setFilterCustomerSearch('');
+                  setHistorySearch('');
+                }}
+                className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-red-100"
+                title="Reset All Filters"
+              >
+                <X size={13} />
+                <span>Reset</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -709,7 +831,7 @@ export default function Payments() {
               <Loader2 className="animate-spin text-blue-600" size={32} />
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Fetching Ledger...</p>
             </div>
-          ) : payments.length > 0 ? (
+          ) : filteredPaymentsList.length > 0 ? (
             <table className="w-full">
               <thead className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                 <tr>
@@ -722,13 +844,13 @@ export default function Payments() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {payments.map(p => (
+                {filteredPaymentsList.map(p => (
                   <tr key={p.id} className="hover:bg-blue-50/30 transition-colors">
                     <td className="px-8 py-4 whitespace-nowrap text-sm font-bold text-gray-600">
                       {new Date(p.payment_date).toLocaleDateString()}
                     </td>
                     <td className="px-8 py-4 whitespace-nowrap">
-                      <p className="text-sm font-black text-gray-800">{p.customer?.name || p.delivery_order?.customer?.name || 'Unknown'}</p>
+                      <p className="text-sm font-black text-gray-800">{p.customer?.name || p.delivery_order?.customer?.name || (p.customer_id ? customers.find(c => c.id === p.customer_id)?.name : null) || 'N/A'}</p>
                       <p className="text-[10px] font-bold text-blue-600 font-mono">{p.delivery_order ? `DO: ${p.delivery_order.order_no}` : 'Credit'}</p>
                     </td>
                     <td className="px-8 py-4 whitespace-nowrap text-sm text-gray-500 italic">
@@ -762,6 +884,16 @@ export default function Payments() {
                         >
                           <Eye size={15} />
                         </button>
+                        <PDFDownloadLink
+                          document={<PDFPaymentReceipt payment={p} org={org} />}
+                          fileName={`Payment_Receipt_PAY-${String(p.id).padStart(5, '0')}.pdf`}
+                          className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 p-1.5 rounded-lg transition-colors flex items-center justify-center"
+                          title="Download Receipt PDF"
+                        >
+                          {({ loading }) => (
+                            loading ? <Loader2 size={15} className="animate-spin text-emerald-600" /> : <Download size={15} />
+                          )}
+                        </PDFDownloadLink>
                         {canEdit && (
                           <button
                             onClick={() => handleStartEdit(p)}
@@ -846,7 +978,7 @@ export default function Payments() {
             <div className="p-8 space-y-6 overflow-y-auto flex-1">
               <div>
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Customer</span>
-                <p className="font-bold text-gray-800 text-lg">{selectedPaymentForView.customer?.name || selectedPaymentForView.delivery_order?.customer?.name || 'N/A'}</p>
+                <p className="font-bold text-gray-800 text-lg">{selectedPaymentForView.customer?.name || selectedPaymentForView.delivery_order?.customer?.name || (selectedPaymentForView.customer_id ? customers.find(c => c.id === selectedPaymentForView.customer_id)?.name : null) || 'N/A'}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-6">
@@ -914,7 +1046,26 @@ export default function Payments() {
               )}
             </div>
 
-            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end">
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex items-center justify-between gap-3">
+              <PDFDownloadLink
+                document={<PDFPaymentReceipt payment={selectedPaymentForView} org={org} />}
+                fileName={`Payment_Receipt_PAY-${String(selectedPaymentForView.id).padStart(5, '0')}.pdf`}
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all text-sm shadow-md"
+              >
+                {({ loading }) => (
+                  loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Generating PDF...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={16} />
+                      Download Receipt PDF
+                    </>
+                  )
+                )}
+              </PDFDownloadLink>
               <button
                 onClick={() => setSelectedPaymentForView(null)}
                 className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition-all"

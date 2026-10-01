@@ -204,30 +204,68 @@ export default function ReturnLots() {
     }
   };
 
+  const [tableSearch, setTableSearch] = useState('');
+
   const filteredLots = grayLots.filter(lot => 
     lot.lotNo.toLowerCase().includes(searchQuery.toLowerCase()) || 
     lot.partyName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredReturnLots = returnLots.filter((rl) => {
+    if (!tableSearch.trim()) return true;
+    const q = tableSearch.toLowerCase().trim();
+    const lotNo = (rl.gray_lot?.lot_no || '').toLowerCase();
+    const partyName = (rl.gray_lot?.party_name || '').toLowerCase();
+    const reason = (rl.reason || '').toLowerCase();
+    const returnDate = rl.return_date ? new Date(rl.return_date).toLocaleDateString('en-PK').toLowerCase() : '';
+    const isoDate = rl.return_date ? new Date(rl.return_date).toISOString().split('T')[0] : '';
+    const qtyStr = (rl.gray_lot?.measurement?.toLowerCase() === 'meter' 
+      ? `${(Number(rl.returned_quantity) * 0.9144).toFixed(2)} meters` 
+      : `${rl.returned_quantity} yards`).toLowerCase();
+
+    return lotNo.includes(q) || partyName.includes(q) || reason.includes(q) || returnDate.includes(q) || isoDate.includes(q) || qtyStr.includes(q);
+  });
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Return Lots</h1>
           <p className="text-sm text-gray-500">Manage damaged and returned quantities from Gray Lots</p>
         </div>
-        {canEdit && (
-          <button
-            onClick={() => {
-              resetForm();
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-          >
-            <Plus size={18} />
-            Add Return Lot
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search Lot #, Party, Reason..."
+              value={tableSearch}
+              onChange={(e) => setTableSearch(e.target.value)}
+              className="w-full pl-10 pr-8 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-gray-400 shadow-sm"
+            />
+            {tableSearch && (
+              <button
+                onClick={() => setTableSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded-full"
+                title="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          {canEdit && (
+            <button
+              onClick={() => {
+                resetForm();
+                setIsModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap"
+            >
+              <Plus size={18} />
+              Add Return Lot
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[400px]">
@@ -248,12 +286,14 @@ export default function ReturnLots() {
                 <tr>
                   <td colSpan={6} className="px-6 py-8 text-center text-gray-500">Loading...</td>
                 </tr>
-              ) : returnLots.length === 0 ? (
+              ) : filteredReturnLots.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">No return lots found.</td>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    {tableSearch ? `No matching return lots found for "${tableSearch}".` : 'No return lots found.'}
+                  </td>
                 </tr>
               ) : (
-                returnLots.map((rl) => (
+                filteredReturnLots.map((rl) => (
                   <tr key={rl.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {new Date(rl.return_date).toLocaleDateString()}

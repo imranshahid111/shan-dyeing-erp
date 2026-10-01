@@ -53,9 +53,8 @@ export function exportCompletedLotsExcel(report: CompletedLotsReport, fileName: 
     r['D.O'] = lot.doQty;
     r['K-Wapsi'] = lot.kWapsi;
     r.Balance = lot.balance;
-    if (!isIncomplete) {
-      r.Percentage = lot.percentage;
-    }
+    r['In - Out'] = lot.metersIn - lot.metersOut;
+    r.Percentage = `${lot.percentage}%`;
     r.Remarks = lot.remarks;
     return r;
   });
@@ -77,11 +76,8 @@ export function exportCompletedLotsExcel(report: CompletedLotsReport, fileName: 
   grandTotal['D.O'] = '';
   grandTotal['K-Wapsi'] = '';
   grandTotal.Balance = '';
-  
-  if (!isIncomplete) {
-    grandTotal.Percentage = report.summary.productionDifference;
-  }
-  
+  grandTotal['In - Out'] = report.summary.totalMetersIn - report.summary.totalMetersOut;
+  grandTotal.Percentage = '';
   grandTotal.Remarks = `Total Lots: ${report.summary.totalLots}`;
   
   rows.push(grandTotal);

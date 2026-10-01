@@ -310,8 +310,8 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
                 <thead className="sticky top-0 z-[1]">
                   <tr className="bg-gray-300 text-black">
                     {(reportType === 'incomplete' 
-                      ? ['Year', 'Party', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Ready Meters', 'D.O', 'K-Wapsi', 'Balance']
-                      : ['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Ready Meters', 'D.O', 'K-Wapsi', 'Balance', 'Percentage']
+                      ? ['Year', 'Party', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Ready Meters', 'D.O', 'K-Wapsi', 'Balance', 'In - Out', 'Percentage']
+                      : ['Year', 'Lot No', 'Bilty No', 'Date', 'Raw Quality', 'Than', 'Meters In', 'Meters Out', 'Ready Meters', 'D.O', 'K-Wapsi', 'Balance', 'In - Out', 'Percentage']
                     ).map((h) => (
                       <th key={h} className="border border-black p-1.5 text-left whitespace-nowrap font-black uppercase text-xs md:text-sm text-black">
                         {h}
@@ -337,13 +337,15 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
                       <td className="border border-black p-1.5 text-right font-semibold">{formatMeters(lot.doQty)}</td>
                       <td className="border border-black p-1.5 text-right font-semibold">{formatMeters(lot.kWapsi)}</td>
                       <td className="border border-black p-1.5 text-right font-bold">{formatMeters(lot.balance)}</td>
-                      {reportType !== 'incomplete' && (
-                        <td
-                          className="border border-black p-1.5 text-right font-bold text-black"
-                        >
-                          {lot.percentage > 0 ? '+' : ''}{lot.percentage}%
-                        </td>
-                      )}
+                      <td className="border border-black p-1.5 text-right font-bold font-mono text-slate-800">
+                        {formatMeters(lot.metersIn - lot.metersOut)}
+                      </td>
+                      <td
+                        className="border border-black p-1.5 text-right font-bold"
+                        style={{ color: getPercentageColor(lot.percentage) }}
+                      >
+                        {lot.percentage > 0 ? '+' : ''}{lot.percentage}%
+                      </td>
                     </tr>
                     ))}
                   </tbody>
@@ -355,11 +357,9 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
               <span>Total Bundles: {formatMeters(report.summary.totalBundles)}</span>
               <span>Total Meters In: {formatMeters(report.summary.totalMetersIn)}</span>
               <span>Total Meters Out: {formatMeters(report.summary.totalMetersOut)}</span>
-              {reportType !== 'incomplete' && (
-                <span className="text-black">
-                  Production Difference: {formatMeters(report.summary.productionDifference)}
-                </span>
-              )}
+              <span>
+                Balance : {formatMeters(report.summary.totalMetersIn - report.summary.totalMetersOut)}
+              </span>
             </div>
 
             <div className="border border-t-0 border-black bg-gray-300 p-4 text-sm font-black text-black">
@@ -368,11 +368,9 @@ export default function CompletedLotsReportView({ fromDate, toDate, reportType =
                 <span>Bundles: {formatMeters(report.summary.totalBundles)}</span>
                 <span>Meters In: {formatMeters(report.summary.totalMetersIn)}</span>
                 <span>Meters Out: {formatMeters(report.summary.totalMetersOut)}</span>
-                {reportType !== 'incomplete' && (
-                  <span style={{ color: getPercentageColor(-report.summary.productionDifference) }}>
-                    Difference: {formatMeters(report.summary.productionDifference)}
-                  </span>
-                )}
+                <span>
+                  Balance : {formatMeters(report.summary.totalMetersIn - report.summary.totalMetersOut)}
+                </span>
               </div>
             </div>
           </div>

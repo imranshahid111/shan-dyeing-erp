@@ -1057,21 +1057,24 @@ exports.getPaymentsReport = async (req, res, next) => {
     const payments = await Payment.findAll({
       where,
       include: [
+        { model: Customer, attributes: ["id", "name"] },
         {
           model: DeliveryOrder,
           attributes: ["order_no", "invoice_no"],
-          include: [{ model: Customer, attributes: ["name"] }]
+          include: [{ model: Customer, attributes: ["id", "name"] }]
         }
       ],
       order: [["payment_date", "ASC"]],
     });
 
     const data = payments.map(p => {
+      const directCust = p.customer || p.Customer || {};
       const doItem = p.delivery_order || p.DeliveryOrder || {};
-      const customer = doItem.customer || doItem.Customer || {};
+      const doCust = doItem.customer || doItem.Customer || {};
+      const custName = directCust.name || doCust.name || p.party_name || "N/A";
       return {
         date: p.payment_date,
-        customer: customer.name || "Unknown",
+        customer: custName,
         invoiceNo: doItem.invoice_no || doItem.order_no || "-",
         method: p.mode,
         reference: p.reference_no || "-",
@@ -1101,7 +1104,7 @@ exports.getInvoicesReport = async (req, res, next) => {
       where,
       include: [
         { model: Customer, attributes: ["name"] },
-        { model: GrayLot, attributes: ["lot_no", "measurement"] }
+        { model: GrayLot, attributes: ["lot_no", "measurement", "party_name"] }
       ],
       order: [["order_date", "ASC"]],
     });
@@ -1109,10 +1112,11 @@ exports.getInvoicesReport = async (req, res, next) => {
     const data = orders.map(o => {
       const customer = o.customer || o.Customer || {};
       const lot = o.gray_lot || o.GrayLot || {};
+      const custName = customer.name || lot.party_name || "N/A";
       return {
         date: o.order_date,
         invoiceNo: o.invoice_no || o.order_no,
-        customer: customer.name || "Unknown",
+        customer: custName,
         lotNo: lot.lot_no || "-",
         readyStock: Number(o.total_ready_gazana),
         unit: lot.measurement || "Meter",
@@ -1147,7 +1151,7 @@ exports.getDateWiseSalesReport = async (req, res, next) => {
     const parsedQualityId = qualityId ? Number(qualityId) : null;
     const grayLotInclude = {
       model: GrayLot,
-      attributes: ["lot_no", "quality_id"],
+      attributes: ["lot_no", "quality_id", "party_name"],
       include: [{ model: Quality, attributes: ["id", "name"] }],
     };
     if (parsedQualityId) {
@@ -1168,12 +1172,13 @@ exports.getDateWiseSalesReport = async (req, res, next) => {
       const customer = o.customer || o.Customer || {};
       const lot = o.gray_lot || o.GrayLot || {};
       const quality = lot.quality || lot.Quality || {};
+      const custName = customer.name || lot.party_name || "N/A";
       return {
         date: o.order_date,
         billNo: o.invoice_no || o.order_no,
         challanNo: o.order_no,
-        partyName: customer.name || "Unknown",
-        qualityName: quality.name || "Unknown",
+        partyName: custName,
+        qualityName: quality.name || "N/A",
         quantity: Number(o.total_ready_gazana || 0),
         rate: Number(o.rate || 0),
         amount: Number(o.total_amount || 0),

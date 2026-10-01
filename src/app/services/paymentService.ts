@@ -36,9 +36,16 @@ export interface PaymentStats {
 }
 
 export const paymentService = {
-  getPayments: (search = "", page = 1, pageSize = 50, customerId?: number | null) => {
+  getPayments: (search = "", page = 1, pageSize = 50, customerId?: number | null, startDate?: string, endDate?: string) => {
     return apiClient.get<unknown, PaymentsResponse>('/payments', {
-      params: { search, page, pageSize, ...(customerId ? { customer_id: customerId } : {}) }
+      params: { 
+        search, 
+        page, 
+        pageSize, 
+        ...(customerId ? { customer_id: customerId } : {}),
+        ...(startDate ? { startDate, fromDate: startDate, start_date: startDate } : {}),
+        ...(endDate ? { endDate, toDate: endDate, end_date: endDate } : {})
+      }
     });
   },
   getPaymentStats: () => {
