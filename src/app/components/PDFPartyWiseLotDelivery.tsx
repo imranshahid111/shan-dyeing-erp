@@ -93,19 +93,19 @@ const styles = StyleSheet.create({
 
 const COL = {
   sr: '3%',
-  lot: '6%',
-  partyLot: '6%',
-  delDate: '6%',
-  fabric: '5%',
-  party: '9%',
-  quality: '8%',
+  lot: '7%',
+  partyLot: '7%',
+  delDate: '7%',
+  fabric: '6%',
+  party: '13%',
+  quality: '11%',
   sent: '7%',
   delivered: '7%',
   doNo: '6%',
-  doDate: '6%',
+  doDate: '7%',
   challan: '6%',
-  challanDate: '6%',
-  status: '7%',
+  challanDate: '7%',
+  status: '6%',
 };
 
 const Cell = ({
@@ -141,98 +141,88 @@ export const PDFPartyWiseLotDelivery = ({
 }) => {
   const companyName = org?.name || 'SHAN DYEING';
   const printDate = getPrintDateTime();
-  const ROWS_PER_PAGE = 20;
-  const pages: typeof report.lots[] = [];
-  for (let i = 0; i < report.lots.length; i += ROWS_PER_PAGE) {
-    pages.push(report.lots.slice(i, i + ROWS_PER_PAGE));
-  }
-  if (pages.length === 0) pages.push([]);
 
   return (
     <Document title={`Party Lot Delivery - ${report.party.name}`}>
-      {pages.map((pageLots, pageIdx) => (
-        <Page key={pageIdx} size="A4" orientation="landscape" style={styles.page} wrap>
-          <View style={styles.brandingBar}>
-            <View>
-              <Text style={styles.companyName}>{companyName}</Text>
-              {org?.address ? <Text style={styles.companyDetail}>{org.address}</Text> : null}
-              {org?.phone ? <Text style={styles.companyDetail}>Tel: {org.phone}</Text> : null}
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.reportTitle}>Party Wise Lot Delivery Report</Text>
-              <Text style={styles.metaText}>Print: {printDate}</Text>
-            </View>
+      <Page size="A4" orientation="landscape" style={styles.page}>
+        <View style={styles.brandingBar}>
+          <View>
+            <Text style={styles.companyName}>{companyName}</Text>
+            {org?.address ? <Text style={styles.companyDetail}>{org.address}</Text> : null}
+            {org?.phone ? <Text style={styles.companyDetail}>Tel: {org.phone}</Text> : null}
+          </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={styles.reportTitle}>Party Wise Lot Delivery Report</Text>
+            <Text style={styles.metaText}>Print: {printDate}</Text>
+          </View>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={{ fontSize: 6, fontWeight: 'bold' }}>Party: {report.party.name}</Text>
+          <Text style={{ fontSize: 6 }}>
+            Period:{' '}
+            {report.fromDate && report.toDate
+              ? `${formatReportDate(report.fromDate)} — ${formatReportDate(report.toDate)}`
+              : 'All Dates'}
+          </Text>
+        </View>
+
+        <View style={styles.table}>
+          <View style={[styles.tableRow, styles.tableHeader]} fixed>
+            <Cell width={COL.sr} bold>Sr</Cell>
+            <Cell width={COL.lot} bold>Lot No</Cell>
+            <Cell width={COL.partyLot} bold>Party Lot</Cell>
+            <Cell width={COL.delDate} bold>Del Date</Cell>
+            <Cell width={COL.fabric} bold>Fab Type</Cell>
+            <Cell width={COL.party} variant="left" bold>Party Name</Cell>
+            <Cell width={COL.quality} variant="left" bold>Quality</Cell>
+            <Cell width={COL.sent} variant="right" bold>M Sent</Cell>
+            <Cell width={COL.delivered} variant="right" bold>M Del</Cell>
+            <Cell width={COL.doNo} bold>D.O No</Cell>
+            <Cell width={COL.doDate} bold>D.O Date</Cell>
+            <Cell width={COL.challan} bold>Challan</Cell>
+            <Cell width={COL.challanDate} bold>Ch Date</Cell>
+            <Cell width={COL.status} last bold>Status</Cell>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={{ fontSize: 6, fontWeight: 'bold' }}>Party: {report.party.name}</Text>
-            <Text style={{ fontSize: 6 }}>
-              Period:{' '}
-              {report.fromDate && report.toDate
-                ? `${formatReportDate(report.fromDate)} — ${formatReportDate(report.toDate)}`
-                : 'All Dates'}
-            </Text>
-          </View>
-
-          <View style={styles.table}>
-            <View style={[styles.tableRow, styles.tableHeader]} fixed>
-              <Cell width={COL.sr} bold>Sr</Cell>
-              <Cell width={COL.lot} bold>Lot No</Cell>
-              <Cell width={COL.partyLot} bold>Party Lot</Cell>
-              <Cell width={COL.delDate} bold>Del Date</Cell>
-              <Cell width={COL.fabric} bold>Fab Type</Cell>
-              <Cell width={COL.party} variant="left" bold>Party Name</Cell>
-              <Cell width={COL.quality} variant="left" bold>Quality</Cell>
-              <Cell width={COL.sent} variant="right" bold>M Sent</Cell>
-              <Cell width={COL.delivered} variant="right" bold>M Del</Cell>
-              <Cell width={COL.doNo} bold>D.O No</Cell>
-              <Cell width={COL.doDate} bold>D.O Date</Cell>
-              <Cell width={COL.challan} bold>Challan</Cell>
-              <Cell width={COL.challanDate} bold>Ch Date</Cell>
-              <Cell width={COL.status} last bold>Status</Cell>
+          {report.lots.map((row, idx) => (
+            <View
+              key={`${row.srNo}-${row.doNo}-${idx}`}
+              style={[styles.tableRow, idx % 2 === 1 ? styles.rowAlt : {}]}
+              wrap={false}
+            >
+              <Cell width={COL.sr}>{String(row.srNo)}</Cell>
+              <Cell width={COL.lot}>{row.lotNo}</Cell>
+              <Cell width={COL.partyLot}>{row.partyLotNo}</Cell>
+              <Cell width={COL.delDate}>{formatReportDate(row.deliveryDate)}</Cell>
+              <Cell width={COL.fabric}>{row.fabricType}</Cell>
+              <Cell width={COL.party} variant="left">{row.partyName}</Cell>
+              <Cell width={COL.quality} variant="left">{row.quality}</Cell>
+              <Cell width={COL.sent} variant="right">{formatMeters(row.metersSent)}</Cell>
+              <Cell width={COL.delivered} variant="right">{formatMeters(row.metersDelivered)}</Cell>
+              <Cell width={COL.doNo}>{row.doNo}</Cell>
+              <Cell width={COL.doDate}>{formatReportDate(row.doDate)}</Cell>
+              <Cell width={COL.challan}>{row.challanNo}</Cell>
+              <Cell width={COL.challanDate}>{formatReportDate(row.challanDate)}</Cell>
+              <Cell width={COL.status} last color={getStatusColor(row.status)}>{row.status}</Cell>
             </View>
+          ))}
+        </View>
 
-            {pageLots.map((row, idx) => (
-              <View
-                key={`${row.srNo}-${row.doNo}`}
-                style={[styles.tableRow, idx % 2 === 1 ? styles.rowAlt : {}]}
-                wrap={false}
-              >
-                <Cell width={COL.sr}>{String(row.srNo)}</Cell>
-                <Cell width={COL.lot}>{row.lotNo}</Cell>
-                <Cell width={COL.partyLot}>{row.partyLotNo}</Cell>
-                <Cell width={COL.delDate}>{formatReportDate(row.deliveryDate)}</Cell>
-                <Cell width={COL.fabric}>{row.fabricType}</Cell>
-                <Cell width={COL.party} variant="left">{row.partyName}</Cell>
-                <Cell width={COL.quality} variant="left">{row.quality}</Cell>
-                <Cell width={COL.sent} variant="right">{formatMeters(row.metersSent)}</Cell>
-                <Cell width={COL.delivered} variant="right">{formatMeters(row.metersDelivered)}</Cell>
-                <Cell width={COL.doNo}>{row.doNo}</Cell>
-                <Cell width={COL.doDate}>{formatReportDate(row.doDate)}</Cell>
-                <Cell width={COL.challan}>{row.challanNo}</Cell>
-                <Cell width={COL.challanDate}>{formatReportDate(row.challanDate)}</Cell>
-                <Cell width={COL.status} last color={getStatusColor(row.status)}>{row.status}</Cell>
-              </View>
-            ))}
-          </View>
+        <View style={styles.summaryBar} wrap={false}>
+          <Text style={styles.summaryItem}>Total Lots: {report.summary.totalLots}</Text>
+          <Text style={styles.summaryItem}>Sent: {formatMeters(report.summary.totalMetersSent)} M</Text>
+          <Text style={styles.summaryItem}>Delivered: {formatMeters(report.summary.totalMetersDelivered)} M</Text>
+          <Text style={styles.summaryItem}>Difference: {formatMeters(report.summary.totalDifference)} M</Text>
+          <Text style={styles.summaryItem}>Efficiency: {report.summary.deliveryEfficiency}%</Text>
+        </View>
 
-          {pageIdx === pages.length - 1 && (
-            <View style={styles.summaryBar}>
-              <Text style={styles.summaryItem}>Total Lots: {report.summary.totalLots}</Text>
-              <Text style={styles.summaryItem}>Sent: {formatMeters(report.summary.totalMetersSent)} M</Text>
-              <Text style={styles.summaryItem}>Delivered: {formatMeters(report.summary.totalMetersDelivered)} M</Text>
-              <Text style={styles.summaryItem}>Difference: {formatMeters(report.summary.totalDifference)} M</Text>
-              <Text style={styles.summaryItem}>Efficiency: {report.summary.deliveryEfficiency}%</Text>
-            </View>
-          )}
-
-          <Text
-            style={styles.pageNumber}
-            render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
-            fixed
-          />
-        </Page>
-      ))}
+        <Text
+          style={styles.pageNumber}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
+          fixed
+        />
+      </Page>
     </Document>
   );
 };

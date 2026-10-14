@@ -163,8 +163,14 @@ export default function CreateInvoice() {
     (d.customer?.name || '').toLowerCase().includes(doSearch.toLowerCase())
   );
 
+  const selectedQualityName = selectedDO
+    ? (typeof (selectedDO.gray_lot as any)?.quality === 'object' 
+        ? (selectedDO.gray_lot as any)?.quality?.name 
+        : ((selectedDO.gray_lot as any)?.quality || (selectedDO.gray_lot as any)?.Quality?.name || '—'))
+    : '—';
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-center gap-4 mb-2">
         <button 
           onClick={() => navigate('/billing')}
@@ -194,19 +200,26 @@ export default function CreateInvoice() {
             className={`w-full px-4 py-3 rounded-xl border ${isDoDropdownOpen ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'} bg-white flex items-center justify-between transition-all ${isEditMode ? 'cursor-default bg-gray-50' : 'cursor-pointer'} ${loading ? 'opacity-50 pointer-events-none' : ''}`}
             onClick={() => !isEditMode && setIsDoDropdownOpen(!isDoDropdownOpen)}
           >
-            <div className="flex flex-col">
+            <div className="flex flex-col flex-1 min-w-0 pr-3">
               {selectedDO ? (
                 <>
-                  <span className="font-bold text-gray-800">{selectedDO.order_no}</span>
-                  <span className="text-xs text-gray-500">{selectedDO.customer?.name}</span>
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className="font-bold text-gray-800 text-base">{selectedDO.order_no}</span>
+                    {selectedQualityName !== '—' && (
+                      <span className="text-xs px-2.5 py-0.5 bg-purple-100 text-purple-700 rounded-md font-bold">
+                        {selectedQualityName}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-gray-500 mt-0.5 truncate">{selectedDO.customer?.name}</span>
                 </>
               ) : (
                 <span className="text-gray-500">{loading ? 'Loading DOs...' : 'Choose Delivery Order...'}</span>
               )}
             </div>
             {isEditMode 
-              ? <span className="text-xs text-amber-500 font-semibold uppercase tracking-wider">Locked</span>
-              : <ChevronDown size={20} className={`text-gray-400 transition-transform ${isDoDropdownOpen ? 'rotate-180' : ''}`} />}
+              ? <span className="text-xs text-amber-500 font-semibold uppercase tracking-wider shrink-0">Locked</span>
+              : <ChevronDown size={20} className={`text-gray-400 transition-transform shrink-0 ${isDoDropdownOpen ? 'rotate-180' : ''}`} />}
           </div>
 
           {isDoDropdownOpen && (
@@ -249,34 +262,38 @@ export default function CreateInvoice() {
                 {filteredDOs.length === 0 ? (
                   <div className="p-4 text-center text-sm text-gray-500">No delivery orders found</div>
                 ) : (
-                  filteredDOs.map((doItem, index) => (
-                    <div 
-                      key={doItem.id} 
-                      className={`px-4 py-3 cursor-pointer flex items-center justify-between border-b border-gray-50 last:border-0 ${focusedDoIndex === index ? 'bg-blue-100' : selectedDO?.id === doItem.id ? 'bg-blue-50/50' : 'hover:bg-blue-50'}`}
-                      onClick={() => {
-                        setSelectedDO(doItem);
-                        setIsDoDropdownOpen(false);
-                        setDoSearch('');
-                        setTimeout(() => document.getElementById('btn-meter')?.focus(), 100);
-                      }}
-                      onMouseEnter={() => setFocusedDoIndex(index)}
-                    >
-                      <div>
-                        <div className="font-bold text-gray-800 flex items-center justify-between">
-                          <span>{doItem.order_no}</span>
-                          {((doItem.gray_lot as any)?.quality || (doItem.gray_lot as any)?.Quality) && (
-                            <span className="text-[10px] px-2 py-0.5 bg-purple-100 text-purple-700 rounded-md font-black">
-                              {typeof (doItem.gray_lot as any)?.quality === 'object' 
-                                ? (doItem.gray_lot as any)?.quality?.name 
-                                : ((doItem.gray_lot as any)?.quality || (doItem.gray_lot as any)?.Quality?.name)}
-                            </span>
-                          )}
+                  filteredDOs.map((doItem, index) => {
+                    const itemQuality = typeof (doItem.gray_lot as any)?.quality === 'object' 
+                      ? (doItem.gray_lot as any)?.quality?.name 
+                      : ((doItem.gray_lot as any)?.quality || (doItem.gray_lot as any)?.Quality?.name);
+
+                    return (
+                      <div 
+                        key={doItem.id} 
+                        className={`px-4 py-3 cursor-pointer flex items-center justify-between border-b border-gray-50 last:border-0 ${focusedDoIndex === index ? 'bg-blue-100' : selectedDO?.id === doItem.id ? 'bg-blue-50/50' : 'hover:bg-blue-50'}`}
+                        onClick={() => {
+                          setSelectedDO(doItem);
+                          setIsDoDropdownOpen(false);
+                          setDoSearch('');
+                          setTimeout(() => document.getElementById('btn-meter')?.focus(), 100);
+                        }}
+                        onMouseEnter={() => setFocusedDoIndex(index)}
+                      >
+                        <div className="flex-1 min-w-0 pr-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="font-bold text-gray-800 text-sm shrink-0">{doItem.order_no}</span>
+                            {itemQuality && (
+                              <span className="text-xs px-2.5 py-0.5 bg-purple-100 text-purple-700 rounded-md font-bold shrink-0 max-w-[65%] truncate text-right" title={itemQuality}>
+                                {itemQuality}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-0.5 truncate">{doItem.customer?.name}</div>
                         </div>
-                        <div className="text-xs text-gray-500">{doItem.customer?.name}</div>
+                        {selectedDO?.id === doItem.id && <Check size={18} className="text-blue-600 shrink-0" />}
                       </div>
-                      {selectedDO?.id === doItem.id && <Check size={18} className="text-blue-600" />}
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -284,34 +301,48 @@ export default function CreateInvoice() {
         </div>
 
         {selectedDO && (
-          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-            <div className="bg-gray-50 rounded-xl p-3">
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {/* Lot No */}
+            <div className="bg-gray-50 rounded-xl p-3.5 col-span-1 sm:col-span-1 lg:col-span-1 flex flex-col justify-center">
               <p className="text-xs text-gray-500 mb-1 font-bold">Lot No</p>
               <p className="font-mono font-bold text-gray-800">{selectedDO.gray_lot?.lot_no || '—'}</p>
             </div>
-            <div className="bg-purple-50 rounded-xl p-3 border border-purple-100">
-              <p className="text-xs text-purple-600 mb-1 font-bold">Quality</p>
-              <p className="font-bold text-purple-900 truncate">
-                {typeof (selectedDO.gray_lot as any)?.quality === 'object' 
-                  ? (selectedDO.gray_lot as any)?.quality?.name 
-                  : ((selectedDO.gray_lot as any)?.quality || (selectedDO.gray_lot as any)?.Quality?.name || '—')}
+
+            {/* Quality - Expanded width (3 columns on desktop) and no truncation */}
+            <div className="bg-purple-50 rounded-xl p-3.5 border border-purple-200 col-span-2 sm:col-span-2 lg:col-span-3 flex flex-col justify-center">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-purple-600 font-bold uppercase tracking-wide">Quality / Fabric</p>
+                <span className="text-[10px] px-2 py-0.5 bg-purple-200/60 text-purple-800 rounded font-bold uppercase tracking-wider">Quality</span>
+              </div>
+              <p className="font-bold text-purple-950 text-sm md:text-base break-words leading-snug" title={selectedQualityName}>
+                {selectedQualityName}
               </p>
             </div>
-            <div className="bg-gray-50 rounded-xl p-3">
+
+            {/* Party - Expanded width (2 columns on desktop) */}
+            <div className="bg-gray-50 rounded-xl p-3.5 col-span-2 sm:col-span-3 lg:col-span-2 flex flex-col justify-center">
               <p className="text-xs text-gray-500 mb-1 font-bold">Party</p>
-              <p className="font-semibold text-gray-800 truncate">{selectedDO.customer?.name}</p>
+              <p className="font-semibold text-gray-800 break-words leading-snug" title={selectedDO.customer?.name}>
+                {selectedDO.customer?.name || '—'}
+              </p>
             </div>
-            <div className="bg-gray-50 rounded-xl p-3">
+
+            {/* Gray Mtr */}
+            <div className="bg-gray-50 rounded-xl p-3.5 col-span-1 sm:col-span-1 lg:col-span-2 flex flex-col justify-center">
               <p className="text-xs text-gray-500 mb-1 font-bold">Gray Mtr</p>
-              <p className="font-medium text-gray-800">{grayMeterQuantity.toFixed(2)}m</p>
+              <p className="font-semibold text-gray-800 text-base">{grayMeterQuantity.toFixed(2)}m</p>
             </div>
-            <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+
+            {/* Ready Mtr */}
+            <div className="bg-blue-50 rounded-xl p-3.5 border border-blue-100 col-span-1 sm:col-span-1 lg:col-span-2 flex flex-col justify-center">
               <p className="text-xs text-blue-600 mb-1 font-bold">Ready Mtr</p>
-              <p className="font-bold text-blue-700">{meterQuantity.toFixed(2)}m</p>
+              <p className="font-bold text-blue-700 text-base">{meterQuantity.toFixed(2)}m</p>
             </div>
-            <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+
+            {/* Ready Yds (Gaz) */}
+            <div className="bg-blue-50 rounded-xl p-3.5 border border-blue-100 col-span-2 sm:col-span-1 lg:col-span-2 flex flex-col justify-center">
               <p className="text-xs text-blue-600 mb-1 font-bold">Ready Yds (Gaz)</p>
-              <p className="font-bold text-blue-700">{yardQuantity.toFixed(2)}y</p>
+              <p className="font-bold text-blue-700 text-base">{yardQuantity.toFixed(2)}y</p>
             </div>
           </div>
         )}

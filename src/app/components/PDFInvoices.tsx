@@ -160,7 +160,7 @@ export const PDFInvoices = ({
         </View>
 
         <View style={styles.table}>
-          <View style={[styles.tableRow, styles.tableHeader]}>
+          <View style={[styles.tableRow, styles.tableHeader]} fixed>
             <Cell width={COL.date} bold>Date</Cell>
             <Cell width={COL.invoice} bold>Invoice No</Cell>
             <Cell width={COL.customer} variant="left" bold>Customer</Cell>

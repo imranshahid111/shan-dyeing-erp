@@ -212,7 +212,7 @@ export const PDFSubLedger = ({
         </View>
 
         <View style={styles.table}>
-          <View style={[styles.tableRow, styles.tableHeader]}>
+          <View style={[styles.tableRow, styles.tableHeader]} fixed>
             <Cell width={COL.date} bold>Date</Cell>
             <Cell width={COL.refType} variant="left" bold>Ref Type</Cell>
             <Cell width={COL.refNo} bold>Inv/DC #</Cell>

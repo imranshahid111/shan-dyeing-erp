@@ -151,7 +151,7 @@ export const PDFOutstanding = ({
         </View>
 
         <View style={styles.table}>
-          <View style={[styles.tableRow, styles.tableHeader]}>
+          <View style={[styles.tableRow, styles.tableHeader]} fixed>
             <Cell width={COL.customer} variant="left" bold>Customer</Cell>
             <Cell width={COL.billed} variant="right" bold>Total Billed</Cell>
             <Cell width={COL.paid} variant="right" bold>Total Paid</Cell>

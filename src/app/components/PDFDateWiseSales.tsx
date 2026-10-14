@@ -124,95 +124,85 @@ export const PDFDateWiseSales = ({
 }) => {
   const companyName = org?.name || 'SHAN DYEING';
   const printDate = getPrintDateTime();
-  const ROWS_PER_PAGE = 28;
-  const pages: typeof report.data[] = [];
-  for (let i = 0; i < report.data.length; i += ROWS_PER_PAGE) {
-    pages.push(report.data.slice(i, i + ROWS_PER_PAGE));
-  }
-  if (pages.length === 0) pages.push([]);
 
   return (
     <Document title="Date Wise Sales Report">
-      {pages.map((pageRows, pageIdx) => (
-        <Page key={pageIdx} size="A4" orientation="portrait" style={styles.page} wrap>
-          <View style={styles.brandingBar}>
-            <View>
-              <Text style={styles.companyName}>{companyName}</Text>
-              {org?.address ? <Text style={styles.companyDetail}>{org.address}</Text> : null}
-              {org?.phone ? <Text style={styles.companyDetail}>Tel: {org.phone}</Text> : null}
-            </View>
-            <View style={styles.titleBlock}>
-              <Text style={styles.reportTitle}>Date Wise Sales Report</Text>
-              <Text style={styles.metaText}>Print: {printDate}</Text>
-            </View>
+      <Page size="A4" orientation="portrait" style={styles.page}>
+        <View style={styles.brandingBar}>
+          <View>
+            <Text style={styles.companyName}>{companyName}</Text>
+            {org?.address ? <Text style={styles.companyDetail}>{org.address}</Text> : null}
+            {org?.phone ? <Text style={styles.companyDetail}>Tel: {org.phone}</Text> : null}
+          </View>
+          <View style={styles.titleBlock}>
+            <Text style={styles.reportTitle}>Date Wise Sales Report</Text>
+            <Text style={styles.metaText}>Print: {printDate}</Text>
+          </View>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={{ fontSize: 7, fontWeight: 'bold' }}>
+            From: {report.fromDate ? formatReportDate(report.fromDate) : '—'}
+          </Text>
+          <Text style={{ fontSize: 7, fontWeight: 'bold' }}>
+            To: {report.toDate ? formatReportDate(report.toDate) : '—'}
+          </Text>
+          <Text style={{ fontSize: 7, fontWeight: 'bold', color: '#5b21b6' }}>
+            Quality: {report.selectedQuality?.name || 'All Qualities'}
+          </Text>
+        </View>
+
+        <View style={styles.table}>
+          <View style={[styles.tableRow, styles.tableHeader]} fixed>
+            <Cell width={COL.date} bold>Date</Cell>
+            <Cell width={COL.bill} bold>Bill No</Cell>
+            <Cell width={COL.challan} bold>Challan No</Cell>
+            <Cell width={COL.party} variant="left" bold>Party Name</Cell>
+            <Cell width={COL.quality} variant="left" bold>Quality</Cell>
+            <Cell width={COL.qty} variant="right" bold>Qty (Gaz)</Cell>
+            <Cell width={COL.rate} variant="right" bold>Rate</Cell>
+            <Cell width={COL.amount} variant="right" last bold>Amount</Cell>
           </View>
 
-          <View style={styles.infoRow}>
-            <Text style={{ fontSize: 7, fontWeight: 'bold' }}>
-              From: {report.fromDate ? formatReportDate(report.fromDate) : '—'}
-            </Text>
-            <Text style={{ fontSize: 7, fontWeight: 'bold' }}>
-              To: {report.toDate ? formatReportDate(report.toDate) : '—'}
-            </Text>
-            <Text style={{ fontSize: 7, fontWeight: 'bold', color: '#5b21b6' }}>
-              Quality: {report.selectedQuality?.name || 'All Qualities'}
-            </Text>
-          </View>
-
-          <View style={styles.table}>
-            <View style={[styles.tableRow, styles.tableHeader]} fixed>
-              <Cell width={COL.date} bold>Date</Cell>
-              <Cell width={COL.bill} bold>Bill No</Cell>
-              <Cell width={COL.challan} bold>Challan No</Cell>
-              <Cell width={COL.party} variant="left" bold>Party Name</Cell>
-              <Cell width={COL.quality} variant="left" bold>Quality</Cell>
-              <Cell width={COL.qty} variant="right" bold>Qty (Gaz)</Cell>
-              <Cell width={COL.rate} variant="right" bold>Rate</Cell>
-              <Cell width={COL.amount} variant="right" last bold>Amount</Cell>
+          {report.data.map((row, idx) => (
+            <View
+              key={`${row.billNo}-${row.challanNo}-${idx}`}
+              style={[styles.tableRow, idx % 2 === 1 ? styles.rowAlt : {}]}
+              wrap={false}
+            >
+              <Cell width={COL.date}>{formatReportDate(row.date)}</Cell>
+              <Cell width={COL.bill}>{String(row.billNo)}</Cell>
+              <Cell width={COL.challan}>{String(row.challanNo)}</Cell>
+              <Cell width={COL.party} variant="left">{row.partyName}</Cell>
+              <Cell width={COL.quality} variant="left">{row.qualityName}</Cell>
+              <Cell width={COL.qty} variant="right">{formatNumber(row.quantity, 2)}</Cell>
+              <Cell width={COL.rate} variant="right">{formatNumber(row.rate, 2)}</Cell>
+              <Cell width={COL.amount} variant="right" last>{formatCurrency(row.amount)}</Cell>
             </View>
+          ))}
 
-            {pageRows.map((row, idx) => (
-              <View
-                key={`${row.billNo}-${row.challanNo}-${idx}`}
-                style={[styles.tableRow, idx % 2 === 1 ? styles.rowAlt : {}]}
-                wrap={false}
-              >
-                <Cell width={COL.date}>{formatReportDate(row.date)}</Cell>
-                <Cell width={COL.bill}>{String(row.billNo)}</Cell>
-                <Cell width={COL.challan}>{String(row.challanNo)}</Cell>
-                <Cell width={COL.party} variant="left">{row.partyName}</Cell>
-                <Cell width={COL.quality} variant="left">{row.qualityName}</Cell>
-                <Cell width={COL.qty} variant="right">{formatNumber(row.quantity, 2)}</Cell>
-                <Cell width={COL.rate} variant="right">{formatNumber(row.rate, 2)}</Cell>
-                <Cell width={COL.amount} variant="right" last>{formatCurrency(row.amount)}</Cell>
-              </View>
-            ))}
-
-            {pageIdx === pages.length - 1 && (
-              <View style={[styles.tableRow, styles.tableFooter]}>
-                <Cell width={COL.date} bold>TOTAL</Cell>
-                <Cell width={COL.bill} bold></Cell>
-                <Cell width={COL.challan} bold></Cell>
-                <Cell width={COL.party} bold></Cell>
-                <Cell width={COL.quality} bold></Cell>
-                <Cell width={COL.qty} variant="right" bold>
-                  {formatNumber(report.totals.quantity, 2)}
-                </Cell>
-                <Cell width={COL.rate} bold></Cell>
-                <Cell width={COL.amount} variant="right" last bold>
-                  {formatCurrency(report.totals.amount)}
-                </Cell>
-              </View>
-            )}
+          <View style={[styles.tableRow, styles.tableFooter]} wrap={false}>
+            <Cell width={COL.date} bold>TOTAL</Cell>
+            <Cell width={COL.bill} bold></Cell>
+            <Cell width={COL.challan} bold></Cell>
+            <Cell width={COL.party} bold></Cell>
+            <Cell width={COL.quality} bold></Cell>
+            <Cell width={COL.qty} variant="right" bold>
+              {formatNumber(report.totals.quantity, 2)}
+            </Cell>
+            <Cell width={COL.rate} bold></Cell>
+            <Cell width={COL.amount} variant="right" last bold>
+              {formatCurrency(report.totals.amount)}
+            </Cell>
           </View>
+        </View>
 
-          <Text
-            style={styles.pageNumber}
-            render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
-            fixed
-          />
-        </Page>
-      ))}
+        <Text
+          style={styles.pageNumber}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
+          fixed
+        />
+      </Page>
     </Document>
   );
 };

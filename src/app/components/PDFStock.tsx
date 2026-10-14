@@ -168,7 +168,7 @@ export const PDFStock = ({
 
         {view === 'lots' ? (
           <View style={styles.table}>
-            <View style={[styles.tableRow, styles.tableHeader]}>
+            <View style={[styles.tableRow, styles.tableHeader]} fixed>
               <Cell width={COL_LOTS.lot} bold>Lot No</Cell>
               <Cell width={COL_LOTS.quality} variant="left" bold>Quality</Cell>
               <Cell width={COL_LOTS.received} variant="right" bold>Received</Cell>
@@ -202,7 +202,7 @@ export const PDFStock = ({
           </View>
         ) : (
           <View style={styles.table}>
-            <View style={[styles.tableRow, styles.tableHeader]}>
+            <View style={[styles.tableRow, styles.tableHeader]} fixed>
               <Cell width={COL_QUALITY.quality} variant="left" bold>Quality</Cell>
               <Cell width={COL_QUALITY.lots} bold>Lots</Cell>
               <Cell width={COL_QUALITY.received} variant="right" bold>Total Received</Cell>
